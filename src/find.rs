@@ -19,17 +19,15 @@ impl PlayerFinder {
     }
 
     pub fn find_all(&self) -> Result<Vec<Player>> {
-        Ok(
-            self.all_player_buses()?
-                .into_iter()
-                .map(|bus_name| Player::new(&self.connection, bus_name))
-                .collect(),
-        )
+        self.all_player_buses()?
+            .into_iter()
+            .map(|bus_name| Player::new(&self.connection, bus_name))
+            .collect()
     }
 
     pub fn find_active(&self) -> Result<Player> {
         if let Some(bus_name) = self.active_player_bus()? {
-            Ok(Player::new(&self.connection, bus_name))
+            Player::new(&self.connection, bus_name)
         } else {
             Err(ErrorKind::NoPlayerFound.into())
         }

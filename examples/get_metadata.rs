@@ -23,7 +23,11 @@ fn retrieve_metadata() -> Result<Metadata, String> {
         format!("Could not find any player: {}", e)
     })?;
 
-    println!("Found player on bus {}", player.bus_name());
+    println!(
+        "Found {identity} (on bus {bus_name})",
+        bus_name = player.bus_name(),
+        identity = player.identity(),
+    );
 
     player.get_metadata().map_err(|e| {
         format!("Could not get metadata for player: {}", e)
