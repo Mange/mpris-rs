@@ -1,6 +1,8 @@
 [package]
+authors = ["Magnus Bergmark <magnus.bergmark@gmail.com>"]
 name = "mpris"
 version = "0.1.0"
-authors = ["Magnus Bergmark <magnus.bergmark@gmail.com>"]
 
 [dependencies]
+dbus = "0.5.4"
+error-chain = "0.11.0"
