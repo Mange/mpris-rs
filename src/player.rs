@@ -6,6 +6,11 @@ use super::PlaybackStatus;
 
 const DEFAULT_TIMEOUT: i32 = 500; // milliseconds
 
+pub const MPRIS2_PREFIX: &'static str = "org.mpris.MediaPlayer2.";
+pub const MPRIS2_INTERFACE: &'static str = "org.mpris.MediaPlayer2";
+pub const PLAYER_INTERFACE: &'static str = "org.mpris.MediaPlayer2.Player";
+pub const MPRIS2_PATH: &'static str = "/org/mpris/MediaPlayer2";
+
 pub struct Player<'conn> {
     connection: &'conn Connection,
     bus_name: BusName<'conn>,
@@ -23,16 +28,16 @@ impl<'conn> Player<'conn> {
         let parent_props = Props::new(
             connection,
             bus_name.clone(),
-            "/org/mpris/MediaPlayer2",
-            "org.mpris.MediaPlayer2",
+            MPRIS2_PATH,
+            MPRIS2_INTERFACE,
             DEFAULT_TIMEOUT,
         );
 
         let player_props = Props::new(
             connection,
             bus_name.clone(),
-            "/org/mpris/MediaPlayer2",
-            "org.mpris.MediaPlayer2.Player",
+            MPRIS2_PATH,
+            PLAYER_INTERFACE,
             DEFAULT_TIMEOUT,
         );
 
@@ -192,8 +197,8 @@ impl<'conn> Player<'conn> {
         //    should be in the source code and not generated at runtime.
         Message::new_method_call(
             self.bus_name.clone(),
-            "/org/mpris/MediaPlayer2",
-            "org.mpris.MediaPlayer2.Player",
+            MPRIS2_PATH,
+            PLAYER_INTERFACE,
             member_name,
         ).unwrap()
     }

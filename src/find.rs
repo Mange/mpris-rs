@@ -3,7 +3,7 @@ extern crate dbus;
 use dbus::{Connection, Message, BusType, arg};
 
 use prelude::*;
-use player::Player;
+use player::{Player, MPRIS2_PREFIX};
 
 const LIST_NAMES_TIMEOUT_MS: i32 = 500;
 
@@ -59,7 +59,7 @@ impl PlayerFinder {
         Ok(
             names
                 .into_iter()
-                .filter(|name| name.starts_with("org.mpris.MediaPlayer2."))
+                .filter(|name| name.starts_with(MPRIS2_PREFIX))
                 .map(|str_ref| str_ref.to_owned())
                 .collect(),
         )
