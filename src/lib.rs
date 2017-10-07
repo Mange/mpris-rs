@@ -38,3 +38,10 @@ mod prelude {
 pub use player::Player;
 pub use metadata::Metadata;
 pub use find::PlayerFinder;
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum PlaybackStatus {
+    Playing,
+    Paused,
+    Stopped,
+}
