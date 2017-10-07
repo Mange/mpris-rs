@@ -5,6 +5,7 @@ use dbus::MessageItem;
 pub trait MessageItemExtensions {
     fn type_name(&self) -> &'static str;
     fn as_string(self, name: &'static str) -> Result<String>;
+    fn as_bool(self, name: &'static str) -> Result<bool>;
     fn as_array(self, name: &'static str) -> Result<Vec<MessageItem>>;
     fn as_string_array(self, name: &'static str) -> Result<Vec<String>>;
     fn as_dict_array(self, name: &'static str) -> Result<Vec<(MessageItem, MessageItem)>>;
@@ -38,6 +39,16 @@ impl MessageItemExtensions for MessageItem {
         self.inner::<&str>().map(String::from).map_err(|_| {
             format!(
                 "Expected {} to be a String but was a {}",
+                name,
+                self.type_name()
+            ).into()
+        })
+    }
+
+    fn as_bool(self, name: &'static str) -> Result<bool> {
+        self.inner::<bool>().map_err(|_| {
+            format!(
+                "Expected {} to be a bool but was a {}",
                 name,
                 self.type_name()
             ).into()

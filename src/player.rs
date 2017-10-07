@@ -93,6 +93,82 @@ impl<'conn> Player<'conn> {
         self.send_player_void_message("Previous")
     }
 
+    pub fn checked_play_pause(&self) -> Result<bool> {
+        if self.can_pause()? {
+            self.play_pause().map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn checked_play(&self) -> Result<bool> {
+        if self.can_play()? {
+            self.play().map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn checked_pause(&self) -> Result<bool> {
+        if self.can_pause()? {
+            self.pause().map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn checked_stop(&self) -> Result<bool> {
+        if self.can_stop()? {
+            self.stop().map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn checked_next(&self) -> Result<bool> {
+        if self.can_go_next()? {
+            self.next().map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn checked_previous(&self) -> Result<bool> {
+        if self.can_go_previous()? {
+            self.previous().map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn can_control(&self) -> Result<bool> {
+        self.player_bool_property("CanControl")
+    }
+
+    pub fn can_go_next(&self) -> Result<bool> {
+        self.player_bool_property("CanGoNext")
+    }
+
+    pub fn can_go_previous(&self) -> Result<bool> {
+        self.player_bool_property("CanGoPrevious")
+    }
+
+    pub fn can_pause(&self) -> Result<bool> {
+        self.player_bool_property("CanPause")
+    }
+
+    pub fn can_play(&self) -> Result<bool> {
+        self.player_bool_property("CanPlay")
+    }
+
+    pub fn can_seek(&self) -> Result<bool> {
+        self.player_bool_property("CanSeek")
+    }
+
+    pub fn can_stop(&self) -> Result<bool> {
+        self.can_control()
+    }
+
     pub fn get_playback_status(&self) -> Result<PlaybackStatus> {
         let raw = self.player_props
             .get("PlaybackStatus")
@@ -129,5 +205,12 @@ impl<'conn> Player<'conn> {
             DEFAULT_TIMEOUT,
         )?;
         Ok(())
+    }
+
+    fn player_bool_property(&self, property_name: &'static str) -> Result<bool> {
+        self.player_props
+            .get(property_name)
+            .map_err(|e| e.into())
+            .and_then(|v| v.as_bool(property_name))
     }
 }
