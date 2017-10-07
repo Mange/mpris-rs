@@ -73,6 +73,26 @@ impl<'conn> Player<'conn> {
         Ok(())
     }
 
+    pub fn play(&self) -> Result<()> {
+        self.send_player_void_message("Play")
+    }
+
+    pub fn pause(&self) -> Result<()> {
+        self.send_player_void_message("Pause")
+    }
+
+    pub fn stop(&self) -> Result<()> {
+        self.send_player_void_message("Stop")
+    }
+
+    pub fn next(&self) -> Result<()> {
+        self.send_player_void_message("Next")
+    }
+
+    pub fn previous(&self) -> Result<()> {
+        self.send_player_void_message("Previous")
+    }
+
     pub fn get_playback_status(&self) -> Result<PlaybackStatus> {
         let raw = self.player_props
             .get("PlaybackStatus")
@@ -100,5 +120,14 @@ impl<'conn> Player<'conn> {
             "org.mpris.MediaPlayer2.Player",
             member_name,
         ).unwrap()
+    }
+
+    fn send_player_void_message(&self, member_name: &'static str) -> Result<()> {
+        let message = self.player_message(member_name);
+        let _ = self.connection.send_with_reply_and_block(
+            message,
+            DEFAULT_TIMEOUT,
+        )?;
+        Ok(())
     }
 }
