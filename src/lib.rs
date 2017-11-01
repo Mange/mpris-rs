@@ -25,8 +25,8 @@ extern crate dbus;
 /// of `error-chain`.
 ///
 /// [error-chain]: https://crates.io/crates/error-chain
+#[allow(missing_docs)]
 pub mod errors {
-    #[allow(missing_docs)]
     error_chain!{
         foreign_links {
             DBusError(::dbus::Error);
