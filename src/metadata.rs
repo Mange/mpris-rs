@@ -95,6 +95,10 @@ pub struct Metadata {
 }
 
 impl Metadata {
+    /// Create a new `Metadata` struct with a given `track_id`.
+    ///
+    /// This is mostly useful for test fixtures and other places where you want to work with mock
+    /// data.
     pub fn new(track_id: String) -> Self {
         let mut builder = MetadataBuilder::new();
         builder.track_id = Some(track_id);
