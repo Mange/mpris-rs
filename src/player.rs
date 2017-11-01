@@ -27,7 +27,7 @@ pub struct Player<'conn, C: Deref<Target = Connection>> {
 }
 
 impl<'conn, C: Deref<Target = Connection>> Player<'conn, C> {
-    /// Create a new `Player` using a D-Bus connection and a bus name.
+    /// Create a new `Player` using a D-Bus connection path.
     ///
     /// If no player is running on this bus name an `Err` will be returned.
     pub fn new(connection_path: ConnPath<'conn, C>) -> Result<Player<'conn, C>> {
@@ -37,6 +37,23 @@ impl<'conn, C: Deref<Target = Connection>> Player<'conn, C> {
             connection_path: connection_path,
             identity: identity,
         })
+    }
+
+    /// Returns the current D-Bus communication timeout (in milliseconds).
+    ///
+    /// When querying D-Bus the call should not block longer than this, and will instead fail the
+    /// query if no response has been received in this time.
+    ///
+    /// You can change this using `set_dbus_timeout_ms`.
+    pub fn dbus_timeout_ms(&self) -> i32 {
+        self.connection_path.timeout
+    }
+
+    /// Change the D-Bus communication timeout.
+    ///
+    /// **See** `dbus_timeout_ms`
+    pub fn set_dbus_timeout_ms(&mut self, timeout_ms: i32) {
+        self.connection_path.timeout = timeout_ms;
     }
 
     /// Returns the player's D-Bus bus name.
