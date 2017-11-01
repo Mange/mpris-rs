@@ -1,6 +1,6 @@
 # mpris
 
-> A Rust library for dealing with [MPRIS2][mpris2]-compatible players over DBus.
+> A Rust library for dealing with [MPRIS2][mpris2]-compatible players over D-Bus.
 
 **NOTE:** This is still under development and not ready for use yet.
 
@@ -13,7 +13,7 @@ use mpris::PlayerFinder;
 
 fn main() {
   let player = PlayerFinder::new()
-    .expect("Could not connect to DBus")
+    .expect("Could not connect to D-Bus")
     .find_active()
     .expect("Could not find any player");
 

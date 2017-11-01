@@ -7,15 +7,15 @@ use player::{Player, MPRIS2_PREFIX, MPRIS2_PATH, DEFAULT_TIMEOUT_MS};
 
 const LIST_NAMES_TIMEOUT_MS: i32 = 500;
 
-/// Used to find `Player`s running on a DBUS connection.
+/// Used to find `Player`s running on a D-Bus connection.
 pub struct PlayerFinder {
     connection: Connection,
 }
 
 impl PlayerFinder {
-    /// Creates a new `PlayerFinder` with a new default DBUS connection.
+    /// Creates a new `PlayerFinder` with a new default D-Bus connection.
     ///
-    /// Use `for_connection` if you want to provide the DBUS connection yourself.
+    /// Use `for_connection` if you want to provide the D-Bus connection yourself.
     pub fn new() -> Result<Self> {
         Ok(PlayerFinder::for_connection(
             Connection::get_private(BusType::Session)?,
@@ -24,7 +24,7 @@ impl PlayerFinder {
 
     /// Create a new `PlayerFinder` with the given connection.
     ///
-    /// Use `new` if you want a new default connection rather than manually managing the DBUS
+    /// Use `new` if you want a new default connection rather than manually managing the D-Bus
     /// connection.
     pub fn for_connection(connection: Connection) -> Self {
         PlayerFinder { connection: connection }

@@ -12,7 +12,7 @@ use generated::OrgMprisMediaPlayer2Player;
 pub(crate) const MPRIS2_PREFIX: &str = "org.mpris.MediaPlayer2.";
 pub(crate) const MPRIS2_PATH: &str = "/org/mpris/MediaPlayer2";
 
-/// When DBUS connection is managed for you, use this timeout while communicating with a Player.
+/// When D-Bus connection is managed for you, use this timeout while communicating with a Player.
 pub const DEFAULT_TIMEOUT_MS: i32 = 500; // ms
 
 /// A MPRIS-compatible player.
@@ -27,7 +27,7 @@ pub struct Player<'conn, C: Deref<Target = Connection>> {
 }
 
 impl<'conn, C: Deref<Target = Connection>> Player<'conn, C> {
-    /// Create a new `Player` using a DBUS connection and a bus name.
+    /// Create a new `Player` using a D-Bus connection and a bus name.
     ///
     /// If no player is running on this bus name an `Err` will be returned.
     pub fn new(connection_path: ConnPath<'conn, C>) -> Result<Player<'conn, C>> {
@@ -39,7 +39,7 @@ impl<'conn, C: Deref<Target = Connection>> Player<'conn, C> {
         })
     }
 
-    /// Returns the player's DBUS bus name.
+    /// Returns the player's D-Bus bus name.
     pub fn bus_name(&self) -> &str {
         &self.connection_path.dest
     }

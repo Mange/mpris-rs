@@ -3,9 +3,9 @@
 //!
 //! # mpris
 //!
-//! `mpris` is an idiomatic library for dealing with MPRIS2-compatible media players over DBus.
+//! `mpris` is an idiomatic library for dealing with MPRIS2-compatible media players over D-Bus.
 //!
-//! This would mostly apply to the Linux-ecosystem which is a heavy user of DBus.
+//! This would mostly apply to the Linux-ecosystem which is a heavy user of D-Bus.
 //!
 //! ## Getting started
 //!
@@ -48,10 +48,10 @@ pub mod errors {
                 display("mpris:trackid not present in metadata")
             }
 
-            /// Something went wrong with a DBus call or parsing the results from it.
+            /// Something went wrong with a D-Bus call or parsing the results from it.
             DBusCallError(message: String) {
-                description("DBus call failed")
-                display("DBus call failed: {}", message)
+                description("D-Bus call failed")
+                display("D-Bus call failed: {}", message)
             }
         }
     }

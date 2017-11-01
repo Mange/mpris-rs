@@ -20,7 +20,7 @@ fn main() {
 
 fn play_pause() -> Result<PlaybackStatus, String> {
     let player_finder = PlayerFinder::new().map_err(|e| {
-        format!("Could not connect to DBus: {}", e)
+        format!("Could not connect to D-Bus: {}", e)
     })?;
 
     let player = player_finder.find_active().map_err(|e| {
