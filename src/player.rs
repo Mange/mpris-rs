@@ -1,74 +1,47 @@
-use dbus::{Connection, BusName, Props, Message};
+use std::ops::Deref;
+
+use dbus::{Connection, ConnPath};
 
 use prelude::*;
 use metadata::Metadata;
 use super::PlaybackStatus;
 
-// TODO: Make this a config on the Player instead.
-const DEFAULT_TIMEOUT: i32 = 500; // milliseconds
+use generated::OrgMprisMediaPlayer2;
+use generated::OrgMprisMediaPlayer2Player;
 
 pub(crate) const MPRIS2_PREFIX: &'static str = "org.mpris.MediaPlayer2.";
-pub(crate) const MPRIS2_INTERFACE: &'static str = "org.mpris.MediaPlayer2";
-pub(crate) const PLAYER_INTERFACE: &'static str = "org.mpris.MediaPlayer2.Player";
 pub(crate) const MPRIS2_PATH: &'static str = "/org/mpris/MediaPlayer2";
+
+/// When DBUS connection is managed for you, use this timeout while communicating with a Player.
+pub const DEFAULT_TIMEOUT_MS: i32 = 500; // ms
 
 /// A MPRIS-compatible player.
 ///
 /// You can query this player about the currently playing media, or control it.
 ///
-/// The `Player` is valid for the `'conn` (DBUS "connection") lifetime.
-///
 /// **See:** [MPRIS2 MediaPlayer2.Player Specification][spec]
 /// [spec]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html
-pub struct Player<'conn> {
-    connection: &'conn Connection,
-    bus_name: BusName<'conn>,
+pub struct Player<'conn, C: Deref<Target = Connection>> {
+    connection_path: ConnPath<'conn, C>,
     identity: String,
-    player_props: Props<'conn>,
 }
 
-impl<'conn> Player<'conn> {
+impl<'conn, C: Deref<Target = Connection>> Player<'conn, C> {
     /// Create a new `Player` using a DBUS connection and a bus name.
     ///
     /// If no player is running on this bus name an `Err` will be returned.
-    pub fn new<B>(connection: &'conn Connection, bus_name: B) -> Result<Player<'conn>>
-    where
-        B: Into<BusName<'conn>>,
-    {
-        let bus_name = bus_name.into();
-
-        let parent_props = Props::new(
-            connection,
-            bus_name.clone(),
-            MPRIS2_PATH,
-            MPRIS2_INTERFACE,
-            DEFAULT_TIMEOUT,
-        );
-
-        let player_props = Props::new(
-            connection,
-            bus_name.clone(),
-            MPRIS2_PATH,
-            PLAYER_INTERFACE,
-            DEFAULT_TIMEOUT,
-        );
-
-        let identity = parent_props
-            .get("Identity")
-            .map_err(|e| e.into())
-            .and_then(|v| v.as_string("Identity"))?;
+    pub fn new(connection_path: ConnPath<'conn, C>) -> Result<Player<'conn, C>> {
+        let identity = connection_path.get_identity()?;
 
         Ok(Player {
-            connection: connection,
-            bus_name: bus_name,
+            connection_path: connection_path,
             identity: identity,
-            player_props: player_props,
         })
     }
 
     /// Returns the player's DBUS bus name.
     pub fn bus_name(&self) -> &str {
-        &self.bus_name
+        &self.connection_path.dest
     }
 
     /// Returns the player's MPRIS `Identity`.
@@ -82,57 +55,52 @@ impl<'conn> Player<'conn> {
     ///
     /// See `Metadata` for more information about what is included here.
     pub fn get_metadata(&self) -> Result<Metadata> {
-        self.player_props
-            .get("Metadata")
+        self.connection_path
+            .get_metadata()
             .map_err(|e| e.into())
-            .and_then(Metadata::new_from_message_item)
+            .and_then(Metadata::new_from_dbus)
     }
 
     /// Send a `PlayPause` signal to the player.
     ///
     /// See: [MPRIS2 specification about `PlayPause`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:PlayPause)
     pub fn play_pause(&self) -> Result<()> {
-        let message = self.player_message("PlayPause");
-        let _ = self.connection.send_with_reply_and_block(
-            message,
-            DEFAULT_TIMEOUT,
-        )?;
-        Ok(())
+        self.connection_path.play_pause().map_err(|e| e.into())
     }
 
     /// Send a `Play` signal to the player.
     ///
     /// See: [MPRIS2 specification about `Play`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Play)
     pub fn play(&self) -> Result<()> {
-        self.send_player_void_message("Play")
+        self.connection_path.play().map_err(|e| e.into())
     }
 
     /// Send a `Pause` signal to the player.
     ///
     /// See: [MPRIS2 specification about `Pause`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Pause)
     pub fn pause(&self) -> Result<()> {
-        self.send_player_void_message("Pause")
+        self.connection_path.pause().map_err(|e| e.into())
     }
 
     /// Send a `Stop` signal to the player.
     ///
     /// See: [MPRIS2 specification about `Stop`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Stop)
     pub fn stop(&self) -> Result<()> {
-        self.send_player_void_message("Stop")
+        self.connection_path.stop().map_err(|e| e.into())
     }
 
     /// Send a `Next` signal to the player.
     ///
     /// See: [MPRIS2 specification about `Next`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Next)
     pub fn next(&self) -> Result<()> {
-        self.send_player_void_message("Next")
+        self.connection_path.next().map_err(|e| e.into())
     }
 
     /// Send a `Previous` signal to the player.
     ///
     /// See: [MPRIS2 specification about `Previous`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Previous)
     pub fn previous(&self) -> Result<()> {
-        self.send_player_void_message("Previous")
+        self.connection_path.previous().map_err(|e| e.into())
     }
 
     /// Sends a `PlayPause` signal to the player, if the player indicates that it can pause.
@@ -219,42 +187,44 @@ impl<'conn> Player<'conn> {
     ///
     /// See: [MPRIS2 specification about `CanControl`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanControl)
     pub fn can_control(&self) -> Result<bool> {
-        self.player_bool_property("CanControl")
+        self.connection_path.get_can_control().map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can go to next or not.
     ///
     /// See: [MPRIS2 specification about `CanGoNext`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanGoNext)
     pub fn can_go_next(&self) -> Result<bool> {
-        self.player_bool_property("CanGoNext")
+        self.connection_path.get_can_go_next().map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can go to previous or not.
     ///
     /// See: [MPRIS2 specification about `CanGoPrevious`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanGoPrevious)
     pub fn can_go_previous(&self) -> Result<bool> {
-        self.player_bool_property("CanGoPrevious")
+        self.connection_path.get_can_go_previous().map_err(
+            |e| e.into(),
+        )
     }
 
     /// Queries the player to see if it can pause.
     ///
     /// See: [MPRIS2 specification about `CanPause`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanPause)
     pub fn can_pause(&self) -> Result<bool> {
-        self.player_bool_property("CanPause")
+        self.connection_path.get_can_pause().map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can play.
     ///
     /// See: [MPRIS2 specification about `CanPlay`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanPlay)
     pub fn can_play(&self) -> Result<bool> {
-        self.player_bool_property("CanPlay")
+        self.connection_path.get_can_play().map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can seek within the media.
     ///
     /// See: [MPRIS2 specification about `CanSeek`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanSeek)
     pub fn can_seek(&self) -> Result<bool> {
-        self.player_bool_property("CanSeek")
+        self.connection_path.get_can_seek().map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can stop.
@@ -270,47 +240,14 @@ impl<'conn> Player<'conn> {
 
     /// Query the player for current playback status.
     pub fn get_playback_status(&self) -> Result<PlaybackStatus> {
-        let raw = self.player_props
-            .get("PlaybackStatus")
-            .map_err(|e| e.into())
-            .and_then(|v| v.as_string("PlaybackStatus"))?;
+        let raw = self.connection_path.get_playback_status()?;
 
+        // TODO: Move this to a Impl FromStr for PlaybackStatus
         match raw.as_ref() {
             "Playing" => Ok(PlaybackStatus::Playing),
             "Paused" => Ok(PlaybackStatus::Paused),
             "Stopped" => Ok(PlaybackStatus::Stopped),
             other => Err(format!("Not a valid PlaybackStatus: {}", other).into()),
         }
-    }
-
-    fn player_message(&self, member_name: &'static str) -> Message {
-        // Unwrap result as it should never panic:
-        // 1. self.bus_name must be valid as it's been used before to initialize Player instance.
-        // 2. The strings for the path and the interface are valid identifiers.
-        // 3. The member name will always be a hard-coded string that should be verified as valid
-        //    identifiers. Making it <'static> further helps to reinforce that the method name
-        //    should be in the source code and not generated at runtime.
-        Message::new_method_call(
-            self.bus_name.clone(),
-            MPRIS2_PATH,
-            PLAYER_INTERFACE,
-            member_name,
-        ).unwrap()
-    }
-
-    fn send_player_void_message(&self, member_name: &'static str) -> Result<()> {
-        let message = self.player_message(member_name);
-        let _ = self.connection.send_with_reply_and_block(
-            message,
-            DEFAULT_TIMEOUT,
-        )?;
-        Ok(())
-    }
-
-    fn player_bool_property(&self, property_name: &'static str) -> Result<bool> {
-        self.player_props
-            .get(property_name)
-            .map_err(|e| e.into())
-            .and_then(|v| v.as_bool(property_name))
     }
 }

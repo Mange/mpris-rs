@@ -4,5 +4,7 @@ name = "mpris"
 version = "0.1.0"
 
 [dependencies]
-dbus = "0.5.4"
 error-chain = "0.11.0"
+
+[dependencies.dbus]
+git = "https://github.com/diwic/dbus-rs.git"

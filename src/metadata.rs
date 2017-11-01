@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use dbus::MessageItem;
+use dbus::arg::{Variant, RefArg, cast};
 
 use prelude::*;
 
@@ -9,7 +9,8 @@ use prelude::*;
 /// * [Read more about the MPRIS2 `Metadata_Map`
 /// type.](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Mapping:Metadata_Map)
 /// * [Read MPRIS v2 metadata guidelines](https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/)
-#[derive(Debug, Clone)]
+// TODO: Add Clone
+#[derive(Debug)]
 pub struct Metadata {
     /// The track ID.
     ///
@@ -83,15 +84,15 @@ pub struct Metadata {
     /// # extern crate mpris;
     /// # extern crate dbus;
     /// # use mpris::Metadata;
-    /// # use dbus::MessageItem;
     /// # fn main() {
     /// # let metadata = Metadata::new(String::from("1234"));
-    /// if let Some(&MessageItem::Str(ref name)) = metadata.rest.get("xesam:composer") {
+    /// use dbus::arg::RefArg;
+    /// if let Some(name) = metadata.rest.get("xesam:composer").and_then(|v| v.as_str()) {
     ///     println!("Composed by: {}", name)
     /// }
     /// # }
     /// ```
-    pub rest: HashMap<String, MessageItem>,
+    pub rest: HashMap<String, Variant<Box<RefArg>>>,
 }
 
 impl Metadata {
@@ -105,12 +106,15 @@ impl Metadata {
         builder.finish().unwrap()
     }
 
-    pub(crate) fn new_from_message_item(metadata: MessageItem) -> Result<Metadata> {
+    pub(crate) fn new_from_dbus(
+        metadata: HashMap<String, Variant<Box<RefArg>>>,
+    ) -> Result<Metadata> {
         MetadataBuilder::build_from_metadata(metadata)
     }
 }
 
-#[derive(Debug, Clone, Default)]
+// TODO: Add Clone
+#[derive(Debug, Default)]
 struct MetadataBuilder {
     track_id: Option<String>,
 
@@ -125,41 +129,37 @@ struct MetadataBuilder {
     track_number: Option<i32>,
     url: Option<String>,
 
-    rest: HashMap<String, MessageItem>,
+    rest: HashMap<String, Variant<Box<RefArg>>>,
+}
+
+fn cast_string_vec(value: &Variant<Box<RefArg>>) -> Option<Vec<String>> {
+    value.0.as_iter().map(
+        |arr| arr.flat_map(cast_string).collect(),
+    )
+}
+
+fn cast_string<T: RefArg + ?Sized>(value: &T) -> Option<String> {
+    value.as_str().map(String::from)
 }
 
 impl MetadataBuilder {
-    fn build_from_metadata(metadata: MessageItem) -> Result<Metadata> {
+    fn build_from_metadata(metadata: HashMap<String, Variant<Box<RefArg>>>) -> Result<Metadata> {
         let mut builder = MetadataBuilder::new();
 
-        for (key, value) in metadata.as_dict_array("metadata")? {
-            let key: Result<&str> = key.inner().map_err(
-                |_| "Dictionary key was not a String".into(),
-            );
-            let key = key?;
-
-            use dbus::MessageItem::*;
-            match (key, value) {
-                ("mpris:trackid", Str(track_id)) => builder.track_id = Some(track_id),
-                ("mpris:length", UInt64(length)) => builder.length_in_microseconds = Some(length),
-                ("mpris:artUrl", Str(art_url)) => builder.art_url = Some(art_url),
-                ("xesam:title", Str(title)) => builder.title = Some(title),
-                ("xesam:albumArtist", artists @ Array(_, _)) => {
-                    builder.album_artists = Some(artists.as_string_array("xesam:albumArtist")?)
-                }
-                ("xesam:artist", artists @ Array(_, _)) => {
-                    builder.artists = Some(artists.as_string_array("xesam:artist")?)
-                }
-                ("xesam:url", Str(url)) => builder.url = Some(url),
-                ("xesam:album", Str(album)) => builder.album_name = Some(album),
-                ("xesam:discNumber", Int32(disc_number)) => builder.disc_number = Some(disc_number),
-                ("xesam:trackNumber", Int32(track_number)) => {
-                    builder.track_number = Some(track_number)
-                }
-                ("xesam:autoRating", Double(auto_rating)) => {
-                    builder.auto_rating = Some(auto_rating)
-                }
-                (key, value) => builder.add_rest(key, value),
+        for (key, value) in metadata {
+            match key.as_ref() {
+                "mpris:trackid" => builder.track_id = cast_string(&value),
+                "mpris:length" => builder.length_in_microseconds = cast(&value.0).cloned(),
+                "mpris:artUrl" => builder.art_url = cast_string(&value),
+                "xesam:title" => builder.title = cast_string(&value),
+                "xesam:albumArtist" => builder.album_artists = cast_string_vec(&value),
+                "xesam:artist" => builder.artists = cast_string_vec(&value),
+                "xesam:url" => builder.url = cast_string(&value),
+                "xesam:album" => builder.album_name = cast_string(&value),
+                "xesam:discNumber" => builder.disc_number = cast(&value.0).cloned(),
+                "xesam:trackNumber" => builder.track_number = cast(&value.0).cloned(),
+                "xesam:autoRating" => builder.auto_rating = cast(&value.0).cloned(),
+                _ => builder.add_rest(key, value),
             };
         }
 
@@ -170,8 +170,8 @@ impl MetadataBuilder {
         MetadataBuilder::default()
     }
 
-    fn add_rest(&mut self, key: &str, value: MessageItem) {
-        self.rest.insert(key.to_owned(), value);
+    fn add_rest(&mut self, key: String, value: Variant<Box<RefArg>>) {
+        self.rest.insert(key, value);
     }
 
     fn finish(self) -> Result<Metadata> {

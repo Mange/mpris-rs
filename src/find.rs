@@ -3,7 +3,7 @@ extern crate dbus;
 use dbus::{Connection, Message, BusType, arg};
 
 use prelude::*;
-use player::{Player, MPRIS2_PREFIX};
+use player::{Player, MPRIS2_PREFIX, MPRIS2_PATH, DEFAULT_TIMEOUT_MS};
 
 const LIST_NAMES_TIMEOUT_MS: i32 = 500;
 
@@ -31,10 +31,16 @@ impl PlayerFinder {
     }
 
     /// Find all available `Player`s in the connection.
-    pub fn find_all(&self) -> Result<Vec<Player>> {
+    pub fn find_all(&self) -> Result<Vec<Player<&Connection>>> {
         self.all_player_buses()?
             .into_iter()
-            .map(|bus_name| Player::new(&self.connection, bus_name))
+            .map(|bus_name| {
+                Player::new(self.connection.with_path(
+                    bus_name,
+                    MPRIS2_PATH,
+                    DEFAULT_TIMEOUT_MS,
+                ))
+            })
             .collect()
     }
 
@@ -47,9 +53,13 @@ impl PlayerFinder {
     ///
     /// **NOTE:** Currently this method is very naive and just returns the first player. This
     /// behavior can change later without a major version change, so don't rely on that behavior.
-    pub fn find_active(&self) -> Result<Player> {
+    pub fn find_active(&self) -> Result<Player<&Connection>> {
         if let Some(bus_name) = self.active_player_bus()? {
-            Player::new(&self.connection, bus_name)
+            Player::new(self.connection.with_path(
+                bus_name,
+                MPRIS2_PATH,
+                DEFAULT_TIMEOUT_MS,
+            ))
         } else {
             Err(ErrorKind::NoPlayerFound.into())
         }

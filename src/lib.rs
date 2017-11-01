@@ -57,13 +57,13 @@ pub mod errors {
     }
 }
 
-mod extensions;
+mod generated;
+
 mod player;
 mod find;
 mod metadata;
 
 mod prelude {
-    pub use extensions::*;
     pub use errors::*;
 }
 
