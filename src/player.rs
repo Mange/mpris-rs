@@ -9,8 +9,8 @@ use super::PlaybackStatus;
 use generated::OrgMprisMediaPlayer2;
 use generated::OrgMprisMediaPlayer2Player;
 
-pub(crate) const MPRIS2_PREFIX: &'static str = "org.mpris.MediaPlayer2.";
-pub(crate) const MPRIS2_PATH: &'static str = "/org/mpris/MediaPlayer2";
+pub(crate) const MPRIS2_PREFIX: &str = "org.mpris.MediaPlayer2.";
+pub(crate) const MPRIS2_PATH: &str = "/org/mpris/MediaPlayer2";
 
 /// When DBUS connection is managed for you, use this timeout while communicating with a Player.
 pub const DEFAULT_TIMEOUT_MS: i32 = 500; // ms
@@ -20,7 +20,7 @@ pub const DEFAULT_TIMEOUT_MS: i32 = 500; // ms
 /// You can query this player about the currently playing media, or control it.
 ///
 /// **See:** [MPRIS2 MediaPlayer2.Player Specification][spec]
-/// [spec]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html
+/// [spec]: <https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html>
 pub struct Player<'conn, C: Deref<Target = Connection>> {
     connection_path: ConnPath<'conn, C>,
     identity: String,
