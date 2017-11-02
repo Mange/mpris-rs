@@ -1,13 +1,10 @@
-use std::ops::Deref;
-
-use dbus::{Connection, ConnPath};
-
-use prelude::*;
-use metadata::Metadata;
 use super::PlaybackStatus;
-
+use dbus::{Connection, ConnPath};
 use generated::OrgMprisMediaPlayer2;
 use generated::OrgMprisMediaPlayer2Player;
+use metadata::Metadata;
+use prelude::*;
+use std::ops::Deref;
 
 pub(crate) const MPRIS2_PREFIX: &str = "org.mpris.MediaPlayer2.";
 pub(crate) const MPRIS2_PATH: &str = "/org/mpris/MediaPlayer2";

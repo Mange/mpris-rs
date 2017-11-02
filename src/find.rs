@@ -1,9 +1,8 @@
 extern crate dbus;
 
 use dbus::{Connection, Message, BusType, arg};
-
-use prelude::*;
 use player::{Player, MPRIS2_PREFIX, MPRIS2_PATH, DEFAULT_TIMEOUT_MS};
+use prelude::*;
 
 const LIST_NAMES_TIMEOUT_MS: i32 = 500;
 

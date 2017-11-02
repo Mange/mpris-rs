@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-
 use dbus::arg::{Variant, RefArg, cast};
-
 use prelude::*;
+use std::collections::HashMap;
 
 /// A structured representation of the `Player` metadata.
 ///

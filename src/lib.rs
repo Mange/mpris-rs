@@ -73,9 +73,9 @@ mod prelude {
     pub use errors::*;
 }
 
-pub use player::Player;
-pub use metadata::Metadata;
 pub use find::PlayerFinder;
+pub use metadata::Metadata;
+pub use player::Player;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 #[allow(missing_docs)]
