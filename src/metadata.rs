@@ -32,7 +32,8 @@ pub struct Metadata {
     /// An URL to album art of the current track.
     ///
     /// Based on `mpris:artUrl`
-    /// > The location of an image representing the track or album. Clients should not assume this will continue to exist when the media player stops giving out the URL.
+    /// > The location of an image representing the track or album. Clients should not assume this
+    /// > will continue to exist when the media player stops giving out the URL.
     pub art_url: Option<String>,
 
     /// A list of artists of the track.
@@ -42,7 +43,8 @@ pub struct Metadata {
     pub artists: Option<Vec<String>>,
 
     /// Based on `xesam:autoRating`
-    /// > An automatically-generated rating, based on things such as how often it has been played. This should be in the range 0.0 to 1.0.
+    /// > An automatically-generated rating, based on things such as how often it has been played.
+    /// > This should be in the range 0.0 to 1.0.
     pub auto_rating: Option<f64>,
 
     /// Based on `xesam:discNumber`
