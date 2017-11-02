@@ -9,7 +9,6 @@ use prelude::*;
 /// * [Read more about the MPRIS2 `Metadata_Map`
 /// type.](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Mapping:Metadata_Map)
 /// * [Read MPRIS v2 metadata guidelines](https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/)
-// TODO: Add Clone
 #[derive(Debug)]
 pub struct Metadata {
     /// The track ID.
@@ -113,7 +112,6 @@ impl Metadata {
     }
 }
 
-// TODO: Add Clone
 #[derive(Debug, Default)]
 struct MetadataBuilder {
     track_id: Option<String>,
