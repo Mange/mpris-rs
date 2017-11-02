@@ -18,6 +18,7 @@ pub const DEFAULT_TIMEOUT_MS: i32 = 500; // ms
 ///
 /// **See:** [MPRIS2 MediaPlayer2.Player Specification][spec]
 /// [spec]: <https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html>
+#[derive(Debug)]
 pub struct Player<'conn, C: Deref<Target = Connection>> {
     connection_path: ConnPath<'conn, C>,
     identity: String,

@@ -7,6 +7,7 @@ use prelude::*;
 const LIST_NAMES_TIMEOUT_MS: i32 = 500;
 
 /// Used to find `Player`s running on a D-Bus connection.
+#[derive(Debug)]
 pub struct PlayerFinder {
     connection: Connection,
 }

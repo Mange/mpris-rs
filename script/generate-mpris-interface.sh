@@ -33,6 +33,11 @@ echo "Generating code... "
 cat <<EOF > "$dest/mod.rs"
 #![allow(unknown_lints)]
 #![allow(clippy)]
+#![allow(missing_debug_implementations, missing_copy_implementations,
+        trivial_casts, trivial_numeric_casts,
+        unsafe_code,
+        unstable_features,
+        unused_import_braces, unused_qualifications)]
 EOF
 dbus-codegen-rust -d "org.mpris.MediaPlayer2.${player}" -p "/org/mpris/MediaPlayer2" -m None >> "$dest/mod.rs"
 
