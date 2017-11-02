@@ -257,14 +257,6 @@ impl<'conn, C: Deref<Target = Connection>> Player<'conn, C> {
 
     /// Query the player for current playback status.
     pub fn get_playback_status(&self) -> Result<PlaybackStatus> {
-        let raw = self.connection_path.get_playback_status()?;
-
-        // TODO: Move this to a Impl FromStr for PlaybackStatus
-        match raw.as_ref() {
-            "Playing" => Ok(PlaybackStatus::Playing),
-            "Paused" => Ok(PlaybackStatus::Paused),
-            "Stopped" => Ok(PlaybackStatus::Stopped),
-            other => Err(format!("Not a valid PlaybackStatus: {}", other).into()),
-        }
+        self.connection_path.get_playback_status()?.parse()
     }
 }

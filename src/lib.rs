@@ -48,6 +48,12 @@ pub mod errors {
                 display("mpris:trackid not present in metadata")
             }
 
+            /// PlaybackStatus had an invalid string value.
+            InvalidPlaybackStatus(value: String) {
+                description("invalid PlaybackStatus value")
+                display("PlaybackStatus must be one of Playing, Paused, Stopped, but was {}", value)
+            }
+
             /// Something went wrong with a D-Bus call or parsing the results from it.
             DBusCallError(message: String) {
                 description("D-Bus call failed")
@@ -77,4 +83,21 @@ pub enum PlaybackStatus {
     Playing,
     Paused,
     Stopped,
+}
+
+impl ::std::str::FromStr for PlaybackStatus {
+    type Err = errors::Error;
+
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        use PlaybackStatus::*;
+
+        match string {
+            "Playing" => Ok(Playing),
+            "Paused" => Ok(Paused),
+            "Stopped" => Ok(Stopped),
+            other => Err(
+                errors::ErrorKind::InvalidPlaybackStatus(other.to_owned()).into(),
+            ),
+        }
+    }
 }
