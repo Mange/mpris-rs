@@ -3,6 +3,14 @@ authors = ["Magnus Bergmark <magnus.bergmark@gmail.com>"]
 name = "mpris"
 version = "0.1.0"
 license = "Apache-2.0"
+repository = "https://github.com/Mange/mpris-rs"
+readme = "README.md"
+categories = ["api-bindings", "multimedia", "os::unix-apis"]
+keywords = ["dbus", "mpris"]
+
+[badges]
+travis-ci = { repository = "Mange/mpris-rs", branch = "master" }
+maintenance = { status = "actively-developed" }
 
 [dependencies]
 dbus = "0.6.0"
