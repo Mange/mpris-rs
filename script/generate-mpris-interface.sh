@@ -9,8 +9,14 @@ if [[ ! -d "$root" ]]; then
 fi
 
 if ! hash dbus-codegen-rust 2> /dev/null; then
-  echo "You must have dbus-codegen-rust installed to run this script."
-  exit 1
+  echo "Could not find dbus-codegen-rust binary. Do you want to install it using Cargo?"
+  echo -n "[Yn] > "
+  read -r c
+  if [[ $c == "y" || $c == "Y" ]]; then
+    cargo install dbus-codegen
+  else
+    exit 1
+  fi
 fi
 
 player=$1
