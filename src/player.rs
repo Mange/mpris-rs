@@ -4,6 +4,7 @@ use generated::OrgMprisMediaPlayer2;
 use generated::OrgMprisMediaPlayer2Player;
 use metadata::Metadata;
 use prelude::*;
+use progress::ProgressTracker;
 use std::ops::Deref;
 
 pub(crate) const MPRIS2_PREFIX: &str = "org.mpris.MediaPlayer2.";
@@ -66,6 +67,21 @@ impl<'conn, C: Deref<Target = Connection>> Player<'conn, C> {
         &self.identity
     }
 
+    pub fn get_position_in_microseconds(&self) -> Result<u64> {
+        self.connection_path
+            .get_position()
+            .map(|p| p as u64)
+            .map_err(|e| e.into())
+    }
+
+    pub fn get_playback_rate(&self) -> Result<f32> {
+        self.connection_path.get_rate().map(|p| p as f32).map_err(
+            |e| {
+                e.into()
+            },
+        )
+    }
+
     /// Query the player for current metadata.
     ///
     /// See `Metadata` for more information about what is included here.
@@ -74,6 +90,18 @@ impl<'conn, C: Deref<Target = Connection>> Player<'conn, C> {
             .get_metadata()
             .map_err(|e| e.into())
             .and_then(Metadata::new_from_dbus)
+    }
+
+    pub fn track_progress(&self, interval_ms: u32) -> Result<ProgressTracker<C>> {
+        self.get_metadata().and_then(|metadata| {
+            self.get_playback_status().and_then(|playback_status| {
+                ProgressTracker::new(&self, interval_ms, metadata, playback_status)
+            })
+        })
+    }
+
+    pub(crate) fn connection(&self) -> &C {
+        &self.connection_path.conn
     }
 
     /// Send a `PlayPause` signal to the player.
