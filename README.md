@@ -1,8 +1,28 @@
 # mpris
 
-> A Rust library for dealing with [MPRIS2][mpris2]-compatible players over D-Bus.
+> A Rust library for dealing with [MPRIS2][mpris2]-compatible players over
+> D-Bus.
 
 **NOTE:** This is still under development and not ready for use yet.
+
+## What is MPRIS2?
+
+> The Media Player Remote Interfacing Specification is a standard D-Bus
+> interface which aims to provide a common programmatic API for controlling
+> media players.
+>
+> It provides a mechanism for discovery, querying and basic playback control of
+> compliant media players, as well as a tracklist interface which is used to
+> add context to the active media item.
+
+From [*About*, in the MPRIS2 specification][mpris-about].
+
+Basically, you can use it to control media players on your computer. This is
+most commonly used to build media player applets, UIs or to pause other players
+before your own software performs some action.
+
+You can also use it in order to query metadata about what is currently playing,
+or *if* something is playing.
 
 ## How to use
 
@@ -11,6 +31,9 @@ extern crate mpris;
 
 use mpris::PlayerFinder;
 
+// Pauses currently playing media and prints metadata information about that
+// media.
+// If no player is running, exits with an error.
 fn main() {
   let player = PlayerFinder::new()
     .expect("Could not connect to D-Bus")
@@ -41,4 +64,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 [mpris2]: https://specifications.freedesktop.org/mpris-spec/latest/
-
+[mpris-about]: https://specifications.freedesktop.org/mpris-spec/latest/#About
