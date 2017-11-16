@@ -13,6 +13,7 @@ pub struct Progress {
     instant: Instant,
     position_in_microseconds: u64,
     rate: f32,
+    is_spotify: bool,
 }
 
 #[derive(Debug)]
@@ -99,7 +100,6 @@ impl<'conn, C: 'conn + Deref<Target = Connection>> ProgressTracker<'conn, C> {
             }
         }
 
-
         if should_refresh {
             self.refresh();
         }
@@ -117,6 +117,7 @@ impl Progress {
             playback_status: player.get_playback_status()?,
             rate: player.get_playback_rate()?,
             position_in_microseconds: player.get_position_in_microseconds()?,
+            is_spotify: player.identity() == "Spotify",
             instant: Instant::now(),
         })
     }
@@ -128,14 +129,30 @@ impl Progress {
     }
 
     pub fn position(&self) -> Option<Duration> {
-        self.initial_position().and_then(|pos| {
-            let elapsed_ms = self.instant.elapsed().as_millis() as f32 * self.rate;
-            pos.checked_add(Duration::from_millis(elapsed_ms as u64))
-        })
+        self.initial_position().and_then(
+            |pos| pos.checked_add(self.elapsed()),
+        )
     }
 
     pub fn initial_position(&self) -> Option<Duration> {
-        Some(Duration::from_micros(self.position_in_microseconds))
+        if self.supports_position() {
+            Some(Duration::from_micros(self.position_in_microseconds))
+        } else {
+            None
+        }
+    }
+
+    fn elapsed(&self) -> Duration {
+        let elapsed_ms = match self.playback_status {
+            PlaybackStatus::Playing => self.instant.elapsed().as_millis() as f32 * self.rate,
+            _ => 0.0,
+        };
+        Duration::from_millis(elapsed_ms as u64)
+    }
+
+    fn supports_position(&self) -> bool {
+        // Spotify does not support position at this time. It always returns 0, no matter what.
+        !self.is_spotify
     }
 }
 
@@ -147,5 +164,64 @@ mod test {
     fn it_calculates_whole_millis_from_durations() {
         let duration = Duration::new(5, 543_210_000);
         assert_eq!(duration.as_millis(), 5543);
+    }
+
+    #[test]
+    fn it_has_no_position_when_player_is_spotify() {
+        let progress = Progress {
+            metadata: Metadata::new(String::from("id")),
+            playback_status: PlaybackStatus::Playing,
+            rate: 1.0,
+            position_in_microseconds: 1337,
+            instant: Instant::now(),
+            is_spotify: true,
+        };
+
+        assert!(progress.initial_position().is_none());
+        assert!(progress.position().is_none());
+
+        let progress = Progress {
+            metadata: Metadata::new(String::from("id")),
+            playback_status: PlaybackStatus::Playing,
+            rate: 1.0,
+            position_in_microseconds: 1337,
+            instant: Instant::now(),
+            is_spotify: false,
+        };
+
+        assert!(progress.initial_position().is_some());
+        assert!(progress.position().is_some());
+    }
+
+    #[test]
+    fn it_progresses_position_when_playing_at_microseconds() {
+        let progress = Progress {
+            metadata: Metadata::new(String::from("id")),
+            playback_status: PlaybackStatus::Playing,
+            rate: 1.0,
+            position_in_microseconds: 1,
+            instant: Instant::now(),
+            is_spotify: false,
+        };
+
+        assert_eq!(
+            progress.initial_position().unwrap(),
+            Duration::from_micros(1)
+        );
+        assert!(progress.position().unwrap() >= progress.initial_position().unwrap());
+    }
+
+    #[test]
+    fn it_does_not_progress_when_paused() {
+        let progress = Progress {
+            metadata: Metadata::new(String::from("id")),
+            playback_status: PlaybackStatus::Paused,
+            rate: 1.0,
+            position_in_microseconds: 1336,
+            instant: Instant::now() - Duration::from_millis(500),
+            is_spotify: false,
+        };
+
+        assert_eq!(progress.position(), progress.initial_position());
     }
 }
