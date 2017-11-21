@@ -1,14 +1,23 @@
 use super::prelude::*;
 use dbus::{Connection, BusType, Path, ConnPath, BusName};
+use std::collections::HashMap;
+use std::time::Instant;
 
 #[derive(Debug)]
 pub(crate) struct PooledConnection {
     connection: Connection,
+    last_event: HashMap<String, Instant>,
 }
 
 impl PooledConnection {
-    pub(crate) fn new() -> Result<Self> {
-        Ok(Connection::get_private(BusType::Session)?.into())
+    pub(crate) fn new(connection: Connection) -> Self {
+        let _ = connection.add_match(
+            "interface='org.freedesktop.DBus.Properties',member='PropertiesChanged',path='/org/mpris/MediaPlayer2'",
+        );
+        PooledConnection {
+            connection: connection,
+            last_event: HashMap::new(),
+        }
     }
 
     pub(crate) fn with_path<'a>(
@@ -27,6 +36,6 @@ impl PooledConnection {
 
 impl From<Connection> for PooledConnection {
     fn from(connection: Connection) -> Self {
-        PooledConnection { connection: connection }
+        PooledConnection::new(connection)
     }
 }

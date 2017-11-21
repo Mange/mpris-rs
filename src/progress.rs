@@ -47,9 +47,6 @@ impl<'a> ProgressTracker<'a> {
         metadata: Metadata,
         playback_status: PlaybackStatus,
     ) -> Result<Self> {
-        player.connection().underlying().add_match(
-            "interface='org.freedesktop.DBus.Properties',member='PropertiesChanged',path='/org/mpris/MediaPlayer2'",
-        )?;
         Ok(ProgressTracker {
             player: player,
             interval: Duration::from_millis(interval_ms as u64),
