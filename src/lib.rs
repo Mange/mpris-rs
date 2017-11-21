@@ -70,6 +70,7 @@ pub mod errors {
 
 mod generated;
 
+mod pooled_connection;
 mod find;
 mod metadata;
 mod player;

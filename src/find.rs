@@ -2,14 +2,16 @@ extern crate dbus;
 
 use dbus::{Connection, Message, BusType, arg};
 use player::{Player, MPRIS2_PREFIX, MPRIS2_PATH, DEFAULT_TIMEOUT_MS};
+use pooled_connection::PooledConnection;
 use prelude::*;
+use std::rc::Rc;
 
 const LIST_NAMES_TIMEOUT_MS: i32 = 500;
 
 /// Used to find `Player`s running on a D-Bus connection.
 #[derive(Debug)]
 pub struct PlayerFinder {
-    connection: Connection,
+    connection: Rc<PooledConnection>,
 }
 
 impl PlayerFinder {
@@ -27,19 +29,20 @@ impl PlayerFinder {
     /// Use `new` if you want a new default connection rather than manually managing the D-Bus
     /// connection.
     pub fn for_connection(connection: Connection) -> Self {
-        PlayerFinder { connection: connection }
+        PlayerFinder { connection: Rc::new(connection.into()) }
     }
 
     /// Find all available `Player`s in the connection.
-    pub fn find_all(&self) -> Result<Vec<Player<&Connection>>> {
+    pub fn find_all<'a>(&self) -> Result<Vec<Player<'a>>> {
         self.all_player_buses()?
             .into_iter()
             .map(|bus_name| {
-                Player::new(self.connection.with_path(
-                    bus_name,
-                    MPRIS2_PATH,
+                Player::for_pooled_connection(
+                    self.connection.clone(),
+                    bus_name.into(),
+                    MPRIS2_PATH.into(),
                     DEFAULT_TIMEOUT_MS,
-                ))
+                )
             })
             .collect()
     }
@@ -53,13 +56,14 @@ impl PlayerFinder {
     ///
     /// **NOTE:** Currently this method is very naive and just returns the first player. This
     /// behavior can change later without a major version change, so don't rely on that behavior.
-    pub fn find_active(&self) -> Result<Player<&Connection>> {
+    pub fn find_active<'a>(&self) -> Result<Player<'a>> {
         if let Some(bus_name) = self.active_player_bus()? {
-            Player::new(self.connection.with_path(
-                bus_name,
-                MPRIS2_PATH,
+            Player::for_pooled_connection(
+                self.connection.clone(),
+                bus_name.into(),
+                MPRIS2_PATH.into(),
                 DEFAULT_TIMEOUT_MS,
-            ))
+            )
         } else {
             Err(ErrorKind::NoPlayerFound.into())
         }
@@ -78,7 +82,7 @@ impl PlayerFinder {
             "org.freedesktop.DBus",
             "ListNames",
         ).unwrap();
-        let reply = self.connection.send_with_reply_and_block(
+        let reply = self.connection.underlying().send_with_reply_and_block(
             list_names,
             LIST_NAMES_TIMEOUT_MS,
         )?;

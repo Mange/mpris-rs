@@ -17,8 +17,8 @@ pub struct Progress {
 }
 
 #[derive(Debug)]
-pub struct ProgressTracker<'conn, C: 'conn + Deref<Target = Connection>> {
-    player: &'conn Player<'conn, C>,
+pub struct ProgressTracker<'a> {
+    player: &'a Player<'a>,
     interval: Duration,
     last_tick: Instant,
     last_progress: Progress,
@@ -40,14 +40,14 @@ impl DurationExtensions for Duration {
     }
 }
 
-impl<'conn, C: 'conn + Deref<Target = Connection>> ProgressTracker<'conn, C> {
+impl<'a> ProgressTracker<'a> {
     pub fn new(
-        player: &'conn Player<'conn, C>,
+        player: &'a Player<'a>,
         interval_ms: u32,
         metadata: Metadata,
         playback_status: PlaybackStatus,
     ) -> Result<Self> {
-        player.connection().add_match(
+        player.connection().underlying().add_match(
             "interface='org.freedesktop.DBus.Properties',member='PropertiesChanged',path='/org/mpris/MediaPlayer2'",
         )?;
         Ok(ProgressTracker {
@@ -88,7 +88,11 @@ impl<'conn, C: 'conn + Deref<Target = Connection>> ProgressTracker<'conn, C> {
             if ms_left < 2 {
                 break;
             }
-            match self.player.connection().incoming(ms_left as u32).next() {
+            match self.player
+                .connection()
+                .underlying()
+                .incoming(ms_left as u32)
+                .next() {
                 Some(_) => {
                     // If it's a matching message, we should refresh.
                     // TODO: Don't refresh on all messages.
@@ -110,9 +114,7 @@ impl<'conn, C: 'conn + Deref<Target = Connection>> ProgressTracker<'conn, C> {
 }
 
 impl Progress {
-    fn from_player<'conn, C: 'conn + Deref<Target = Connection>>(
-        player: &Player<'conn, C>,
-    ) -> Result<Progress> {
+    fn from_player<'a>(player: &'a Player<'a>) -> Result<Progress> {
         Ok(Progress {
             metadata: player.get_metadata()?,
             playback_status: player.get_playback_status()?,

@@ -55,8 +55,7 @@ fn print_playback_status(progress: &Progress) {
 }
 
 fn main() {
-    let player_finder = PlayerFinder::new().unwrap();
-    let player = player_finder.find_active().unwrap();
+    let player = PlayerFinder::new().unwrap().find_active().unwrap();
     let identity = player.identity();
 
     let mut progress_tracker = player.track_progress(100).unwrap();

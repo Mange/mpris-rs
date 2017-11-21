@@ -1,11 +1,12 @@
 use super::PlaybackStatus;
-use dbus::{Connection, ConnPath};
+use dbus::{Connection, BusName, Path, ConnPath};
 use generated::OrgMprisMediaPlayer2;
 use generated::OrgMprisMediaPlayer2Player;
 use metadata::Metadata;
+use pooled_connection::PooledConnection;
 use prelude::*;
 use progress::ProgressTracker;
-use std::ops::Deref;
+use std::rc::Rc;
 
 pub(crate) const MPRIS2_PREFIX: &str = "org.mpris.MediaPlayer2.";
 pub(crate) const MPRIS2_PATH: &str = "/org/mpris/MediaPlayer2";
@@ -20,21 +21,54 @@ pub const DEFAULT_TIMEOUT_MS: i32 = 500; // ms
 /// **See:** [MPRIS2 MediaPlayer2.Player Specification][spec]
 /// [spec]: <https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html>
 #[derive(Debug)]
-pub struct Player<'conn, C: Deref<Target = Connection>> {
-    connection_path: ConnPath<'conn, C>,
+pub struct Player<'a> {
+    connection: Rc<PooledConnection>,
+    bus_name: BusName<'a>,
     identity: String,
+    path: Path<'a>,
+    timeout_ms: i32,
 }
 
-impl<'conn, C: Deref<Target = Connection>> Player<'conn, C> {
-    /// Create a new `Player` using a D-Bus connection path.
+impl<'a> Player<'a> {
+    /// Create a new `Player` using a D-Bus connection and address information.
     ///
     /// If no player is running on this bus name an `Err` will be returned.
-    pub fn new(connection_path: ConnPath<'conn, C>) -> Result<Player<'conn, C>> {
-        let identity = connection_path.get_identity()?;
+    pub fn new<B, P>(
+        connection: Connection,
+        bus_name: B,
+        path: P,
+        timeout_ms: i32,
+    ) -> Result<Player<'a>>
+    where
+        B: Into<BusName<'a>>,
+        P: Into<Path<'a>>,
+    {
+        Player::for_pooled_connection(
+            Rc::new(connection.into()),
+            bus_name.into(),
+            path.into(),
+            timeout_ms,
+        )
+    }
+
+    pub(crate) fn for_pooled_connection(
+        pooled_connection: Rc<PooledConnection>,
+        bus_name: BusName<'a>,
+        path: Path<'a>,
+        timeout_ms: i32,
+    ) -> Result<Player<'a>> {
+        let identity = {
+            let connection_path =
+                pooled_connection.with_path(bus_name.clone(), path.clone(), timeout_ms);
+            connection_path.get_identity()?
+        };
 
         Ok(Player {
-            connection_path: connection_path,
+            connection: pooled_connection,
+            bus_name: bus_name,
             identity: identity,
+            path: path,
+            timeout_ms: timeout_ms,
         })
     }
 
@@ -45,19 +79,17 @@ impl<'conn, C: Deref<Target = Connection>> Player<'conn, C> {
     ///
     /// You can change this using `set_dbus_timeout_ms`.
     pub fn dbus_timeout_ms(&self) -> i32 {
-        self.connection_path.timeout
+        self.timeout_ms
     }
 
     /// Change the D-Bus communication timeout.
-    ///
-    /// **See** `dbus_timeout_ms`
     pub fn set_dbus_timeout_ms(&mut self, timeout_ms: i32) {
-        self.connection_path.timeout = timeout_ms;
+        self.timeout_ms = timeout_ms;
     }
 
     /// Returns the player's D-Bus bus name.
-    pub fn bus_name(&self) -> &str {
-        &self.connection_path.dest
+    pub fn bus_name(&self) -> &BusName {
+        &self.bus_name
     }
 
     /// Returns the player's MPRIS `Identity`.
@@ -68,31 +100,30 @@ impl<'conn, C: Deref<Target = Connection>> Player<'conn, C> {
     }
 
     pub fn get_position_in_microseconds(&self) -> Result<u64> {
-        self.connection_path
+        self.connection_path()
             .get_position()
             .map(|p| p as u64)
             .map_err(|e| e.into())
     }
 
     pub fn get_playback_rate(&self) -> Result<f32> {
-        self.connection_path.get_rate().map(|p| p as f32).map_err(
-            |e| {
-                e.into()
-            },
-        )
+        self.connection_path()
+            .get_rate()
+            .map(|p| p as f32)
+            .map_err(|e| e.into())
     }
 
     /// Query the player for current metadata.
     ///
     /// See `Metadata` for more information about what is included here.
     pub fn get_metadata(&self) -> Result<Metadata> {
-        self.connection_path
+        self.connection_path()
             .get_metadata()
             .map_err(|e| e.into())
             .and_then(Metadata::new_from_dbus)
     }
 
-    pub fn track_progress(&self, interval_ms: u32) -> Result<ProgressTracker<C>> {
+    pub fn track_progress(&self, interval_ms: u32) -> Result<ProgressTracker> {
         self.get_metadata().and_then(|metadata| {
             self.get_playback_status().and_then(|playback_status| {
                 ProgressTracker::new(&self, interval_ms, metadata, playback_status)
@@ -100,50 +131,50 @@ impl<'conn, C: Deref<Target = Connection>> Player<'conn, C> {
         })
     }
 
-    pub(crate) fn connection(&self) -> &C {
-        &self.connection_path.conn
+    pub(crate) fn connection(&self) -> &PooledConnection {
+        &self.connection
     }
 
     /// Send a `PlayPause` signal to the player.
     ///
     /// See: [MPRIS2 specification about `PlayPause`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:PlayPause)
     pub fn play_pause(&self) -> Result<()> {
-        self.connection_path.play_pause().map_err(|e| e.into())
+        self.connection_path().play_pause().map_err(|e| e.into())
     }
 
     /// Send a `Play` signal to the player.
     ///
     /// See: [MPRIS2 specification about `Play`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Play)
     pub fn play(&self) -> Result<()> {
-        self.connection_path.play().map_err(|e| e.into())
+        self.connection_path().play().map_err(|e| e.into())
     }
 
     /// Send a `Pause` signal to the player.
     ///
     /// See: [MPRIS2 specification about `Pause`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Pause)
     pub fn pause(&self) -> Result<()> {
-        self.connection_path.pause().map_err(|e| e.into())
+        self.connection_path().pause().map_err(|e| e.into())
     }
 
     /// Send a `Stop` signal to the player.
     ///
     /// See: [MPRIS2 specification about `Stop`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Stop)
     pub fn stop(&self) -> Result<()> {
-        self.connection_path.stop().map_err(|e| e.into())
+        self.connection_path().stop().map_err(|e| e.into())
     }
 
     /// Send a `Next` signal to the player.
     ///
     /// See: [MPRIS2 specification about `Next`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Next)
     pub fn next(&self) -> Result<()> {
-        self.connection_path.next().map_err(|e| e.into())
+        self.connection_path().next().map_err(|e| e.into())
     }
 
     /// Send a `Previous` signal to the player.
     ///
     /// See: [MPRIS2 specification about `Previous`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Previous)
     pub fn previous(&self) -> Result<()> {
-        self.connection_path.previous().map_err(|e| e.into())
+        self.connection_path().previous().map_err(|e| e.into())
     }
 
     /// Sends a `PlayPause` signal to the player, if the player indicates that it can pause.
@@ -230,21 +261,25 @@ impl<'conn, C: Deref<Target = Connection>> Player<'conn, C> {
     ///
     /// See: [MPRIS2 specification about `CanControl`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanControl)
     pub fn can_control(&self) -> Result<bool> {
-        self.connection_path.get_can_control().map_err(|e| e.into())
+        self.connection_path().get_can_control().map_err(
+            |e| e.into(),
+        )
     }
 
     /// Queries the player to see if it can go to next or not.
     ///
     /// See: [MPRIS2 specification about `CanGoNext`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanGoNext)
     pub fn can_go_next(&self) -> Result<bool> {
-        self.connection_path.get_can_go_next().map_err(|e| e.into())
+        self.connection_path().get_can_go_next().map_err(
+            |e| e.into(),
+        )
     }
 
     /// Queries the player to see if it can go to previous or not.
     ///
     /// See: [MPRIS2 specification about `CanGoPrevious`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanGoPrevious)
     pub fn can_go_previous(&self) -> Result<bool> {
-        self.connection_path.get_can_go_previous().map_err(
+        self.connection_path().get_can_go_previous().map_err(
             |e| e.into(),
         )
     }
@@ -253,21 +288,21 @@ impl<'conn, C: Deref<Target = Connection>> Player<'conn, C> {
     ///
     /// See: [MPRIS2 specification about `CanPause`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanPause)
     pub fn can_pause(&self) -> Result<bool> {
-        self.connection_path.get_can_pause().map_err(|e| e.into())
+        self.connection_path().get_can_pause().map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can play.
     ///
     /// See: [MPRIS2 specification about `CanPlay`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanPlay)
     pub fn can_play(&self) -> Result<bool> {
-        self.connection_path.get_can_play().map_err(|e| e.into())
+        self.connection_path().get_can_play().map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can seek within the media.
     ///
     /// See: [MPRIS2 specification about `CanSeek`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanSeek)
     pub fn can_seek(&self) -> Result<bool> {
-        self.connection_path.get_can_seek().map_err(|e| e.into())
+        self.connection_path().get_can_seek().map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can stop.
@@ -283,6 +318,15 @@ impl<'conn, C: Deref<Target = Connection>> Player<'conn, C> {
 
     /// Query the player for current playback status.
     pub fn get_playback_status(&self) -> Result<PlaybackStatus> {
-        self.connection_path.get_playback_status()?.parse()
+        self.connection_path().get_playback_status()?.parse()
+    }
+
+    fn connection_path(&self) -> ConnPath<&Connection> {
+        // TODO: Can we create this only once? Maybe using the Once type, or a RefCell?
+        self.connection.with_path(
+            self.bus_name.clone(),
+            self.path.clone(),
+            self.timeout_ms,
+        )
     }
 }
