@@ -25,12 +25,13 @@ pub struct ProgressTracker<'conn, C: 'conn + Deref<Target = Connection>> {
 }
 
 trait DurationExtensions {
-    fn from_micros(u64) -> Duration;
+    // Rust beta has a from_micros function that is unstable.
+    fn from_micros_ext(u64) -> Duration;
     fn as_millis(&self) -> u64;
 }
 
 impl DurationExtensions for Duration {
-    fn from_micros(micros: u64) -> Duration {
+    fn from_micros_ext(micros: u64) -> Duration {
         Duration::from_millis(micros / 1000)
     }
 
@@ -124,7 +125,7 @@ impl Progress {
 
     pub fn length(&self) -> Option<Duration> {
         self.metadata.length_in_microseconds.map(
-            Duration::from_micros,
+            Duration::from_micros_ext,
         )
     }
 
@@ -136,7 +137,7 @@ impl Progress {
 
     pub fn initial_position(&self) -> Option<Duration> {
         if self.supports_position() {
-            Some(Duration::from_micros(self.position_in_microseconds))
+            Some(Duration::from_micros_ext(self.position_in_microseconds))
         } else {
             None
         }
@@ -206,7 +207,7 @@ mod test {
 
         assert_eq!(
             progress.initial_position().unwrap(),
-            Duration::from_micros(1)
+            Duration::from_micros_ext(1)
         );
         assert!(progress.position().unwrap() >= progress.initial_position().unwrap());
     }
