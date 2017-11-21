@@ -24,7 +24,7 @@ pub struct ProgressTracker<'a> {
     last_progress: Progress,
 }
 
-trait DurationExtensions {
+pub(crate) trait DurationExtensions {
     // Rust beta has a from_micros function that is unstable.
     fn from_micros_ext(u64) -> Duration;
     fn as_millis(&self) -> u64;
@@ -67,40 +67,16 @@ impl<'a> ProgressTracker<'a> {
     }
 
     pub fn tick(&mut self) -> &Progress {
-        let mut should_refresh = false;
-
         // Is time already up?
         if self.last_tick.elapsed() >= self.interval {
             return self.progress();
         }
 
-        // Try to read messages util time is up. Keep going with smaller and smaller windows until
-        // our time is up.
-        loop {
-            let ms_left = self.interval
-                .checked_sub(self.last_tick.elapsed())
-                .map(|d| d.as_millis())
-                .unwrap_or(0);
-            // Don't bother if we have very little time left
-            if ms_left < 2 {
-                break;
-            }
-            match self.player
-                .connection()
-                .underlying()
-                .incoming(ms_left as u32)
-                .next() {
-                Some(_) => {
-                    // If it's a matching message, we should refresh.
-                    // TODO: Don't refresh on all messages.
-                    should_refresh = true;
-                }
-                None => {
-                    // Time is up. No more messages.
-                    break;
-                }
-            }
-        }
+        let ms_left = self.interval
+            .checked_sub(self.last_tick.elapsed())
+            .unwrap_or(Duration::from_millis(0));
+
+        let should_refresh = self.player.connection().process_events_blocking(ms_left);
 
         if should_refresh {
             self.refresh();
