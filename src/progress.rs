@@ -67,19 +67,25 @@ impl<'a> ProgressTracker<'a> {
     }
 
     pub fn tick(&mut self) -> &Progress {
-        // Is time already up?
-        if self.last_tick.elapsed() >= self.interval {
-            return self.progress();
-        }
-
-        let ms_left = self.interval
+        // Calculate time left until we're expected to return with new data.
+        let time_left = self.interval
             .checked_sub(self.last_tick.elapsed())
             .unwrap_or(Duration::from_millis(0));
 
-        let should_refresh = self.player.connection().process_events_blocking(ms_left);
+        // Refresh events if we're not late.
+        if time_left > Duration::from_millis(0) {
+            self.player.connection().process_events_blocking(time_left);
+        }
 
-        if should_refresh {
-            self.refresh();
+        // If we got a new event since the last time we ticked, then reload fresh data.
+        if let Some(last_event_at) =
+            self.player.connection().last_event_for_unique_name(
+                self.player.unique_name(),
+            )
+        {
+            if last_event_at > self.last_tick {
+                self.refresh();
+            }
         }
 
         return self.progress();

@@ -1,6 +1,7 @@
-use super::prelude::*;
-use dbus::{Connection, BusType, Path, ConnPath, BusName};
+use dbus::{Connection, Path, ConnPath, BusName, Member, Message};
+use player::MPRIS2_PATH;
 use progress::DurationExtensions;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -8,8 +9,11 @@ use std::time::{Duration, Instant};
 pub(crate) struct PooledConnection {
     connection: Connection,
     last_tick: Instant,
-    last_event: HashMap<String, Instant>,
+    last_event: RefCell<HashMap<String, Instant>>,
 }
+
+const PROPERTIES_CHANGED_MEMBER: &str = "PropertiesChanged";
+const GET_NAME_OWNER_TIMEOUT: i32 = 100; // ms
 
 impl PooledConnection {
     pub(crate) fn new(connection: Connection) -> Self {
@@ -19,7 +23,7 @@ impl PooledConnection {
         PooledConnection {
             connection: connection,
             last_tick: Instant::now(),
-            last_event: HashMap::new(),
+            last_event: RefCell::new(HashMap::new()),
         }
     }
 
@@ -36,11 +40,32 @@ impl PooledConnection {
         &self.connection
     }
 
-    pub(crate) fn process_events_blocking(&self, duration: Duration) -> bool {
+    pub(crate) fn determine_unique_name<S: Into<String>>(&self, bus_name: S) -> Option<String> {
+        let get_name_owner = Message::new_method_call(
+            "org.freedesktop.DBus",
+            "/",
+            "org.freedesktop.DBus",
+            "GetNameOwner",
+        ).unwrap()
+            .append1(bus_name.into());
+
+        self.connection
+            .send_with_reply_and_block(get_name_owner, GET_NAME_OWNER_TIMEOUT)
+            .ok()
+            .and_then(|reply| reply.get1())
+    }
+
+    pub(crate) fn last_event_for_unique_name(&self, unique_name: &str) -> Option<Instant> {
+        self.last_event.borrow().get(unique_name).cloned()
+    }
+
+    pub(crate) fn process_events_blocking(&self, duration: Duration) {
         // Try to read messages util time is up. Keep going with smaller and smaller windows until
         // our time is up.
         let start = Instant::now();
-        let mut should_refresh = false;
+
+        let properties_changed: Member = PROPERTIES_CHANGED_MEMBER.into();
+        let mpris2_path: Path = MPRIS2_PATH.into();
 
         while start.elapsed() < duration {
             let ms_left = duration
@@ -52,10 +77,12 @@ impl PooledConnection {
                 break;
             }
             match self.connection.incoming(ms_left as u32).next() {
-                Some(n) => {
-                    // If it's a matching message, we should refresh.
-                    // TODO: Don't refresh on all messages.
-                    should_refresh = true;
+                Some(message) => {
+                    if message.member().as_ref() == Some(&properties_changed) &&
+                        message.path().as_ref() == Some(&mpris2_path)
+                    {
+                        self.process_message(message);
+                    }
                 }
                 None => {
                     // Time is up. No more messages.
@@ -63,8 +90,19 @@ impl PooledConnection {
                 }
             }
         }
+    }
 
-        should_refresh
+    fn process_message(&self, message: Message) {
+        message.sender().map(|unique_name| {
+            self.mark_bus_as_updated((*unique_name).to_owned())
+        });
+    }
+
+    fn mark_bus_as_updated<S: Into<String>>(&self, bus_name: S) {
+        self.last_event.borrow_mut().insert(
+            bus_name.into(),
+            Instant::now(),
+        );
     }
 }
 

@@ -24,6 +24,7 @@ pub const DEFAULT_TIMEOUT_MS: i32 = 500; // ms
 pub struct Player<'a> {
     connection: Rc<PooledConnection>,
     bus_name: BusName<'a>,
+    unique_name: String,
     identity: String,
     path: Path<'a>,
     timeout_ms: i32,
@@ -63,9 +64,19 @@ impl<'a> Player<'a> {
             connection_path.get_identity()?
         };
 
+        let unique_name = pooled_connection
+            .determine_unique_name(&*bus_name)
+            .ok_or_else(|| {
+                ErrorKind::DBusCallError(format!(
+                    "Could not determine unique name for bus {}",
+                    &bus_name
+                ))
+            })?;
+
         Ok(Player {
             connection: pooled_connection,
             bus_name: bus_name,
+            unique_name: unique_name,
             identity: identity,
             path: path,
             timeout_ms: timeout_ms,
@@ -90,6 +101,11 @@ impl<'a> Player<'a> {
     /// Returns the player's D-Bus bus name.
     pub fn bus_name(&self) -> &BusName {
         &self.bus_name
+    }
+
+    /// Returns the player's unique D-Bus bus name (usually something like `:1.1337`).
+    pub fn unique_name(&self) -> &str {
+        &self.unique_name
     }
 
     /// Returns the player's MPRIS `Identity`.
