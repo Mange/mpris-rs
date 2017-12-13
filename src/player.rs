@@ -149,11 +149,7 @@ impl<'a> Player<'a> {
     /// Use this if you want to monitor a player in order to show close-to-realtime information
     /// about it.
     pub fn track_progress(&self, interval_ms: u32) -> Result<ProgressTracker> {
-        self.get_metadata().and_then(|metadata| {
-            self.get_playback_status().and_then(|playback_status| {
-                ProgressTracker::new(&self, interval_ms, metadata, playback_status)
-            })
-        })
+        ProgressTracker::new(&self, interval_ms)
     }
 
     pub(crate) fn connection(&self) -> &PooledConnection {

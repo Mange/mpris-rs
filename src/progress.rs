@@ -60,12 +60,11 @@ impl<'a> ProgressTracker<'a> {
     /// See `tick` for more information about that.
     ///
     /// You probably want to use `Player::track_progress` instead of this method.
-    pub fn new(
-        player: &'a Player<'a>,
-        interval_ms: u32,
-        metadata: Metadata,
-        playback_status: PlaybackStatus,
-    ) -> Result<Self> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error in case Player metadata or state retrieval over DBus fails.
+    pub fn new(player: &'a Player<'a>, interval_ms: u32) -> Result<Self> {
         Ok(ProgressTracker {
             player: player,
             interval: Duration::from_millis(interval_ms as u64),
