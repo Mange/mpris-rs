@@ -83,6 +83,8 @@ impl<'a> ProgressTracker<'a> {
     /// events to determine if something changed (and potentially perform a full refresh). If there
     /// is no time left, then the previous `Progress` will be returned again.
     ///
+    /// If refreshing failed for some reason the old `Progress` will be returned.
+    ///
     /// It is recommended to call this inside a loop to maintain your progress display.
     ///
     /// ## On reusing `Progress` instances
@@ -155,12 +157,23 @@ impl<'a> ProgressTracker<'a> {
             )
         {
             if last_event_at > self.last_tick {
-                did_refresh = true;
-                self.refresh();
+                did_refresh = self.refresh();
             }
         }
 
         return (self.progress(), did_refresh);
+    }
+
+    /// Force a refresh right now.
+    ///
+    /// This will ignore the interval and perform a refresh anyway, storing the result as the last
+    /// `Progress` value.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the refresh failed.
+    pub fn force_refresh(&mut self) -> Result<()> {
+        Progress::from_player(self.player).map(|progress| { self.last_progress = progress; })
     }
 
     fn progress(&mut self) -> &Progress {
@@ -168,10 +181,12 @@ impl<'a> ProgressTracker<'a> {
         &self.last_progress
     }
 
-    fn refresh(&mut self) {
+    fn refresh(&mut self) -> bool {
         if let Ok(progress) = Progress::from_player(self.player) {
             self.last_progress = progress;
+            return true;
         }
+        false
     }
 }
 
