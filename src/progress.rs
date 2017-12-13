@@ -1,21 +1,34 @@
 use super::PlaybackStatus;
-use dbus::Connection;
 use metadata::Metadata;
 use player::Player;
 use prelude::*;
-use std::ops::Deref;
 use std::time::{Duration, Instant};
 
+/// Struct containing information about current progress of a Player.
+///
+/// It has access to the metadata of the current track, as well as information about the current
+/// position of the track.
+///
+/// It is up to you to decide on how outdated information you want to rely on when implementing
+/// progress rendering.
 #[derive(Debug)]
 pub struct Progress {
+    /// The track metadata at the point in time that this Progress was constructed.
     pub metadata: Metadata,
+    /// The playback status at the point in time that this Progress was constructed.
     pub playback_status: PlaybackStatus,
+
+    /// When this Progress was constructed, in order to calculate how old it is.
     instant: Instant,
+
     position_in_microseconds: u64,
     rate: f32,
     is_spotify: bool,
 }
 
+/// Controller for calculating Progress for a given Player.
+///
+/// Call the `tick` method to get the most current Progress data.
 #[derive(Debug)]
 pub struct ProgressTracker<'a> {
     player: &'a Player<'a>,
@@ -41,6 +54,12 @@ impl DurationExtensions for Duration {
 }
 
 impl<'a> ProgressTracker<'a> {
+    /// Construct a new ProgressTracker for the provided Player.
+    ///
+    /// The `interval_ms` value is the desired time between ticks when calling the `tick` method.
+    /// See `tick` for more information about that.
+    ///
+    /// You probably want to use `Player::track_progress` instead of this method.
     pub fn new(
         player: &'a Player<'a>,
         interval_ms: u32,
@@ -55,17 +74,68 @@ impl<'a> ProgressTracker<'a> {
         })
     }
 
-    fn progress(&mut self) -> &Progress {
-        self.last_tick = Instant::now();
-        &self.last_progress
-    }
-
-    fn refresh(&mut self) {
-        if let Ok(progress) = Progress::from_player(self.player) {
-            self.last_progress = progress;
-        }
-    }
-
+    /// Returns a (`Progress`, `bool`) pair at each interval, or as close to each interval as
+    /// possible.
+    ///
+    /// The `bool` is `true` if the `Progress` was refreshed, or `false` if the old `Progress` was
+    /// reused.
+    ///
+    /// If there is time left until the next interval window, then the tracker will process DBus
+    /// events to determine if something changed (and potentially perform a full refresh). If there
+    /// is no time left, then the previous `Progress` will be returned again.
+    ///
+    /// It is recommended to call this inside a loop to maintain your progress display.
+    ///
+    /// ## On reusing `Progress` instances
+    ///
+    /// `Progress` can be reused until something about the player changes, like track or playback
+    /// status. As long as nothing changes, `Progress` can accurately determine playback position
+    /// from timing data.
+    ///
+    /// You can use the returned `bool` in order to perform similar optimizations yourself, as a
+    /// `false` value means that nothing (except potentially `position`) changed.
+    ///
+    /// # Examples
+    ///
+    /// Simple progress tracker:
+    ///
+    /// ```rust,no_run
+    /// # use mpris::{PlayerFinder, Metadata, PlaybackStatus, Progress};
+    /// # use std::time::Duration;
+    /// # fn update_progress_bar(_: Duration) { }
+    /// # let player = PlayerFinder::new().unwrap().find_active().unwrap();
+    /// #
+    /// // Refresh every 100ms
+    /// let mut progress_tracker = player.track_progress(100).unwrap();
+    /// loop {
+    ///     let (progress, _) = progress_tracker.tick();
+    ///     update_progress_bar(progress.position());
+    /// }
+    /// ```
+    ///
+    /// Using the `was_refreshed` `bool`:
+    ///
+    /// ```rust,no_run
+    /// # use mpris::PlayerFinder;
+    /// # use std::time::Duration;
+    /// # fn update_progress_bar(_: Duration) { }
+    /// # fn reset_progress_bar(_: Duration, _: Option<Duration>) { }
+    /// # fn update_track_title(_: &Option<String>) { }
+    /// #
+    /// # let player = PlayerFinder::new().unwrap().find_active().unwrap();
+    /// #
+    /// // Refresh every 100ms
+    /// let mut progress_tracker = player.track_progress(100).unwrap();
+    /// loop {
+    ///     let (progress, was_changed) = progress_tracker.tick();
+    ///     if was_changed {
+    ///         update_track_title(&progress.metadata.title);
+    ///         reset_progress_bar(progress.position(), progress.length());
+    ///     } else {
+    ///         update_progress_bar(progress.position());
+    ///     }
+    /// }
+    /// ```
     pub fn tick(&mut self) -> (&Progress, bool) {
         let mut did_refresh = false;
 
@@ -93,6 +163,17 @@ impl<'a> ProgressTracker<'a> {
 
         return (self.progress(), did_refresh);
     }
+
+    fn progress(&mut self) -> &Progress {
+        self.last_tick = Instant::now();
+        &self.last_progress
+    }
+
+    fn refresh(&mut self) {
+        if let Ok(progress) = Progress::from_player(self.player) {
+            self.last_progress = progress;
+        }
+    }
 }
 
 impl Progress {
@@ -107,32 +188,52 @@ impl Progress {
         })
     }
 
+    /// Returns the length of the current track as a `Duration`.
     pub fn length(&self) -> Option<Duration> {
         self.metadata.length_in_microseconds.map(
             Duration::from_micros_ext,
         )
     }
 
+    /// Returns the current position of the current track as a `Duration`.
+    ///
+    /// This method will calculate the expected position of the track at the instant of the
+    /// invocation using the `initial_position` and knowledge of how long ago that position was
+    /// determined.
+    ///
+    /// **Note:** Some players might not support this. Spotify is one such example. You can test
+    /// for known problem players using the `supports_position` method.
     pub fn position(&self) -> Duration {
         self.initial_position() + self.elapsed()
     }
 
+    /// Returns the position that the current track was at when the `Progress` was created.
     pub fn initial_position(&self) -> Duration {
         Duration::from_micros_ext(self.position_in_microseconds)
     }
 
-    fn elapsed(&self) -> Duration {
-        let elapsed_ms = match self.playback_status {
-            PlaybackStatus::Playing => self.instant.elapsed().as_millis() as f32 * self.rate,
-            _ => 0.0,
-        };
-        Duration::from_millis(elapsed_ms as u64)
-    }
-
+    /// Returns `false` if the current player is known to not support the `position` field.
+    ///
+    /// You can optionally use this in order to display an undetermined position, as an example.
     pub fn supports_position(&self) -> bool {
         // Spotify does not support position at this time. It always returns 0, no matter what.
         // Still make sure it's 0 in case Spotify later starts to support it.
         !(self.is_spotify && self.position_in_microseconds == 0)
+    }
+
+    /// Returns the age of the data as a `Duration`.
+    ///
+    /// If the `Progress` has a high age it is more likely to be out of date.
+    pub fn age(&self) -> Duration {
+        self.instant.elapsed()
+    }
+
+    fn elapsed(&self) -> Duration {
+        let elapsed_ms = match self.playback_status {
+            PlaybackStatus::Playing => self.age().as_millis() as f32 * self.rate,
+            _ => 0.0,
+        };
+        Duration::from_millis(elapsed_ms as u64)
     }
 }
 

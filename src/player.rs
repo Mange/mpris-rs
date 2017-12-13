@@ -115,6 +115,8 @@ impl<'a> Player<'a> {
         &self.identity
     }
 
+    /// Returns the player's MPRIS `position` as a count of microseconds since the start of the
+    /// media.
     pub fn get_position_in_microseconds(&self) -> Result<u64> {
         self.connection_path()
             .get_position()
@@ -122,6 +124,9 @@ impl<'a> Player<'a> {
             .map_err(|e| e.into())
     }
 
+    /// Returns the player's MPRIS (playback) `rate` as a factor.
+    ///
+    /// 1.0 would mean normal rate, while 2.0 would mean twice the playback speed.
     pub fn get_playback_rate(&self) -> Result<f32> {
         self.connection_path()
             .get_rate()
@@ -139,6 +144,10 @@ impl<'a> Player<'a> {
             .and_then(Metadata::new_from_dbus)
     }
 
+    /// Returns a new `ProgressTracker` for the player.
+    ///
+    /// Use this if you want to monitor a player in order to show close-to-realtime information
+    /// about it.
     pub fn track_progress(&self, interval_ms: u32) -> Result<ProgressTracker> {
         self.get_metadata().and_then(|metadata| {
             self.get_playback_status().and_then(|playback_status| {

@@ -1,4 +1,4 @@
-use dbus::{Connection, Path, ConnPath, BusName, Member, Message};
+use dbus::{Connection, Path, ConnPath, BusName, Message};
 use player::MPRIS2_PATH;
 use progress::DurationExtensions;
 use std::cell::RefCell;
