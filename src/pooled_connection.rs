@@ -12,13 +12,15 @@ pub(crate) struct PooledConnection {
     last_event: RefCell<HashMap<String, Instant>>,
 }
 
-const PROPERTIES_CHANGED_MEMBER: &str = "PropertiesChanged";
 const GET_NAME_OWNER_TIMEOUT: i32 = 100; // ms
 
 impl PooledConnection {
     pub(crate) fn new(connection: Connection) -> Self {
         let _ = connection.add_match(
             "interface='org.freedesktop.DBus.Properties',member='PropertiesChanged',path='/org/mpris/MediaPlayer2'",
+        );
+        let _ = connection.add_match(
+            "interface='org.mpris.MediaPlayer2.Player',member='Seeked',path='/org/mpris/MediaPlayer2'",
         );
         PooledConnection {
             connection: connection,
@@ -64,9 +66,6 @@ impl PooledConnection {
         // our time is up.
         let start = Instant::now();
 
-        let properties_changed: Member = PROPERTIES_CHANGED_MEMBER.into();
-        let mpris2_path: Path = MPRIS2_PATH.into();
-
         while start.elapsed() < duration {
             let ms_left = duration
                 .checked_sub(start.elapsed())
@@ -78,9 +77,7 @@ impl PooledConnection {
             }
             match self.connection.incoming(ms_left as u32).next() {
                 Some(message) => {
-                    if message.member().as_ref() == Some(&properties_changed) &&
-                        message.path().as_ref() == Some(&mpris2_path)
-                    {
+                    if PooledConnection::is_watched_message(&message) {
                         self.process_message(message);
                     }
                 }
@@ -90,6 +87,24 @@ impl PooledConnection {
                 }
             }
         }
+    }
+
+    fn is_watched_message(message: &Message) -> bool {
+        use std::ops::Deref;
+
+        if let Some(message_path) = message.path().as_ref() {
+            if message_path.deref() != MPRIS2_PATH {
+                return false;
+            }
+        }
+
+        if let Some(message_member) = message.member().as_ref() {
+            if message_member.deref() == "Seeked" || message_member.deref() == "PropertiesChanged" {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     fn process_message(&self, message: Message) {
