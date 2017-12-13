@@ -70,9 +70,11 @@ pub mod errors {
 
 mod generated;
 
-mod player;
+mod pooled_connection;
 mod find;
 mod metadata;
+mod player;
+mod progress;
 
 mod prelude {
     pub use errors::*;
@@ -81,6 +83,7 @@ mod prelude {
 pub use find::PlayerFinder;
 pub use metadata::Metadata;
 pub use player::Player;
+pub use progress::Progress;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 #[allow(missing_docs)]
