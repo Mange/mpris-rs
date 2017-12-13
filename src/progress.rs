@@ -110,18 +110,12 @@ impl Progress {
         )
     }
 
-    pub fn position(&self) -> Option<Duration> {
-        self.initial_position().and_then(
-            |pos| pos.checked_add(self.elapsed()),
-        )
+    pub fn position(&self) -> Duration {
+        self.initial_position() + self.elapsed()
     }
 
-    pub fn initial_position(&self) -> Option<Duration> {
-        if self.supports_position() {
-            Some(Duration::from_micros_ext(self.position_in_microseconds))
-        } else {
-            None
-        }
+    pub fn initial_position(&self) -> Duration {
+        Duration::from_micros_ext(self.position_in_microseconds)
     }
 
     fn elapsed(&self) -> Duration {
@@ -132,9 +126,10 @@ impl Progress {
         Duration::from_millis(elapsed_ms as u64)
     }
 
-    fn supports_position(&self) -> bool {
+    pub fn supports_position(&self) -> bool {
         // Spotify does not support position at this time. It always returns 0, no matter what.
-        !self.is_spotify
+        // Still make sure it's 0 in case Spotify later starts to support it.
+        !(self.is_spotify && self.position_in_microseconds == 0)
     }
 }
 
@@ -149,30 +144,28 @@ mod test {
     }
 
     #[test]
-    fn it_has_no_position_when_player_is_spotify() {
+    fn it_does_not_support_position_when_player_is_spotify() {
         let progress = Progress {
             metadata: Metadata::new(String::from("id")),
             playback_status: PlaybackStatus::Playing,
             rate: 1.0,
-            position_in_microseconds: 1337,
+            position_in_microseconds: 0,
             instant: Instant::now(),
             is_spotify: true,
         };
 
-        assert!(progress.initial_position().is_none());
-        assert!(progress.position().is_none());
+        assert!(!progress.supports_position());
 
         let progress = Progress {
             metadata: Metadata::new(String::from("id")),
             playback_status: PlaybackStatus::Playing,
             rate: 1.0,
-            position_in_microseconds: 1337,
+            position_in_microseconds: 0,
             instant: Instant::now(),
             is_spotify: false,
         };
 
-        assert!(progress.initial_position().is_some());
-        assert!(progress.position().is_some());
+        assert!(progress.supports_position());
     }
 
     #[test]
@@ -186,11 +179,8 @@ mod test {
             is_spotify: false,
         };
 
-        assert_eq!(
-            progress.initial_position().unwrap(),
-            Duration::from_micros_ext(1)
-        );
-        assert!(progress.position().unwrap() >= progress.initial_position().unwrap());
+        assert_eq!(progress.initial_position(), Duration::from_micros_ext(1));
+        assert!(progress.position() >= progress.initial_position());
     }
 
     #[test]

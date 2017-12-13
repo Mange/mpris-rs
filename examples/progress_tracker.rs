@@ -69,7 +69,11 @@ fn main() {
         print!(" - ");
         print_title(&progress.metadata);
         print!(" [");
-        print_time(progress.position());
+        if progress.supports_position() {
+            print_time(Some(progress.position()));
+        } else {
+            print_time(None);
+        }
         print!(" / ");
         print_time(progress.length());
         print!("] ({})", identity);
