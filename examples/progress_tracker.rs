@@ -60,7 +60,7 @@ fn main() {
 
     let mut progress_tracker = player.track_progress(100).unwrap();
     loop {
-        let progress = progress_tracker.tick();
+        let (progress, _did_refresh) = progress_tracker.tick();
 
         reset_line();
         print_playback_status(&progress);

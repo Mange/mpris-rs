@@ -66,7 +66,9 @@ impl<'a> ProgressTracker<'a> {
         }
     }
 
-    pub fn tick(&mut self) -> &Progress {
+    pub fn tick(&mut self) -> (&Progress, bool) {
+        let mut did_refresh = false;
+
         // Calculate time left until we're expected to return with new data.
         let time_left = self.interval
             .checked_sub(self.last_tick.elapsed())
@@ -84,11 +86,12 @@ impl<'a> ProgressTracker<'a> {
             )
         {
             if last_event_at > self.last_tick {
+                did_refresh = true;
                 self.refresh();
             }
         }
 
-        return self.progress();
+        return (self.progress(), did_refresh);
     }
 }
 
