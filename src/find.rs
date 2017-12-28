@@ -38,7 +38,7 @@ impl PlayerFinder {
             .into_iter()
             .map(|bus_name| {
                 Player::for_pooled_connection(
-                    self.connection.clone(),
+                    Rc::clone(&self.connection),
                     bus_name.into(),
                     MPRIS2_PATH.into(),
                     DEFAULT_TIMEOUT_MS,
@@ -59,7 +59,7 @@ impl PlayerFinder {
     pub fn find_active<'a>(&self) -> Result<Player<'a>> {
         if let Some(bus_name) = self.active_player_bus()? {
             Player::for_pooled_connection(
-                self.connection.clone(),
+                Rc::clone(&self.connection),
                 bus_name.into(),
                 MPRIS2_PATH.into(),
                 DEFAULT_TIMEOUT_MS,

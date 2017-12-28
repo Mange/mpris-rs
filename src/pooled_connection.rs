@@ -78,7 +78,7 @@ impl PooledConnection {
             match self.connection.incoming(ms_left as u32).next() {
                 Some(message) => {
                     if PooledConnection::is_watched_message(&message) {
-                        self.process_message(message);
+                        self.process_message(&message);
                     }
                 }
                 None => {
@@ -104,10 +104,10 @@ impl PooledConnection {
             }
         }
 
-        return false;
+        false
     }
 
-    fn process_message(&self, message: Message) {
+    fn process_message(&self, message: &Message) {
         message.sender().map(|unique_name| {
             self.mark_bus_as_updated((*unique_name).to_owned())
         });

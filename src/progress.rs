@@ -52,7 +52,7 @@ impl<'a> ProgressTracker<'a> {
     pub fn new(player: &'a Player<'a>, interval_ms: u32) -> Result<Self> {
         Ok(ProgressTracker {
             player: player,
-            interval: Duration::from_millis(interval_ms as u64),
+            interval: Duration::from_millis(u64::from(interval_ms)),
             last_tick: Instant::now(),
             last_progress: Progress::from_player(player)?,
         })
@@ -128,7 +128,7 @@ impl<'a> ProgressTracker<'a> {
         // Calculate time left until we're expected to return with new data.
         let time_left = self.interval
             .checked_sub(self.last_tick.elapsed())
-            .unwrap_or(Duration::from_millis(0));
+            .unwrap_or_else(|| Duration::from_millis(0));
 
         // Refresh events if we're not late.
         if time_left > Duration::from_millis(0) {
@@ -146,7 +146,7 @@ impl<'a> ProgressTracker<'a> {
             }
         }
 
-        return (self.progress(), did_refresh);
+        (self.progress(), did_refresh)
     }
 
     /// Force a refresh right now.

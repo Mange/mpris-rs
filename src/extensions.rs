@@ -15,11 +15,11 @@ impl DurationExtensions for Duration {
     }
 
     fn as_millis(&self) -> u64 {
-        self.as_secs() * 1000 + (self.subsec_nanos() / 1000 / 1000) as u64
+        self.as_secs() * 1000 + u64::from(self.subsec_nanos() / 1000 / 1000)
     }
 
     fn as_micros(&self) -> u64 {
-        self.as_secs() * 1000 * 1000 + (self.subsec_nanos() / 1000) as u64
+        self.as_secs() * 1000 * 1000 + u64::from(self.subsec_nanos() / 1000)
     }
 }
 

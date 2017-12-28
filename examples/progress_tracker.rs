@@ -28,7 +28,7 @@ fn print_time(duration: Option<Duration>) {
 
 fn print_artist(metadata: &Metadata) {
     if let Some(ref artists) = metadata.artists {
-        if artists.len() > 0 {
+        if !artists.is_empty() {
             print!("{}", artists.join(" + "));
             return;
         }
@@ -63,7 +63,7 @@ fn main() {
         let (progress, _did_refresh) = progress_tracker.tick();
 
         reset_line();
-        print_playback_status(&progress);
+        print_playback_status(progress);
         print!("\t");
         print_artist(&progress.metadata);
         print!(" - ");

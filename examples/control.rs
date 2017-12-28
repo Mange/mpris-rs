@@ -83,8 +83,7 @@ impl Action {
             Action::Stop => player.can_stop().unwrap_or(false),
             Action::Next => player.can_go_next().unwrap_or(false),
             Action::Previous => player.can_go_previous().unwrap_or(false),
-            Action::SeekForwards => player.can_seek().unwrap_or(false),
-            Action::SeekBackwards => player.can_seek().unwrap_or(false),
+            Action::SeekForwards | Action::SeekBackwards => player.can_seek().unwrap_or(false),
         }
     }
 
