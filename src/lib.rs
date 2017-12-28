@@ -69,6 +69,7 @@ pub mod errors {
 }
 
 mod generated;
+mod extensions;
 
 mod pooled_connection;
 mod find;

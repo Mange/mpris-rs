@@ -1,5 +1,5 @@
-use super::PlaybackStatus;
 use dbus::{Connection, BusName, Path, ConnPath};
+use extensions::DurationExtensions;
 use generated::OrgMprisMediaPlayer2;
 use generated::OrgMprisMediaPlayer2Player;
 use metadata::Metadata;
@@ -7,6 +7,8 @@ use pooled_connection::PooledConnection;
 use prelude::*;
 use progress::ProgressTracker;
 use std::rc::Rc;
+use std::time::Duration;
+use super::PlaybackStatus;
 
 pub(crate) const MPRIS2_PREFIX: &str = "org.mpris.MediaPlayer2.";
 pub(crate) const MPRIS2_PATH: &str = "/org/mpris/MediaPlayer2";
@@ -198,6 +200,27 @@ impl<'a> Player<'a> {
         self.connection_path().previous().map_err(|e| e.into())
     }
 
+    /// Send a `Seek` signal to the player.
+    ///
+    /// See: [MPRIS2 specification about `Seek`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Seek)
+    pub fn seek(&self, offset_in_microseconds: i64) -> Result<()> {
+        self.connection_path().seek(offset_in_microseconds).map_err(|e| e.into())
+    }
+
+    /// Tell the player to seek forwards.
+    ///
+    /// See: `seek` method on `Player`.
+    pub fn seek_forwards(&self, offset: &Duration) -> Result<()> {
+        self.seek(offset.as_micros() as i64)
+    }
+
+    /// Tell the player to seek backwards.
+    ///
+    /// See: `seek` method on `Player`.
+    pub fn seek_backwards(&self, offset: &Duration) -> Result<()> {
+        self.seek(-(offset.as_micros() as i64))
+    }
+
     /// Sends a `PlayPause` signal to the player, if the player indicates that it can pause.
     ///
     /// Returns a boolean to show if the signal was sent or not.
@@ -273,6 +296,45 @@ impl<'a> Player<'a> {
     pub fn checked_previous(&self) -> Result<bool> {
         if self.can_go_previous()? {
             self.previous().map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// Sends a `Seek` signal to the player, if the player indicates that it can seek.
+    ///
+    /// Returns a boolean to show if the signal was sent or not.
+    ///
+    /// See: [MPRIS2 specification about `Seek`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Seek)
+    pub fn checked_seek(&self, offset_in_microseconds: i64) -> Result<bool> {
+        if self.can_seek()? {
+            self.seek(offset_in_microseconds).map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// Seeks the player forwards, if the player indicates that it can seek.
+    ///
+    /// Returns a boolean to show if the signal was sent or not.
+    ///
+    /// See: [MPRIS2 specification about `Seek`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Seek)
+    pub fn checked_seek_forwards(&self, offset: &Duration) -> Result<bool> {
+        if self.can_seek()? {
+            self.seek_forwards(offset).map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// Seeks the player backwards, if the player indicates that it can seek.
+    ///
+    /// Returns a boolean to show if the signal was sent or not.
+    ///
+    /// See: [MPRIS2 specification about `Seek`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Seek)
+    pub fn checked_seek_backwards(&self, offset: &Duration) -> Result<bool> {
+        if self.can_seek()? {
+            self.seek_backwards(offset).map(|_| true)
         } else {
             Ok(false)
         }

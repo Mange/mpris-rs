@@ -3,6 +3,7 @@ use metadata::Metadata;
 use player::Player;
 use prelude::*;
 use std::time::{Duration, Instant};
+use extensions::DurationExtensions;
 
 /// Struct containing information about current progress of a Player.
 ///
@@ -35,22 +36,6 @@ pub struct ProgressTracker<'a> {
     interval: Duration,
     last_tick: Instant,
     last_progress: Progress,
-}
-
-pub(crate) trait DurationExtensions {
-    // Rust beta has a from_micros function that is unstable.
-    fn from_micros_ext(u64) -> Duration;
-    fn as_millis(&self) -> u64;
-}
-
-impl DurationExtensions for Duration {
-    fn from_micros_ext(micros: u64) -> Duration {
-        Duration::from_millis(micros / 1000)
-    }
-
-    fn as_millis(&self) -> u64 {
-        self.as_secs() * 1000 + (self.subsec_nanos() / 1000 / 1000) as u64
-    }
 }
 
 impl<'a> ProgressTracker<'a> {
@@ -254,12 +239,6 @@ impl Progress {
 #[cfg(test)]
 mod test {
     use super::*;
-
-    #[test]
-    fn it_calculates_whole_millis_from_durations() {
-        let duration = Duration::new(5, 543_210_000);
-        assert_eq!(duration.as_millis(), 5543);
-    }
 
     #[test]
     fn it_does_not_support_position_when_player_is_spotify() {

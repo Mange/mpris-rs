@@ -1,6 +1,6 @@
 use dbus::{Connection, Path, ConnPath, BusName, Message};
 use player::MPRIS2_PATH;
-use progress::DurationExtensions;
+use extensions::DurationExtensions;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
