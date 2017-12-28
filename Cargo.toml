@@ -15,3 +15,7 @@ maintenance = { status = "actively-developed" }
 [dependencies]
 dbus = "0.6.0"
 error-chain = "0.11.0"
+
+# For examples
+[dev-dependencies]
+termion = "1.5.1"

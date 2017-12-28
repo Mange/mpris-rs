@@ -84,7 +84,7 @@ mod prelude {
 pub use find::PlayerFinder;
 pub use metadata::Metadata;
 pub use player::Player;
-pub use progress::Progress;
+pub use progress::{Progress, ProgressTracker};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 #[allow(missing_docs)]
