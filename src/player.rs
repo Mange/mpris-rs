@@ -9,6 +9,7 @@ use progress::ProgressTracker;
 use std::rc::Rc;
 use std::time::Duration;
 use super::PlaybackStatus;
+use failure::Error;
 
 pub(crate) const MPRIS2_PREFIX: &str = "org.mpris.MediaPlayer2.";
 pub(crate) const MPRIS2_PATH: &str = "/org/mpris/MediaPlayer2";
@@ -400,8 +401,10 @@ impl<'a> Player<'a> {
     }
 
     /// Query the player for current playback status.
-    pub fn get_playback_status(&self) -> Result<PlaybackStatus> {
-        self.connection_path().get_playback_status()?.parse()
+    pub fn get_playback_status(&self) -> ::std::result::Result<PlaybackStatus, Error> {
+        self.connection_path()
+            .get_playback_status().map_err(super::DBusError::from)?
+            .parse().map_err(Error::from)
     }
 
     fn connection_path(&self) -> ConnPath<&Connection> {

@@ -13,21 +13,13 @@ pub enum MetadataError {
     TrackIdMissing,
 
     /// Metadata reading failed due to an underlying D-Bus error.
-    ///
-    /// The `dbus::Error` type is not `Sync` and cannot be represented in a `Fail`, so the
-    /// error's message is stored instead.
-    #[fail(display = "D-Bus call failed: {}", message)]
-    DBusError {
-        /// The reported error message from the underlying D-Bus error.
-        message: String
-    },
+    #[fail(display = "{}", _0)]
+    DBusError(#[cause] super::DBusError),
 }
 
 impl From<dbus::Error> for MetadataError {
     fn from(error: dbus::Error) -> Self {
-        MetadataError::DBusError {
-            message: error.message().unwrap_or("No error message present").to_string(),
-        }
+        MetadataError::DBusError(error.into())
     }
 }
 

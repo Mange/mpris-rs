@@ -47,12 +47,6 @@ pub mod errors {
                 display("Could not find a compatible MPRIS2 player running right now.")
             }
 
-            /// PlaybackStatus had an invalid string value.
-            InvalidPlaybackStatus(value: String) {
-                description("invalid PlaybackStatus value")
-                display("PlaybackStatus must be one of Playing, Paused, Stopped, but was {}", value)
-            }
-
             /// Something went wrong with a D-Bus call or parsing the results from it.
             DBusCallError(message: String) {
                 description("D-Bus call failed")
@@ -88,8 +82,13 @@ pub enum PlaybackStatus {
     Stopped,
 }
 
+/// PlaybackStatus had an invalid string value.
+#[derive(Fail, Debug)]
+#[fail(display = "PlaybackStatus must be one of Playing, Paused, Stopped, but was {}", _0)]
+pub struct InvalidPlaybackStatus(String);
+
 impl ::std::str::FromStr for PlaybackStatus {
-    type Err = errors::Error;
+    type Err = InvalidPlaybackStatus;
 
     fn from_str(string: &str) -> Result<Self, Self::Err> {
         use PlaybackStatus::*;
@@ -99,8 +98,27 @@ impl ::std::str::FromStr for PlaybackStatus {
             "Paused" => Ok(Paused),
             "Stopped" => Ok(Stopped),
             other => Err(
-                errors::ErrorKind::InvalidPlaybackStatus(other.to_owned()).into(),
+                InvalidPlaybackStatus(other.to_string()),
             ),
+        }
+    }
+}
+
+/// An underlying D-Bus error, represented as a `Fail`ure.
+///
+/// The `dbus::Error` type is not `Sync` and cannot be represented in a `Fail`, so the
+/// error's message is stored instead.
+#[derive(Fail, Debug)]
+#[fail(display = "D-Bus call failed: {}", message)]
+pub struct DBusError {
+    /// The reported error message from the underlying D-Bus error.
+    message: String
+}
+
+impl From<dbus::Error> for DBusError {
+    fn from(error: dbus::Error) -> Self {
+        DBusError {
+            message: error.message().unwrap_or("No error message present").to_string(),
         }
     }
 }

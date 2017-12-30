@@ -179,7 +179,7 @@ impl Progress {
     fn from_player<'a>(player: &'a Player<'a>) -> Result<Progress> {
         Ok(Progress {
             metadata: player.get_metadata().map_err(|_| ErrorKind::from("TODO"))?,
-            playback_status: player.get_playback_status()?,
+            playback_status: player.get_playback_status().map_err(|_| ErrorKind::from("TODO"))?,
             rate: player.get_playback_rate()?,
             position_in_microseconds: player.get_position_in_microseconds()?,
             is_spotify: player.identity() == "Spotify",
