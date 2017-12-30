@@ -203,7 +203,7 @@ fn print_instructions(screen: &mut Screen, player: &Player) {
     write!(screen, "\r\n").unwrap();
 }
 
-fn control_player(result: mpris::errors::Result<()>) {
+fn control_player(result: Result<(), mpris::DBusError>) {
     result.expect("Could not control player");
 }
 

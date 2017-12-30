@@ -1,9 +1,9 @@
 use super::PlaybackStatus;
 use metadata::Metadata;
 use player::Player;
-use prelude::*;
 use std::time::{Duration, Instant};
 use extensions::DurationExtensions;
+use failure::Error;
 
 /// Struct containing information about current progress of a Player.
 ///
@@ -49,7 +49,7 @@ impl<'a> ProgressTracker<'a> {
     /// # Errors
     ///
     /// Returns an error in case Player metadata or state retrieval over DBus fails.
-    pub fn new(player: &'a Player<'a>, interval_ms: u32) -> Result<Self> {
+    pub fn new(player: &'a Player<'a>, interval_ms: u32) -> Result<Self, Error> {
         Ok(ProgressTracker {
             player: player,
             interval: Duration::from_millis(u64::from(interval_ms)),
@@ -157,7 +157,7 @@ impl<'a> ProgressTracker<'a> {
     /// # Errors
     ///
     /// Returns an error if the refresh failed.
-    pub fn force_refresh(&mut self) -> Result<()> {
+    pub fn force_refresh(&mut self) -> Result<(), Error> {
         Progress::from_player(self.player).map(|progress| { self.last_progress = progress; })
     }
 
@@ -176,10 +176,10 @@ impl<'a> ProgressTracker<'a> {
 }
 
 impl Progress {
-    fn from_player<'a>(player: &'a Player<'a>) -> Result<Progress> {
+    fn from_player<'a>(player: &'a Player<'a>) -> Result<Progress, Error> {
         Ok(Progress {
-            metadata: player.get_metadata().map_err(|_| ErrorKind::from("TODO"))?,
-            playback_status: player.get_playback_status().map_err(|_| ErrorKind::from("TODO"))?,
+            metadata: player.get_metadata()?,
+            playback_status: player.get_playback_status()?,
             rate: player.get_playback_rate()?,
             position_in_microseconds: player.get_position_in_microseconds()?,
             is_spotify: player.identity() == "Spotify",
