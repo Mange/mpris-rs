@@ -47,7 +47,7 @@ pub enum PlaybackStatus {
     Stopped,
 }
 
-/// PlaybackStatus had an invalid string value.
+/// `PlaybackStatus` had an invalid string value.
 #[derive(Fail, Debug)]
 #[fail(display = "PlaybackStatus must be one of Playing, Paused, Stopped, but was {}", _0)]
 pub struct InvalidPlaybackStatus(String);
