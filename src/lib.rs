@@ -20,7 +20,16 @@
 //! 2. Look at the `PlayerFinder` struct.
 //!
 
-#[macro_use] extern crate failure_derive;
+// Rust currently has a false-positive on unused_imports for proc macro crates:
+// If it's imported with #[macro_use] it triggers the "Unused imports" lint.
+// If you remove #[macro_use], then the custom derives stop working with a recommendation to add it
+// again.
+//
+// Allowing unused_imports on this statement gets rid of the warning.
+#[allow(unused_imports)]
+#[macro_use]
+extern crate failure_derive;
+
 #[macro_use] extern crate failure;
 
 extern crate dbus;
