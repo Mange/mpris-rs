@@ -34,7 +34,7 @@ mod metadata;
 mod player;
 mod progress;
 
-pub use find::PlayerFinder;
+pub use find::{PlayerFinder, FindingError};
 pub use metadata::{Metadata, MetadataError};
 pub use player::Player;
 pub use progress::{Progress, ProgressTracker};
@@ -76,6 +76,12 @@ impl ::std::str::FromStr for PlaybackStatus {
 pub struct DBusError {
     /// The reported error message from the underlying D-Bus error.
     message: String
+}
+
+impl DBusError {
+    fn new<S: Into<String>>(message: S) -> Self {
+        DBusError { message: message.into() }
+    }
 }
 
 impl From<dbus::Error> for DBusError {

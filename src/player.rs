@@ -17,24 +17,6 @@ pub(crate) const MPRIS2_PATH: &str = "/org/mpris/MediaPlayer2";
 /// When D-Bus connection is managed for you, use this timeout while communicating with a Player.
 pub const DEFAULT_TIMEOUT_MS: i32 = 500; // ms
 
-/// This enum encodes possible error cases that could happen when initializing players.
-#[derive(Fail, Debug)]
-pub enum PlayerInitializationError {
-    /// Player could not be found on the D-Bus.
-    #[fail(display = "Could not find player")]
-    NotFound,
-
-    /// Finding failed due to an underlying D-Bus error.
-    #[fail(display = "{}", _0)]
-    DBusError(#[cause] DBusError),
-}
-
-impl From<dbus::Error> for PlayerInitializationError {
-    fn from(error: dbus::Error) -> Self {
-        PlayerInitializationError::DBusError(error.into())
-    }
-}
-
 /// A MPRIS-compatible player.
 ///
 /// You can query this player about the currently playing media, or control it.
@@ -60,7 +42,7 @@ impl<'a> Player<'a> {
         bus_name: B,
         path: P,
         timeout_ms: i32,
-    ) -> Result<Player<'a>, PlayerInitializationError>
+    ) -> Result<Player<'a>, DBusError>
     where
         B: Into<BusName<'a>>,
         P: Into<Path<'a>>,
@@ -78,18 +60,18 @@ impl<'a> Player<'a> {
         bus_name: BusName<'a>,
         path: Path<'a>,
         timeout_ms: i32,
-    ) -> Result<Player<'a>, PlayerInitializationError> {
+    ) -> Result<Player<'a>, DBusError> {
         let identity = {
             let connection_path =
                 pooled_connection.with_path(bus_name.clone(), path.clone(), timeout_ms);
             connection_path.get_identity()?
         };
 
-        // This could fail if the player quit while this method was executing, which means that a
-        // "not found" outcome is semantically proper.
         let unique_name = pooled_connection
             .determine_unique_name(&*bus_name)
-            .ok_or(PlayerInitializationError::NotFound)?;
+            .ok_or_else(|| {
+                DBusError::new("Could not determine player's unique name. Did it exit during initialization?")
+            })?;
 
         Ok(Player {
             connection: pooled_connection,

@@ -1,9 +1,10 @@
 extern crate dbus;
 
 use dbus::{Connection, Message, BusType, arg};
-use player::{Player, PlayerInitializationError, MPRIS2_PREFIX, MPRIS2_PATH, DEFAULT_TIMEOUT_MS};
+use player::{Player, MPRIS2_PREFIX, MPRIS2_PATH, DEFAULT_TIMEOUT_MS};
 use pooled_connection::PooledConnection;
 use std::rc::Rc;
+use super::DBusError;
 
 const LIST_NAMES_TIMEOUT_MS: i32 = 500;
 
@@ -16,19 +17,7 @@ pub enum FindingError {
 
     /// Finding failed due to an underlying D-Bus error.
     #[fail(display = "{}", _0)]
-    DBusError(#[cause] super::DBusError),
-
-    /// Finding failed because of encodig errors.
-    ///
-    /// Examples:
-    ///     - D-Bus reply not well-formed.
-    ///     - D-Bus reply contains characters that are not valid UTF-8.
-    #[fail(display = "Encoding error: {}", _0)]
-    EncodingError(String),
-
-    /// A Player instance failed to initialize.
-    #[fail(display = "Player failed to initialize: {}", _0)]
-    PlayerInitializationError(#[cause] PlayerInitializationError),
+    DBusError(#[cause] DBusError),
 }
 
 impl From<dbus::Error> for FindingError {
@@ -37,9 +26,9 @@ impl From<dbus::Error> for FindingError {
     }
 }
 
-impl From<PlayerInitializationError> for FindingError {
-    fn from(error: PlayerInitializationError) -> Self {
-        FindingError::PlayerInitializationError(error)
+impl From<DBusError> for FindingError {
+    fn from(error: DBusError) -> Self {
+        FindingError::DBusError(error)
     }
 }
 
@@ -53,7 +42,7 @@ impl PlayerFinder {
     /// Creates a new `PlayerFinder` with a new default D-Bus connection.
     ///
     /// Use `for_connection` if you want to provide the D-Bus connection yourself.
-    pub fn new() -> Result<Self, super::DBusError> {
+    pub fn new() -> Result<Self, DBusError> {
         Ok(PlayerFinder::for_connection(
             Connection::get_private(BusType::Session)?,
         ))
@@ -69,7 +58,7 @@ impl PlayerFinder {
 
     /// Find all available `Player`s in the connection.
     pub fn find_all<'a>(&self) -> Result<Vec<Player<'a>>, FindingError> {
-        self.all_player_buses()?
+        self.all_player_buses().map_err(FindingError::from)?
             .into_iter()
             .map(|bus_name| {
                 Player::for_pooled_connection(
@@ -110,7 +99,7 @@ impl PlayerFinder {
         Ok(self.all_player_buses()?.into_iter().nth(0))
     }
 
-    fn all_player_buses(&self) -> Result<Vec<String>, FindingError> {
+    fn all_player_buses(&self) -> Result<Vec<String>, DBusError> {
         let list_names = Message::new_method_call(
             "org.freedesktop.DBus",
             "/",
@@ -124,7 +113,7 @@ impl PlayerFinder {
         )?;
 
         let names: arg::Array<&str, _> = reply.get1().ok_or_else(|| {
-            FindingError::EncodingError(String::from("Could not get ListNames reply"))
+            DBusError::new("Could not get ListNames reply")
         })?;
 
         Ok(
