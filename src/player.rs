@@ -3,13 +3,12 @@ use dbus::{Connection, BusName, Path, ConnPath};
 use extensions::DurationExtensions;
 use generated::OrgMprisMediaPlayer2;
 use generated::OrgMprisMediaPlayer2Player;
-use metadata::{Metadata, MetadataError};
+use metadata::Metadata;
 use pooled_connection::PooledConnection;
 use progress::ProgressTracker;
 use std::rc::Rc;
 use std::time::Duration;
 use super::{PlaybackStatus, DBusError};
-use failure::Error;
 
 pub(crate) const MPRIS2_PREFIX: &str = "org.mpris.MediaPlayer2.";
 pub(crate) const MPRIS2_PATH: &str = "/org/mpris/MediaPlayer2";
@@ -137,7 +136,7 @@ impl<'a> Player<'a> {
     /// Query the player for current metadata.
     ///
     /// See `Metadata` for more information about what is included here.
-    pub fn get_metadata(&self) -> Result<Metadata, MetadataError> {
+    pub fn get_metadata(&self) -> Result<Metadata, DBusError> {
         self.connection_path()
             .get_metadata()
             .map_err(|e| e.into())
@@ -148,7 +147,7 @@ impl<'a> Player<'a> {
     ///
     /// Use this if you want to monitor a player in order to show close-to-realtime information
     /// about it.
-    pub fn track_progress(&self, interval_ms: u32) -> Result<ProgressTracker, Error> {
+    pub fn track_progress(&self, interval_ms: u32) -> Result<ProgressTracker, DBusError> {
         ProgressTracker::new(self, interval_ms)
     }
 

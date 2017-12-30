@@ -35,7 +35,7 @@ mod player;
 mod progress;
 
 pub use find::{PlayerFinder, FindingError};
-pub use metadata::{Metadata, MetadataError};
+pub use metadata::Metadata;
 pub use player::Player;
 pub use progress::{Progress, ProgressTracker};
 

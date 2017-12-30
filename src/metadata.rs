@@ -1,29 +1,7 @@
 extern crate dbus;
 use dbus::arg::{Variant, RefArg, cast};
 use std::collections::HashMap;
-
-/// This enum encodes possible error cases that could happen when loading metadata from a player.
-#[derive(Fail, Debug)]
-pub enum MetadataError {
-    /// The `trackId` field could not be read from the player metadata.
-    ///
-    /// Non-conforming implementations of the MPRIS2 protocol might omit the required
-    /// `trackId` field, which would then return this error.
-    #[fail(display = "TrackId missing from metadata")]
-    TrackIdMissing,
-
-    /// Metadata reading failed due to an underlying D-Bus error.
-    #[fail(display = "{}", _0)]
-    DBusError(#[cause] super::DBusError),
-}
-
-impl From<dbus::Error> for MetadataError {
-    fn from(error: dbus::Error) -> Self {
-        MetadataError::DBusError(error.into())
-    }
-}
-
-type Result<T> = ::std::result::Result<T, MetadataError>;
+use super::DBusError;
 
 /// A structured representation of the `Player` metadata.
 ///
@@ -130,7 +108,7 @@ impl Metadata {
 
     pub(crate) fn new_from_dbus(
         metadata: HashMap<String, Variant<Box<RefArg>>>,
-    ) -> Result<Metadata> {
+    ) -> Result<Metadata, DBusError> {
         MetadataBuilder::build_from_metadata(metadata)
     }
 }
@@ -164,7 +142,7 @@ fn cast_string<T: RefArg + ?Sized>(value: &T) -> Option<String> {
 }
 
 impl MetadataBuilder {
-    fn build_from_metadata(metadata: HashMap<String, Variant<Box<RefArg>>>) -> Result<Metadata> {
+    fn build_from_metadata(metadata: HashMap<String, Variant<Box<RefArg>>>) -> Result<Metadata, DBusError> {
         let mut builder = MetadataBuilder::new();
 
         for (key, value) in metadata {
@@ -195,7 +173,7 @@ impl MetadataBuilder {
         self.rest.insert(key, value);
     }
 
-    fn finish(self) -> Result<Metadata> {
+    fn finish(self) -> Result<Metadata, DBusError> {
         match self.track_id {
             Some(track_id) => {
                 Ok(Metadata {
@@ -215,7 +193,7 @@ impl MetadataBuilder {
                     rest: self.rest,
                 })
             }
-            None => Err(MetadataError::TrackIdMissing),
+            None => Err(DBusError::new("TrackId is missing from metadata; client is not conforming to MPRIS-2")),
         }
     }
 }
