@@ -16,6 +16,8 @@ maintenance = { status = "actively-developed" }
 [dependencies]
 dbus = "0.6.0"
 error-chain = "0.11.0"
+failure = "0.1.1"
+failure_derive = "0.1.1"
 
 # For examples
 [dev-dependencies]
