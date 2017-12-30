@@ -1,9 +1,8 @@
-use super::PlaybackStatus;
+use extensions::DurationExtensions;
 use metadata::Metadata;
 use player::Player;
-use prelude::*;
 use std::time::{Duration, Instant};
-use extensions::DurationExtensions;
+use super::{PlaybackStatus, DBusError};
 
 /// Struct containing information about current progress of a Player.
 ///
@@ -49,7 +48,7 @@ impl<'a> ProgressTracker<'a> {
     /// # Errors
     ///
     /// Returns an error in case Player metadata or state retrieval over DBus fails.
-    pub fn new(player: &'a Player<'a>, interval_ms: u32) -> Result<Self> {
+    pub fn new(player: &'a Player<'a>, interval_ms: u32) -> Result<Self, DBusError> {
         Ok(ProgressTracker {
             player: player,
             interval: Duration::from_millis(u64::from(interval_ms)),
@@ -157,7 +156,7 @@ impl<'a> ProgressTracker<'a> {
     /// # Errors
     ///
     /// Returns an error if the refresh failed.
-    pub fn force_refresh(&mut self) -> Result<()> {
+    pub fn force_refresh(&mut self) -> Result<(), DBusError> {
         Progress::from_player(self.player).map(|progress| { self.last_progress = progress; })
     }
 
@@ -176,7 +175,7 @@ impl<'a> ProgressTracker<'a> {
 }
 
 impl Progress {
-    fn from_player<'a>(player: &'a Player<'a>) -> Result<Progress> {
+    fn from_player<'a>(player: &'a Player<'a>) -> Result<Progress, DBusError> {
         Ok(Progress {
             metadata: player.get_metadata()?,
             playback_status: player.get_playback_status()?,

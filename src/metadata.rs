@@ -1,6 +1,7 @@
+extern crate dbus;
 use dbus::arg::{Variant, RefArg, cast};
-use prelude::*;
 use std::collections::HashMap;
+use super::DBusError;
 
 /// A structured representation of the `Player` metadata.
 ///
@@ -107,7 +108,7 @@ impl Metadata {
 
     pub(crate) fn new_from_dbus(
         metadata: HashMap<String, Variant<Box<RefArg>>>,
-    ) -> Result<Metadata> {
+    ) -> Result<Metadata, DBusError> {
         MetadataBuilder::build_from_metadata(metadata)
     }
 }
@@ -141,7 +142,7 @@ fn cast_string<T: RefArg + ?Sized>(value: &T) -> Option<String> {
 }
 
 impl MetadataBuilder {
-    fn build_from_metadata(metadata: HashMap<String, Variant<Box<RefArg>>>) -> Result<Metadata> {
+    fn build_from_metadata(metadata: HashMap<String, Variant<Box<RefArg>>>) -> Result<Metadata, DBusError> {
         let mut builder = MetadataBuilder::new();
 
         for (key, value) in metadata {
@@ -172,7 +173,7 @@ impl MetadataBuilder {
         self.rest.insert(key, value);
     }
 
-    fn finish(self) -> Result<Metadata> {
+    fn finish(self) -> Result<Metadata, DBusError> {
         match self.track_id {
             Some(track_id) => {
                 Ok(Metadata {
@@ -192,7 +193,7 @@ impl MetadataBuilder {
                     rest: self.rest,
                 })
             }
-            None => Err(ErrorKind::TrackIdMissing.into()),
+            None => Err(DBusError::new("TrackId is missing from metadata; client is not conforming to MPRIS-2")),
         }
     }
 }
