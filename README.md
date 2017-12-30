@@ -5,8 +5,6 @@
 
 [![Crates.io][crate-badge]][crate] [![Documentation][docs-badge]][docs] [![Build Status][ci-badge]][ci] ![Actively developed][maintenance-badge]
 
-**NOTE:** This is still under development and not ready for use yet.
-
 ## What is MPRIS2?
 
 > The Media Player Remote Interfacing Specification is a standard D-Bus
