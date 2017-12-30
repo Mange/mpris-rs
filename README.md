@@ -3,6 +3,8 @@
 > A Rust library for dealing with [MPRIS2][mpris2]-compatible players over
 > D-Bus.
 
+[![Crates.io][crate-badge]][crate] [![Documentation][docs-badge]][docs] [![Build Status][ci-badge]][ci] ![Actively developed][maintenance-badge]
+
 **NOTE:** This is still under development and not ready for use yet.
 
 ## What is MPRIS2?
@@ -65,3 +67,10 @@ limitations under the License.
 
 [mpris2]: https://specifications.freedesktop.org/mpris-spec/latest/
 [mpris-about]: https://specifications.freedesktop.org/mpris-spec/latest/#About
+[docs]: https://docs.rs/mpris/
+[docs-badge]: https://docs.rs/mpris/badge.svg
+[crate]: https://crates.io/crates/mpris
+[crate-badge]: https://img.shields.io/crates/v/mpris.svg
+[maintenance-badge]: https://img.shields.io/badge/maintenance-actively--developed-brightgreen.svg
+[ci-badge]: https://travis-ci.org/Mange/mpris-rs.svg?branch=master
+[ci]: https://travis-ci.org/Mange/mpris-rs
