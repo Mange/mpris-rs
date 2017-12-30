@@ -178,7 +178,7 @@ impl<'a> ProgressTracker<'a> {
 impl Progress {
     fn from_player<'a>(player: &'a Player<'a>) -> Result<Progress> {
         Ok(Progress {
-            metadata: player.get_metadata()?,
+            metadata: player.get_metadata().map_err(|_| ErrorKind::from("TODO"))?,
             playback_status: player.get_playback_status()?,
             rate: player.get_playback_rate()?,
             position_in_microseconds: player.get_position_in_microseconds()?,

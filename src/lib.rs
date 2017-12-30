@@ -20,6 +20,9 @@
 //! 2. Look at the `PlayerFinder` struct.
 //!
 
+#[macro_use] extern crate failure_derive;
+extern crate failure;
+
 #[macro_use]
 extern crate error_chain;
 extern crate dbus;
@@ -42,15 +45,6 @@ pub mod errors {
             NoPlayerFound {
                 description("No player found")
                 display("Could not find a compatible MPRIS2 player running right now.")
-            }
-
-            /// The `trackId` field could not be read from the player metadata.
-            ///
-            /// Non-conforming implementations of the MPRIS2 protocol might omit the required
-            /// `trackId` field, which would then return this error.
-            TrackIdMissing {
-                description("track_id missing")
-                display("mpris:trackid not present in metadata")
             }
 
             /// PlaybackStatus had an invalid string value.
@@ -82,7 +76,7 @@ mod prelude {
 }
 
 pub use find::PlayerFinder;
-pub use metadata::Metadata;
+pub use metadata::{Metadata, MetadataError};
 pub use player::Player;
 pub use progress::{Progress, ProgressTracker};
 

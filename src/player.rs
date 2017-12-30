@@ -2,7 +2,7 @@ use dbus::{Connection, BusName, Path, ConnPath};
 use extensions::DurationExtensions;
 use generated::OrgMprisMediaPlayer2;
 use generated::OrgMprisMediaPlayer2Player;
-use metadata::Metadata;
+use metadata::{Metadata, MetadataError};
 use pooled_connection::PooledConnection;
 use prelude::*;
 use progress::ProgressTracker;
@@ -139,7 +139,7 @@ impl<'a> Player<'a> {
     /// Query the player for current metadata.
     ///
     /// See `Metadata` for more information about what is included here.
-    pub fn get_metadata(&self) -> Result<Metadata> {
+    pub fn get_metadata(&self) -> ::std::result::Result<Metadata, MetadataError> {
         self.connection_path()
             .get_metadata()
             .map_err(|e| e.into())

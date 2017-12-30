@@ -1,6 +1,37 @@
+extern crate dbus;
 use dbus::arg::{Variant, RefArg, cast};
-use prelude::*;
 use std::collections::HashMap;
+
+/// This enum encodes possible error cases that could happen when loading metadata from a player.
+#[derive(Fail, Debug)]
+pub enum MetadataError {
+    /// The `trackId` field could not be read from the player metadata.
+    ///
+    /// Non-conforming implementations of the MPRIS2 protocol might omit the required
+    /// `trackId` field, which would then return this error.
+    #[fail(display = "TrackId missing from metadata")]
+    TrackIdMissing,
+
+    /// Metadata reading failed due to an underlying D-Bus error.
+    ///
+    /// The `dbus::Error` type is not `Sync` and cannot be represented in a `Fail`, so the
+    /// error's message is stored instead.
+    #[fail(display = "D-Bus call failed: {}", message)]
+    DBusError {
+        /// The reported error message from the underlying D-Bus error.
+        message: String
+    },
+}
+
+impl From<dbus::Error> for MetadataError {
+    fn from(error: dbus::Error) -> Self {
+        MetadataError::DBusError {
+            message: error.message().unwrap_or("No error message present").to_string(),
+        }
+    }
+}
+
+type Result<T> = ::std::result::Result<T, MetadataError>;
 
 /// A structured representation of the `Player` metadata.
 ///
@@ -192,7 +223,7 @@ impl MetadataBuilder {
                     rest: self.rest,
                 })
             }
-            None => Err(ErrorKind::TrackIdMissing.into()),
+            None => Err(MetadataError::TrackIdMissing),
         }
     }
 }
