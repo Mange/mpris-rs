@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use super::{DBusError, PlaybackStatus};
+use super::{DBusError, LoopStatus, PlaybackStatus};
 use extensions::DurationExtensions;
 use metadata::Metadata;
 use player::Player;
@@ -18,6 +18,10 @@ pub struct Progress {
     pub metadata: Metadata,
     /// The playback status at the point in time that this Progress was constructed.
     pub playback_status: PlaybackStatus,
+    /// The shuffle status at the point in time that this Progress was constructed.
+    pub shuffle: bool,
+    /// The loop status at the point in time that this Progress was constructed.
+    pub loop_status: LoopStatus,
 
     /// When this Progress was constructed, in order to calculate how old it is.
     instant: Instant,
@@ -181,6 +185,8 @@ impl Progress {
         Ok(Progress {
             metadata: player.get_metadata()?,
             playback_status: player.get_playback_status()?,
+            shuffle: player.get_shuffle()?,
+            loop_status: player.get_loop_status()?,
             rate: player.get_playback_rate()?,
             position_in_microseconds: player.get_position_in_microseconds()?,
             is_spotify: player.identity() == "Spotify",
@@ -246,6 +252,8 @@ mod test {
         let progress = Progress {
             metadata: Metadata::new(String::from("id")),
             playback_status: PlaybackStatus::Playing,
+            shuffle: false,
+            loop_status: LoopStatus::None,
             rate: 1.0,
             position_in_microseconds: 0,
             instant: Instant::now(),
@@ -257,6 +265,8 @@ mod test {
         let progress = Progress {
             metadata: Metadata::new(String::from("id")),
             playback_status: PlaybackStatus::Playing,
+            shuffle: false,
+            loop_status: LoopStatus::None,
             rate: 1.0,
             position_in_microseconds: 0,
             instant: Instant::now(),
@@ -271,6 +281,8 @@ mod test {
         let progress = Progress {
             metadata: Metadata::new(String::from("id")),
             playback_status: PlaybackStatus::Playing,
+            shuffle: false,
+            loop_status: LoopStatus::None,
             rate: 1.0,
             position_in_microseconds: 1,
             instant: Instant::now(),
@@ -286,6 +298,8 @@ mod test {
         let progress = Progress {
             metadata: Metadata::new(String::from("id")),
             playback_status: PlaybackStatus::Paused,
+            shuffle: false,
+            loop_status: LoopStatus::None,
             rate: 1.0,
             position_in_microseconds: 1336,
             instant: Instant::now() - Duration::from_millis(500),

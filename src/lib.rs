@@ -55,6 +55,22 @@ pub enum PlaybackStatus {
     Stopped,
 }
 
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+/// A Player's looping status.
+///
+/// See: [MPRIS2 specification about
+/// `Loop_Status`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Enum:Loop_Status)
+pub enum LoopStatus {
+    /// The playback will stop when there are no more tracks to play
+    None,
+
+    /// The current track will start again from the begining once it has finished playing
+    Track,
+
+    /// The playback loops through a list of tracks
+    Playlist,
+}
+
 /// `PlaybackStatus` had an invalid string value.
 #[derive(Fail, Debug)]
 #[fail(display = "PlaybackStatus must be one of Playing, Paused, Stopped, but was {}", _0)]
@@ -72,6 +88,34 @@ impl ::std::str::FromStr for PlaybackStatus {
             "Stopped" => Ok(Stopped),
             other => Err(InvalidPlaybackStatus(other.to_string())),
         }
+    }
+}
+
+/// `LoopStatus` had an invalid string value.
+#[derive(Fail, Debug)]
+#[fail(display = "LoopStatus must be one of None, Track, Playlist, but was {}", _0)]
+pub struct InvalidLoopStatus(String);
+
+impl ::std::str::FromStr for LoopStatus {
+    type Err = InvalidLoopStatus;
+
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        match string {
+            "None" => Ok(LoopStatus::None),
+            "Track" => Ok(LoopStatus::Track),
+            "Playlist" => Ok(LoopStatus::Playlist),
+            other => Err(InvalidLoopStatus(other.to_string())),
+        }
+    }
+}
+
+impl LoopStatus {
+    fn dbus_value(&self) -> String {
+        String::from(match *self {
+            LoopStatus::None => "None",
+            LoopStatus::Track => "Track",
+            LoopStatus::Playlist => "Playlist",
+        })
     }
 }
 
@@ -105,6 +149,14 @@ impl From<dbus::Error> for DBusError {
 
 impl From<InvalidPlaybackStatus> for DBusError {
     fn from(error: InvalidPlaybackStatus) -> Self {
+        DBusError {
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<InvalidLoopStatus> for DBusError {
+    fn from(error: InvalidLoopStatus) -> Self {
         DBusError {
             message: error.to_string(),
         }

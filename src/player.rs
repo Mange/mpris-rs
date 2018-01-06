@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use dbus::{BusName, ConnPath, Connection, Path};
 
-use super::{DBusError, PlaybackStatus};
+use super::{DBusError, LoopStatus, PlaybackStatus};
 use extensions::DurationExtensions;
 use generated::OrgMprisMediaPlayer2;
 use generated::OrgMprisMediaPlayer2Player;
@@ -409,6 +409,79 @@ impl<'a> Player<'a> {
             .get_playback_status()?
             .parse()
             .map_err(DBusError::from)
+    }
+
+    /// Query player for the state of the "Shuffle" setting.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `Shuffle`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Shuffle)
+    pub fn get_shuffle(&self) -> Result<bool, DBusError> {
+        self.connection_path()
+            .get_shuffle()
+            .map_err(DBusError::from)
+    }
+
+    /// Set the "Shuffle" setting of the player.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `Shuffle`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Shuffle)
+    pub fn set_shuffle(&self, state: bool) -> Result<(), DBusError> {
+        self.connection_path()
+            .set_shuffle(state)
+            .map_err(DBusError::from)
+    }
+
+    /// Set the "Shuffle" setting of the player, if the player indicates that it can be controlled.
+    ///
+    /// Returns a boolean to show if the signal was sent or not.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `Shuffle`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Shuffle)
+    pub fn checked_set_shuffle(&self, state: bool) -> Result<bool, DBusError> {
+        if self.can_control()? {
+            self.set_shuffle(state)
+                .map(|_| true)
+                .map_err(DBusError::from)
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// Query the player for the current loop status.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `LoopStatus`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:LoopStatus)
+    pub fn get_loop_status(&self) -> Result<LoopStatus, DBusError> {
+        self.connection_path()
+            .get_loop_status()?
+            .parse()
+            .map_err(DBusError::from)
+    }
+
+    /// Set the loop status of the player.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `LoopStatus`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:LoopStatus)
+    pub fn set_loop_status(&self, status: LoopStatus) -> Result<(), DBusError> {
+        self.connection_path()
+            .set_loop_status(status.dbus_value())
+            .map_err(DBusError::from)
+    }
+
+    /// Set the loop status of the player, if the player indicates that it can be controlled.
+    ///
+    /// Returns a boolean to show if the signal was sent or not.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `LoopStatus`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:LoopStatus)
+    pub fn checked_set_loop_status(&self, status: LoopStatus) -> Result<bool, DBusError> {
+        if self.can_control()? {
+            self.set_loop_status(status)
+                .map(|_| true)
+                .map_err(DBusError::from)
+        } else {
+            Ok(false)
+        }
     }
 
     fn connection_path(&self) -> ConnPath<&Connection> {

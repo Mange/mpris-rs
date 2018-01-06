@@ -5,7 +5,7 @@ use std::borrow::Cow;
 use std::io::{stdout, Stdout, Write};
 use std::time::Duration;
 
-use mpris::{PlaybackStatus, Player, PlayerFinder, Progress, ProgressTracker};
+use mpris::{LoopStatus, PlaybackStatus, Player, PlayerFinder, Progress, ProgressTracker};
 use termion::color;
 use termion::input::TermRead;
 use termion::raw::{IntoRawMode, RawTerminal};
@@ -24,6 +24,8 @@ enum Action {
     Previous,
     SeekForwards,
     SeekBackwards,
+    ToggleShuffle,
+    CycleLoopStatus,
 }
 
 const ACTIONS: &[Action] = &[
@@ -31,6 +33,8 @@ const ACTIONS: &[Action] = &[
     Action::Stop,
     Action::Next,
     Action::Previous,
+    Action::ToggleShuffle,
+    Action::CycleLoopStatus,
     Action::SeekForwards,
     Action::SeekBackwards,
     Action::Quit,
@@ -47,6 +51,8 @@ impl Action {
             Key::Char('s') => Some(Stop),
             Key::Char('n') => Some(Next),
             Key::Char('p') => Some(Previous),
+            Key::Char('z') => Some(ToggleShuffle),
+            Key::Char('x') => Some(CycleLoopStatus),
             Key::Left => Some(SeekForwards),
             Key::Right => Some(SeekBackwards),
             _ => None,
@@ -60,6 +66,8 @@ impl Action {
             Action::Stop => "s",
             Action::Next => "n",
             Action::Previous => "p",
+            Action::ToggleShuffle => "z",
+            Action::CycleLoopStatus => "x",
             Action::SeekForwards => "Left",
             Action::SeekBackwards => "Right",
         }
@@ -72,6 +80,8 @@ impl Action {
             Action::Stop => "Stop",
             Action::Next => "Next media",
             Action::Previous => "Previous media",
+            Action::ToggleShuffle => "Toggle shuffle",
+            Action::CycleLoopStatus => "Cycle loop status",
             Action::SeekForwards => "Seek 5s forward",
             Action::SeekBackwards => "Seek 5s backward",
         }
@@ -84,6 +94,8 @@ impl Action {
             Action::Stop => player.can_stop().unwrap_or(false),
             Action::Next => player.can_go_next().unwrap_or(false),
             Action::Previous => player.can_go_previous().unwrap_or(false),
+            Action::ToggleShuffle => player.can_control().unwrap_or(false),
+            Action::CycleLoopStatus => player.can_control().unwrap_or(false),
             Action::SeekForwards | Action::SeekBackwards => player.can_seek().unwrap_or(false),
         }
     }
@@ -140,6 +152,8 @@ impl<'a> App<'a> {
             Action::Stop => control_player(self.player.stop()),
             Action::Next => control_player(self.player.next()),
             Action::Previous => control_player(self.player.previous()),
+            Action::ToggleShuffle => control_player(toggle_shuffle(self.player)),
+            Action::CycleLoopStatus => control_player(cycle_loop_status(self.player)),
             Action::SeekBackwards => {
                 control_player(self.player.seek_backwards(&Duration::new(5, 0)))
             }
@@ -216,6 +230,20 @@ fn control_player(result: Result<(), mpris::DBusError>) {
     result.expect("Could not control player");
 }
 
+fn toggle_shuffle(player: &Player) -> Result<(), mpris::DBusError> {
+    player.set_shuffle(!player.get_shuffle()?)
+}
+
+fn cycle_loop_status(player: &Player) -> Result<(), mpris::DBusError> {
+    let current_status = player.get_loop_status()?;
+    let next_status = match current_status {
+        LoopStatus::None => LoopStatus::Playlist,
+        LoopStatus::Playlist => LoopStatus::Track,
+        LoopStatus::Track => LoopStatus::None,
+    };
+    player.set_loop_status(next_status)
+}
+
 fn print_track_info(screen: &mut Screen, progress: &Progress) {
     let metadata = &(progress.metadata);
 
@@ -232,15 +260,29 @@ fn print_track_info(screen: &mut Screen, progress: &Progress) {
         .unwrap_or_else(|| Cow::Borrowed("Unkown title"));
 
     let playback_string = match progress.playback_status {
-        PlaybackStatus::Playing => format!("{}[Playing]", color::Fg(color::Green)),
-        PlaybackStatus::Paused => format!("{}[Paused]", color::Fg(color::LightBlack)),
-        PlaybackStatus::Stopped => format!("{}[Stopped]", color::Fg(color::Red)),
+        PlaybackStatus::Playing => format!("{}▶", color::Fg(color::Green)),
+        PlaybackStatus::Paused => format!("{}▮▮", color::Fg(color::LightBlack)),
+        PlaybackStatus::Stopped => format!("{}◼", color::Fg(color::Red)),
+    };
+
+    let shuffle_string = if progress.shuffle {
+        format!("{}🔀", color::Fg(color::Green))
+    } else {
+        format!("{}🔀", color::Fg(color::LightBlack))
+    };
+
+    let loop_string = match progress.loop_status {
+        LoopStatus::None => format!("{}🔁", color::Fg(color::LightBlack)),
+        LoopStatus::Playlist => format!("{}🔁", color::Fg(color::Green)),
+        LoopStatus::Track => format!("{}🔂", color::Fg(color::Yellow)),
     };
 
     write!(
         screen,
-        "{playback}{color_reset} {blue}{bold}{artist}{nobold} - {title}{color_reset}\r\n",
+        "{playback} {shuffle} {loop} {color_reset} {blue}{bold}{artist}{nobold} - {title}{color_reset}\r\n",
         playback = playback_string,
+        shuffle = shuffle_string,
+        loop = loop_string,
         blue = color::Fg(color::Blue),
         color_reset = color::Fg(color::Reset),
         bold = termion::style::Bold,

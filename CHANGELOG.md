@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+
+- `Player` can now query and change `Shuffle` status.
+- `Player` can now query and change `LoopStatus`.
+
 ### Changed
 
 - `failure` replaces `error_chain` for error handling.
