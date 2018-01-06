@@ -24,6 +24,7 @@ enum Action {
     Previous,
     SeekForwards,
     SeekBackwards,
+    ToggleShuffle,
 }
 
 const ACTIONS: &[Action] = &[
@@ -31,6 +32,7 @@ const ACTIONS: &[Action] = &[
     Action::Stop,
     Action::Next,
     Action::Previous,
+    Action::ToggleShuffle,
     Action::SeekForwards,
     Action::SeekBackwards,
     Action::Quit,
@@ -47,6 +49,7 @@ impl Action {
             Key::Char('s') => Some(Stop),
             Key::Char('n') => Some(Next),
             Key::Char('p') => Some(Previous),
+            Key::Char('z') => Some(ToggleShuffle),
             Key::Left => Some(SeekForwards),
             Key::Right => Some(SeekBackwards),
             _ => None,
@@ -60,6 +63,7 @@ impl Action {
             Action::Stop => "s",
             Action::Next => "n",
             Action::Previous => "p",
+            Action::ToggleShuffle => "z",
             Action::SeekForwards => "Left",
             Action::SeekBackwards => "Right",
         }
@@ -72,6 +76,7 @@ impl Action {
             Action::Stop => "Stop",
             Action::Next => "Next media",
             Action::Previous => "Previous media",
+            Action::ToggleShuffle => "Toggle shuffle",
             Action::SeekForwards => "Seek 5s forward",
             Action::SeekBackwards => "Seek 5s backward",
         }
@@ -84,6 +89,7 @@ impl Action {
             Action::Stop => player.can_stop().unwrap_or(false),
             Action::Next => player.can_go_next().unwrap_or(false),
             Action::Previous => player.can_go_previous().unwrap_or(false),
+            Action::ToggleShuffle => player.can_control().unwrap_or(false),
             Action::SeekForwards | Action::SeekBackwards => player.can_seek().unwrap_or(false),
         }
     }
@@ -140,6 +146,7 @@ impl<'a> App<'a> {
             Action::Stop => control_player(self.player.stop()),
             Action::Next => control_player(self.player.next()),
             Action::Previous => control_player(self.player.previous()),
+            Action::ToggleShuffle => control_player(toggle_shuffle(self.player)),
             Action::SeekBackwards => {
                 control_player(self.player.seek_backwards(&Duration::new(5, 0)))
             }
@@ -216,6 +223,10 @@ fn control_player(result: Result<(), mpris::DBusError>) {
     result.expect("Could not control player");
 }
 
+fn toggle_shuffle(player: &Player) -> Result<(), mpris::DBusError> {
+    player.set_shuffle(!player.get_shuffle()?)
+}
+
 fn print_track_info(screen: &mut Screen, progress: &Progress) {
     let metadata = &(progress.metadata);
 
@@ -232,15 +243,22 @@ fn print_track_info(screen: &mut Screen, progress: &Progress) {
         .unwrap_or_else(|| Cow::Borrowed("Unkown title"));
 
     let playback_string = match progress.playback_status {
-        PlaybackStatus::Playing => format!("{}[Playing]", color::Fg(color::Green)),
-        PlaybackStatus::Paused => format!("{}[Paused]", color::Fg(color::LightBlack)),
-        PlaybackStatus::Stopped => format!("{}[Stopped]", color::Fg(color::Red)),
+        PlaybackStatus::Playing => format!("{}▶", color::Fg(color::Green)),
+        PlaybackStatus::Paused => format!("{}▮▮", color::Fg(color::LightBlack)),
+        PlaybackStatus::Stopped => format!("{}◼", color::Fg(color::Red)),
+    };
+
+    let shuffle_string = if progress.shuffle {
+        format!("{}🔀", color::Fg(color::Green))
+    } else {
+        format!("{}🔀", color::Fg(color::LightBlack))
     };
 
     write!(
         screen,
-        "{playback}{color_reset} {blue}{bold}{artist}{nobold} - {title}{color_reset}\r\n",
+        "{playback} {shuffle}{color_reset} {blue}{bold}{artist}{nobold} - {title}{color_reset}\r\n",
         playback = playback_string,
+        shuffle = shuffle_string,
         blue = color::Fg(color::Blue),
         color_reset = color::Fg(color::Reset),
         bold = termion::style::Bold,
