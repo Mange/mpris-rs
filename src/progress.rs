@@ -28,7 +28,6 @@ pub struct Progress {
 
     position_in_microseconds: u64,
     rate: f32,
-    is_spotify: bool,
 }
 
 /// Controller for calculating Progress for a given Player.
@@ -189,7 +188,6 @@ impl Progress {
             loop_status: player.get_loop_status()?,
             rate: player.get_playback_rate()?,
             position_in_microseconds: player.get_position_in_microseconds()?,
-            is_spotify: player.identity() == "Spotify",
             instant: Instant::now(),
         })
     }
@@ -207,24 +205,22 @@ impl Progress {
     /// invocation using the `initial_position` and knowledge of how long ago that position was
     /// determined.
     ///
-    /// **Note:** Some players might not support this. Spotify is one such example. You can test
-    /// for known problem players using the `supports_position` method.
+    /// **Note:** Some players might not support this and will return a bad position. Spotify is
+    /// one such example. There is no reliable way of detecting problematic players, so it will be
+    /// up to your client to check for this.
+    ///
+    /// One way of doing this is to query the `initial_position` for two measures with the
+    /// `Playing` `PlaybackStatus` and if both are `0`, then it is likely that this client does not
+    /// support positions.
     pub fn position(&self) -> Duration {
         self.initial_position() + self.elapsed()
     }
 
     /// Returns the position that the current track was at when the `Progress` was created.
+    ///
+    /// This is the number that was returned for the `Position` property in the MPRIS2 interface.
     pub fn initial_position(&self) -> Duration {
         Duration::from_micros_ext(self.position_in_microseconds)
-    }
-
-    /// Returns `false` if the current player is known to not support the `position` field.
-    ///
-    /// You can optionally use this in order to display an undetermined position, as an example.
-    pub fn supports_position(&self) -> bool {
-        // Spotify does not support position at this time. It always returns 0, no matter what.
-        // Still make sure it's 0 in case Spotify later starts to support it.
-        !(self.is_spotify && self.position_in_microseconds == 0)
     }
 
     /// Returns the age of the data as a `Duration`.
@@ -248,35 +244,6 @@ mod test {
     use super::*;
 
     #[test]
-    fn it_does_not_support_position_when_player_is_spotify() {
-        let progress = Progress {
-            metadata: Metadata::new(String::from("id")),
-            playback_status: PlaybackStatus::Playing,
-            shuffle: false,
-            loop_status: LoopStatus::None,
-            rate: 1.0,
-            position_in_microseconds: 0,
-            instant: Instant::now(),
-            is_spotify: true,
-        };
-
-        assert!(!progress.supports_position());
-
-        let progress = Progress {
-            metadata: Metadata::new(String::from("id")),
-            playback_status: PlaybackStatus::Playing,
-            shuffle: false,
-            loop_status: LoopStatus::None,
-            rate: 1.0,
-            position_in_microseconds: 0,
-            instant: Instant::now(),
-            is_spotify: false,
-        };
-
-        assert!(progress.supports_position());
-    }
-
-    #[test]
     fn it_progresses_position_when_playing_at_microseconds() {
         let progress = Progress {
             metadata: Metadata::new(String::from("id")),
@@ -286,7 +253,6 @@ mod test {
             rate: 1.0,
             position_in_microseconds: 1,
             instant: Instant::now(),
-            is_spotify: false,
         };
 
         assert_eq!(progress.initial_position(), Duration::from_micros_ext(1));
@@ -303,7 +269,6 @@ mod test {
             rate: 1.0,
             position_in_microseconds: 1336,
             instant: Instant::now() - Duration::from_millis(500),
-            is_spotify: false,
         };
 
         assert_eq!(progress.position(), progress.initial_position());
