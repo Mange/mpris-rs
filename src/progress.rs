@@ -14,14 +14,10 @@ use player::Player;
 /// progress rendering.
 #[derive(Debug)]
 pub struct Progress {
-    /// The track metadata at the point in time that this Progress was constructed.
-    pub metadata: Metadata,
-    /// The playback status at the point in time that this Progress was constructed.
-    pub playback_status: PlaybackStatus,
-    /// The shuffle status at the point in time that this Progress was constructed.
-    pub shuffle: bool,
-    /// The loop status at the point in time that this Progress was constructed.
-    pub loop_status: LoopStatus,
+    metadata: Metadata,
+    playback_status: PlaybackStatus,
+    shuffle: bool,
+    loop_status: LoopStatus,
 
     /// When this Progress was constructed, in order to calculate how old it is.
     instant: Instant,
@@ -118,7 +114,7 @@ impl<'a> ProgressTracker<'a> {
     /// loop {
     ///     let (progress, was_changed) = progress_tracker.tick();
     ///     if was_changed {
-    ///         update_track_title(progress.metadata.title());
+    ///         update_track_title(progress.metadata().title());
     ///         reset_progress_bar(progress.position(), progress.length());
     ///     } else {
     ///         update_progress_bar(progress.position());
@@ -192,6 +188,26 @@ impl Progress {
         })
     }
 
+    /// The track metadata at the point in time that this Progress was constructed.
+    pub fn metadata(&self) -> &Metadata {
+        &self.metadata
+    }
+
+    /// The playback status at the point in time that this Progress was constructed.
+    pub fn playback_status(&self) -> PlaybackStatus {
+        self.playback_status
+    }
+
+    /// The shuffle status at the point in time that this Progress was constructed.
+    pub fn shuffle(&self) -> bool {
+        self.shuffle
+    }
+
+    /// The loop status at the point in time that this Progress was constructed.
+    pub fn loop_status(&self) -> LoopStatus {
+        self.loop_status
+    }
+
     /// Returns the length of the current track as a `Duration`.
     pub fn length(&self) -> Option<Duration> {
         self.metadata.length()
@@ -219,6 +235,13 @@ impl Progress {
     /// This is the number that was returned for the `Position` property in the MPRIS2 interface.
     pub fn initial_position(&self) -> Duration {
         Duration::from_micros_ext(self.position_in_microseconds)
+    }
+
+    /// The instant where this `Progress` was recorded.
+    ///
+    /// See: `age`.
+    pub fn created_at(&self) -> &Instant {
+        &self.instant
     }
 
     /// Returns the age of the data as a `Duration`.

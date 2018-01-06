@@ -44,7 +44,7 @@ fn print_title(metadata: &Metadata) {
 }
 
 fn print_playback_status(progress: &Progress) {
-    match progress.playback_status {
+    match progress.playback_status() {
         PlaybackStatus::Playing => print!("▶"),
         PlaybackStatus::Paused => print!("▮▮"),
         PlaybackStatus::Stopped => print!("◼"),
@@ -52,7 +52,7 @@ fn print_playback_status(progress: &Progress) {
 }
 
 fn print_shuffle_status(progress: &Progress) {
-    if progress.shuffle {
+    if progress.shuffle() {
         print!("🔀");
     } else {
         print!(" ");
@@ -60,7 +60,7 @@ fn print_shuffle_status(progress: &Progress) {
 }
 
 fn print_loop_status(progress: &Progress) {
-    match progress.loop_status {
+    match progress.loop_status() {
         LoopStatus::None => print!(" "),
         LoopStatus::Track => print!("🔂"),
         LoopStatus::Playlist => print!("🔁"),
@@ -80,9 +80,9 @@ fn main() {
         print_shuffle_status(progress);
         print_loop_status(progress);
         print!("\t");
-        print_artist(&progress.metadata);
+        print_artist(progress.metadata());
         print!(" - ");
-        print_title(&progress.metadata);
+        print_title(progress.metadata());
         print!(" [");
         if identity != "Spotify" {
             print_time(Some(progress.position()));

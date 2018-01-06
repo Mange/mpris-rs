@@ -250,7 +250,7 @@ fn cycle_loop_status(player: &Player) -> Result<(), mpris::DBusError> {
 }
 
 fn print_track_info(screen: &mut Screen, progress: &Progress) {
-    let metadata = &(progress.metadata);
+    let metadata = progress.metadata();
 
     let artist_string: Cow<str> = metadata
         .artists()
@@ -259,19 +259,19 @@ fn print_track_info(screen: &mut Screen, progress: &Progress) {
 
     let title_string = metadata.title().unwrap_or("Unkown title");
 
-    let playback_string = match progress.playback_status {
+    let playback_string = match progress.playback_status() {
         PlaybackStatus::Playing => format!("{}▶", color::Fg(color::Green)),
         PlaybackStatus::Paused => format!("{}▮▮", color::Fg(color::LightBlack)),
         PlaybackStatus::Stopped => format!("{}◼", color::Fg(color::Red)),
     };
 
-    let shuffle_string = if progress.shuffle {
+    let shuffle_string = if progress.shuffle() {
         format!("{}🔀", color::Fg(color::Green))
     } else {
         format!("{}🔀", color::Fg(color::LightBlack))
     };
 
-    let loop_string = match progress.loop_status {
+    let loop_string = match progress.loop_status() {
         LoopStatus::None => format!("{}🔁", color::Fg(color::LightBlack)),
         LoopStatus::Playlist => format!("{}🔁", color::Fg(color::Green)),
         LoopStatus::Track => format!("{}🔂", color::Fg(color::Yellow)),
