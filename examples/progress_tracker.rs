@@ -29,7 +29,7 @@ fn print_time(duration: Option<Duration>) {
 }
 
 fn print_artist(metadata: &Metadata) {
-    if let Some(ref artists) = metadata.artists {
+    if let Some(artists) = metadata.artists() {
         if !artists.is_empty() {
             print!("{}", artists.join(" + "));
             return;
@@ -40,16 +40,11 @@ fn print_artist(metadata: &Metadata) {
 }
 
 fn print_title(metadata: &Metadata) {
-    if let Some(ref title) = metadata.title {
-        print!("{}", title);
-        return;
-    }
-
-    print!("Unknown title");
+    print!("{}", metadata.title().unwrap_or("Unknown title"));
 }
 
 fn print_playback_status(progress: &Progress) {
-    match progress.playback_status {
+    match progress.playback_status() {
         PlaybackStatus::Playing => print!("▶"),
         PlaybackStatus::Paused => print!("▮▮"),
         PlaybackStatus::Stopped => print!("◼"),
@@ -57,7 +52,7 @@ fn print_playback_status(progress: &Progress) {
 }
 
 fn print_shuffle_status(progress: &Progress) {
-    if progress.shuffle {
+    if progress.shuffle() {
         print!("🔀");
     } else {
         print!(" ");
@@ -65,7 +60,7 @@ fn print_shuffle_status(progress: &Progress) {
 }
 
 fn print_loop_status(progress: &Progress) {
-    match progress.loop_status {
+    match progress.loop_status() {
         LoopStatus::None => print!(" "),
         LoopStatus::Track => print!("🔂"),
         LoopStatus::Playlist => print!("🔁"),
@@ -85,9 +80,9 @@ fn main() {
         print_shuffle_status(progress);
         print_loop_status(progress);
         print!("\t");
-        print_artist(&progress.metadata);
+        print_artist(progress.metadata());
         print!(" - ");
-        print_title(&progress.metadata);
+        print_title(progress.metadata());
         print!(" [");
         if identity != "Spotify" {
             print_time(Some(progress.position()));
