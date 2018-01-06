@@ -29,7 +29,7 @@ fn print_time(duration: Option<Duration>) {
 }
 
 fn print_artist(metadata: &Metadata) {
-    if let Some(ref artists) = metadata.artists {
+    if let Some(artists) = metadata.artists() {
         if !artists.is_empty() {
             print!("{}", artists.join(" + "));
             return;
@@ -40,12 +40,7 @@ fn print_artist(metadata: &Metadata) {
 }
 
 fn print_title(metadata: &Metadata) {
-    if let Some(ref title) = metadata.title {
-        print!("{}", title);
-        return;
-    }
-
-    print!("Unknown title");
+    print!("{}", metadata.title().unwrap_or("Unknown title"));
 }
 
 fn print_playback_status(progress: &Progress) {

@@ -109,7 +109,7 @@ impl<'a> ProgressTracker<'a> {
     /// # use std::time::Duration;
     /// # fn update_progress_bar(_: Duration) { }
     /// # fn reset_progress_bar(_: Duration, _: Option<Duration>) { }
-    /// # fn update_track_title(_: &Option<String>) { }
+    /// # fn update_track_title(_: Option<&str>) { }
     /// #
     /// # let player = PlayerFinder::new().unwrap().find_active().unwrap();
     /// #
@@ -118,7 +118,7 @@ impl<'a> ProgressTracker<'a> {
     /// loop {
     ///     let (progress, was_changed) = progress_tracker.tick();
     ///     if was_changed {
-    ///         update_track_title(&progress.metadata.title);
+    ///         update_track_title(progress.metadata.title());
     ///         reset_progress_bar(progress.position(), progress.length());
     ///     } else {
     ///         update_progress_bar(progress.position());
@@ -194,9 +194,7 @@ impl Progress {
 
     /// Returns the length of the current track as a `Duration`.
     pub fn length(&self) -> Option<Duration> {
-        self.metadata
-            .length_in_microseconds
-            .map(Duration::from_micros_ext)
+        self.metadata.length()
     }
 
     /// Returns the current position of the current track as a `Duration`.

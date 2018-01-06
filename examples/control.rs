@@ -253,16 +253,11 @@ fn print_track_info(screen: &mut Screen, progress: &Progress) {
     let metadata = &(progress.metadata);
 
     let artist_string: Cow<str> = metadata
-        .artists
-        .as_ref()
+        .artists()
         .map(|artists| Cow::Owned(artists.join(" + ")))
         .unwrap_or_else(|| Cow::Borrowed("Unknown artist"));
 
-    let title_string: Cow<str> = metadata
-        .title
-        .as_ref()
-        .map(|s| Cow::Owned(s.clone()))
-        .unwrap_or_else(|| Cow::Borrowed("Unkown title"));
+    let title_string = metadata.title().unwrap_or("Unkown title");
 
     let playback_string = match progress.playback_status {
         PlaybackStatus::Playing => format!("{}▶", color::Fg(color::Green)),
