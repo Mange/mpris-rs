@@ -1,9 +1,7 @@
 #![warn(missing_docs)]
-#![deny(missing_debug_implementations, missing_copy_implementations,
-        trivial_casts, trivial_numeric_casts,
-        unsafe_code,
-        unstable_features,
-        unused_import_braces, unused_qualifications)]
+#![deny(missing_debug_implementations, missing_copy_implementations, trivial_casts,
+        trivial_numeric_casts, unsafe_code, unstable_features, unused_import_braces,
+        unused_qualifications)]
 
 //!
 //! # mpris
@@ -30,7 +28,8 @@
 #[macro_use]
 extern crate failure_derive;
 
-#[macro_use] extern crate failure;
+#[macro_use]
+extern crate failure;
 
 extern crate dbus;
 
@@ -43,7 +42,7 @@ mod metadata;
 mod player;
 mod progress;
 
-pub use find::{PlayerFinder, FindingError};
+pub use find::{FindingError, PlayerFinder};
 pub use metadata::Metadata;
 pub use player::Player;
 pub use progress::{Progress, ProgressTracker};
@@ -71,9 +70,7 @@ impl ::std::str::FromStr for PlaybackStatus {
             "Playing" => Ok(Playing),
             "Paused" => Ok(Paused),
             "Stopped" => Ok(Stopped),
-            other => Err(
-                InvalidPlaybackStatus(other.to_string()),
-            ),
+            other => Err(InvalidPlaybackStatus(other.to_string())),
         }
     }
 }
@@ -84,19 +81,24 @@ impl ::std::str::FromStr for PlaybackStatus {
 #[fail(display = "D-Bus call failed: {}", message)]
 pub struct DBusError {
     /// The reported error message from the underlying D-Bus error.
-    message: String
+    message: String,
 }
 
 impl DBusError {
     fn new<S: Into<String>>(message: S) -> Self {
-        DBusError { message: message.into() }
+        DBusError {
+            message: message.into(),
+        }
     }
 }
 
 impl From<dbus::Error> for DBusError {
     fn from(error: dbus::Error) -> Self {
         DBusError {
-            message: error.message().unwrap_or("No error message present").to_string(),
+            message: error
+                .message()
+                .unwrap_or("No error message present")
+                .to_string(),
         }
     }
 }

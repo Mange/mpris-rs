@@ -1,10 +1,12 @@
 extern crate dbus;
 
-use dbus::{Connection, Message, BusType, arg};
-use player::{Player, MPRIS2_PREFIX, MPRIS2_PATH, DEFAULT_TIMEOUT_MS};
-use pooled_connection::PooledConnection;
 use std::rc::Rc;
+
+use dbus::{arg, BusType, Connection, Message};
+
 use super::DBusError;
+use player::{MPRIS2_PATH, MPRIS2_PREFIX, Player, DEFAULT_TIMEOUT_MS};
+use pooled_connection::PooledConnection;
 
 const LIST_NAMES_TIMEOUT_MS: i32 = 500;
 
@@ -43,9 +45,9 @@ impl PlayerFinder {
     ///
     /// Use `for_connection` if you want to provide the D-Bus connection yourself.
     pub fn new() -> Result<Self, DBusError> {
-        Ok(PlayerFinder::for_connection(
-            Connection::get_private(BusType::Session)?,
-        ))
+        Ok(PlayerFinder::for_connection(Connection::get_private(
+            BusType::Session,
+        )?))
     }
 
     /// Create a new `PlayerFinder` with the given connection.
@@ -53,12 +55,15 @@ impl PlayerFinder {
     /// Use `new` if you want a new default connection rather than manually managing the D-Bus
     /// connection.
     pub fn for_connection(connection: Connection) -> Self {
-        PlayerFinder { connection: Rc::new(connection.into()) }
+        PlayerFinder {
+            connection: Rc::new(connection.into()),
+        }
     }
 
     /// Find all available `Player`s in the connection.
     pub fn find_all<'a>(&self) -> Result<Vec<Player<'a>>, FindingError> {
-        self.all_player_buses().map_err(FindingError::from)?
+        self.all_player_buses()
+            .map_err(FindingError::from)?
             .into_iter()
             .map(|bus_name| {
                 Player::for_pooled_connection(
@@ -107,21 +112,18 @@ impl PlayerFinder {
             "ListNames",
         ).unwrap();
 
-        let reply = self.connection.underlying().send_with_reply_and_block(
-            list_names,
-            LIST_NAMES_TIMEOUT_MS,
-        )?;
+        let reply = self.connection
+            .underlying()
+            .send_with_reply_and_block(list_names, LIST_NAMES_TIMEOUT_MS)?;
 
-        let names: arg::Array<&str, _> = reply.get1().ok_or_else(|| {
-            DBusError::new("Could not get ListNames reply")
-        })?;
+        let names: arg::Array<&str, _> = reply
+            .get1()
+            .ok_or_else(|| DBusError::new("Could not get ListNames reply"))?;
 
-        Ok(
-            names
-                .into_iter()
-                .filter(|name| name.starts_with(MPRIS2_PREFIX))
-                .map(|str_ref| str_ref.to_owned())
-                .collect(),
-        )
+        Ok(names
+            .into_iter()
+            .filter(|name| name.starts_with(MPRIS2_PREFIX))
+            .map(|str_ref| str_ref.to_owned())
+            .collect())
     }
 }

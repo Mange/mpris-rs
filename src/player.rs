@@ -1,14 +1,17 @@
 extern crate dbus;
-use dbus::{Connection, BusName, Path, ConnPath};
+
+use std::rc::Rc;
+use std::time::Duration;
+
+use dbus::{BusName, ConnPath, Connection, Path};
+
+use super::{DBusError, PlaybackStatus};
 use extensions::DurationExtensions;
 use generated::OrgMprisMediaPlayer2;
 use generated::OrgMprisMediaPlayer2Player;
 use metadata::Metadata;
 use pooled_connection::PooledConnection;
 use progress::ProgressTracker;
-use std::rc::Rc;
-use std::time::Duration;
-use super::{PlaybackStatus, DBusError};
 
 pub(crate) const MPRIS2_PREFIX: &str = "org.mpris.MediaPlayer2.";
 pub(crate) const MPRIS2_PATH: &str = "/org/mpris/MediaPlayer2";
@@ -69,7 +72,9 @@ impl<'a> Player<'a> {
         let unique_name = pooled_connection
             .determine_unique_name(&*bus_name)
             .ok_or_else(|| {
-                DBusError::new("Could not determine player's unique name. Did it exit during initialization?")
+                DBusError::new(
+                    "Could not determine player's unique name. Did it exit during initialization?",
+                )
             })?;
 
         Ok(Player {
@@ -201,7 +206,9 @@ impl<'a> Player<'a> {
     ///
     /// See: [MPRIS2 specification about `Seek`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Seek)
     pub fn seek(&self, offset_in_microseconds: i64) -> Result<(), DBusError> {
-        self.connection_path().seek(offset_in_microseconds).map_err(|e| e.into())
+        self.connection_path()
+            .seek(offset_in_microseconds)
+            .map_err(|e| e.into())
     }
 
     /// Tell the player to seek forwards.
@@ -341,27 +348,27 @@ impl<'a> Player<'a> {
     ///
     /// See: [MPRIS2 specification about `CanControl`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanControl)
     pub fn can_control(&self) -> Result<bool, DBusError> {
-        self.connection_path().get_can_control().map_err(
-            |e| e.into(),
-        )
+        self.connection_path()
+            .get_can_control()
+            .map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can go to next or not.
     ///
     /// See: [MPRIS2 specification about `CanGoNext`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanGoNext)
     pub fn can_go_next(&self) -> Result<bool, DBusError> {
-        self.connection_path().get_can_go_next().map_err(
-            |e| e.into(),
-        )
+        self.connection_path()
+            .get_can_go_next()
+            .map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can go to previous or not.
     ///
     /// See: [MPRIS2 specification about `CanGoPrevious`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanGoPrevious)
     pub fn can_go_previous(&self) -> Result<bool, DBusError> {
-        self.connection_path().get_can_go_previous().map_err(
-            |e| e.into(),
-        )
+        self.connection_path()
+            .get_can_go_previous()
+            .map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can pause.
@@ -400,15 +407,13 @@ impl<'a> Player<'a> {
     pub fn get_playback_status(&self) -> Result<PlaybackStatus, DBusError> {
         self.connection_path()
             .get_playback_status()?
-            .parse().map_err(DBusError::from)
+            .parse()
+            .map_err(DBusError::from)
     }
 
     fn connection_path(&self) -> ConnPath<&Connection> {
         // TODO: Can we create this only once? Maybe using the Once type, or a RefCell?
-        self.connection.with_path(
-            self.bus_name.clone(),
-            self.path.clone(),
-            self.timeout_ms,
-        )
+        self.connection
+            .with_path(self.bus_name.clone(), self.path.clone(), self.timeout_ms)
     }
 }

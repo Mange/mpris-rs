@@ -1,6 +1,6 @@
 extern crate mpris;
 
-use mpris::{PlayerFinder, Metadata};
+use mpris::{Metadata, PlayerFinder};
 
 fn main() {
     match retrieve_metadata() {
@@ -15,13 +15,12 @@ fn main() {
 }
 
 fn retrieve_metadata() -> Result<Metadata, String> {
-    let player_finder = PlayerFinder::new().map_err(|e| {
-        format!("Could not connect to D-Bus: {}", e)
-    })?;
+    let player_finder =
+        PlayerFinder::new().map_err(|e| format!("Could not connect to D-Bus: {}", e))?;
 
-    let player = player_finder.find_active().map_err(|e| {
-        format!("Could not find any player: {}", e)
-    })?;
+    let player = player_finder
+        .find_active()
+        .map_err(|e| format!("Could not find any player: {}", e))?;
 
     println!(
         "Found {identity} (on bus {bus_name})",
@@ -29,7 +28,7 @@ fn retrieve_metadata() -> Result<Metadata, String> {
         identity = player.identity(),
     );
 
-    player.get_metadata().map_err(|e| {
-        format!("Could not get metadata for player: {}", e)
-    })
+    player
+        .get_metadata()
+        .map_err(|e| format!("Could not get metadata for player: {}", e))
 }

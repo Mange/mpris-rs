@@ -1,14 +1,15 @@
 extern crate mpris;
 extern crate termion;
 
-use mpris::{PlayerFinder, Player, ProgressTracker, Progress, PlaybackStatus};
-use std::io::{stdout, Write, Stdout};
+use std::borrow::Cow;
+use std::io::{stdout, Stdout, Write};
+use std::time::Duration;
+
+use mpris::{PlaybackStatus, Player, PlayerFinder, Progress, ProgressTracker};
+use termion::color;
 use termion::input::TermRead;
 use termion::raw::{IntoRawMode, RawTerminal};
 use termion::screen::AlternateScreen;
-use termion::color;
-use std::borrow::Cow;
-use std::time::Duration;
 
 const REFRESH_INTERVAL: u32 = 100; // ms
 
@@ -37,8 +38,8 @@ const ACTIONS: &[Action] = &[
 
 impl Action {
     fn from_key(key: termion::event::Key) -> Option<Action> {
-        use termion::event::Key;
         use Action::*;
+        use termion::event::Key;
 
         match key {
             Key::Ctrl('c') | Key::Esc | Key::Char('q') => Some(Quit),
@@ -125,7 +126,11 @@ impl<'a> App<'a> {
     }
 
     fn next_action(&mut self) -> Option<Action> {
-        (&mut self.stdin).keys().next().and_then(|result| result.ok()).and_then(Action::from_key)
+        (&mut self.stdin)
+            .keys()
+            .next()
+            .and_then(|result| result.ok())
+            .and_then(Action::from_key)
     }
 
     fn perform_action(&mut self, action: Action) {
@@ -135,7 +140,9 @@ impl<'a> App<'a> {
             Action::Stop => control_player(self.player.stop()),
             Action::Next => control_player(self.player.next()),
             Action::Previous => control_player(self.player.previous()),
-            Action::SeekBackwards => control_player(self.player.seek_backwards(&Duration::new(5, 0))),
+            Action::SeekBackwards => {
+                control_player(self.player.seek_backwards(&Duration::new(5, 0)))
+            }
             Action::SeekForwards => control_player(self.player.seek_forwards(&Duration::new(5, 0))),
         };
     }
@@ -169,7 +176,9 @@ fn print_instructions(screen: &mut Screen, player: &Player) {
     write!(
         screen,
         "{}Instructions for controlling {}:{}\r\n",
-        bold, player.identity(), nobold,
+        bold,
+        player.identity(),
+        nobold,
     ).unwrap();
 
     for action in ACTIONS {
@@ -210,11 +219,15 @@ fn control_player(result: Result<(), mpris::DBusError>) {
 fn print_track_info(screen: &mut Screen, progress: &Progress) {
     let metadata = &(progress.metadata);
 
-    let artist_string: Cow<str> = metadata.artists.as_ref()
+    let artist_string: Cow<str> = metadata
+        .artists
+        .as_ref()
         .map(|artists| Cow::Owned(artists.join(" + ")))
         .unwrap_or_else(|| Cow::Borrowed("Unknown artist"));
 
-    let title_string: Cow<str> = metadata.title.as_ref()
+    let title_string: Cow<str> = metadata
+        .title
+        .as_ref()
         .map(|s| Cow::Owned(s.clone()))
         .unwrap_or_else(|| Cow::Borrowed("Unkown title"));
 
@@ -244,7 +257,8 @@ fn print_progress_bar(screen: &mut Screen, progress: &Progress) {
         Cow::Borrowed("??:??:??")
     };
 
-    let length_string: Cow<str> = progress.length()
+    let length_string: Cow<str> = progress
+        .length()
         .map(|s| Cow::Owned(format_duration(s)))
         .unwrap_or_else(|| Cow::Borrowed("??:??:??"));
 
@@ -266,7 +280,12 @@ fn clear_progress_bar(screen: &mut Screen) {
 }
 
 fn clear_screen(screen: &mut Screen) {
-    write!(screen, "{}{}", termion::clear::All, termion::cursor::Goto(1, 1)).unwrap();
+    write!(
+        screen,
+        "{}{}",
+        termion::clear::All,
+        termion::cursor::Goto(1, 1)
+    ).unwrap();
 }
 
 fn format_duration(duration: Duration) -> String {
@@ -282,8 +301,13 @@ fn format_duration(duration: Duration) -> String {
 }
 
 fn main() {
-    let player = PlayerFinder::new().unwrap().find_active().expect("Could not find a running player");
-    let progress_tracker = player.track_progress(REFRESH_INTERVAL).expect("Could not determine progress of player");
+    let player = PlayerFinder::new()
+        .unwrap()
+        .find_active()
+        .expect("Could not find a running player");
+    let progress_tracker = player
+        .track_progress(REFRESH_INTERVAL)
+        .expect("Could not determine progress of player");
 
     let stdout = stdout().into_raw_mode().unwrap();
 
@@ -296,4 +320,3 @@ fn main() {
 
     app.main_loop();
 }
-

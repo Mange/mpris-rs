@@ -1,8 +1,9 @@
+use std::time::{Duration, Instant};
+
+use super::{DBusError, PlaybackStatus};
 use extensions::DurationExtensions;
 use metadata::Metadata;
 use player::Player;
-use std::time::{Duration, Instant};
-use super::{PlaybackStatus, DBusError};
 
 /// Struct containing information about current progress of a Player.
 ///
@@ -135,10 +136,9 @@ impl<'a> ProgressTracker<'a> {
         }
 
         // If we got a new event since the last time we ticked, then reload fresh data.
-        if let Some(last_event_at) =
-            self.player.connection().last_event_for_unique_name(
-                self.player.unique_name(),
-            )
+        if let Some(last_event_at) = self.player
+            .connection()
+            .last_event_for_unique_name(self.player.unique_name())
         {
             if last_event_at > self.last_tick {
                 did_refresh = self.refresh();
@@ -157,7 +157,9 @@ impl<'a> ProgressTracker<'a> {
     ///
     /// Returns an error if the refresh failed.
     pub fn force_refresh(&mut self) -> Result<(), DBusError> {
-        Progress::from_player(self.player).map(|progress| { self.last_progress = progress; })
+        Progress::from_player(self.player).map(|progress| {
+            self.last_progress = progress;
+        })
     }
 
     fn progress(&mut self) -> &Progress {
@@ -188,9 +190,9 @@ impl Progress {
 
     /// Returns the length of the current track as a `Duration`.
     pub fn length(&self) -> Option<Duration> {
-        self.metadata.length_in_microseconds.map(
-            Duration::from_micros_ext,
-        )
+        self.metadata
+            .length_in_microseconds
+            .map(Duration::from_micros_ext)
     }
 
     /// Returns the current position of the current track as a `Duration`.

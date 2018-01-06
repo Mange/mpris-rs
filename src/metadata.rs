@@ -1,6 +1,9 @@
 extern crate dbus;
-use dbus::arg::{Variant, RefArg, cast};
+
 use std::collections::HashMap;
+
+use dbus::arg::{cast, RefArg, Variant};
+
 use super::DBusError;
 
 /// A structured representation of the `Player` metadata.
@@ -132,9 +135,10 @@ struct MetadataBuilder {
 }
 
 fn cast_string_vec(value: &Variant<Box<RefArg>>) -> Option<Vec<String>> {
-    value.0.as_iter().map(
-        |arr| arr.flat_map(cast_string).collect(),
-    )
+    value
+        .0
+        .as_iter()
+        .map(|arr| arr.flat_map(cast_string).collect())
 }
 
 fn cast_string<T: RefArg + ?Sized>(value: &T) -> Option<String> {
@@ -142,7 +146,9 @@ fn cast_string<T: RefArg + ?Sized>(value: &T) -> Option<String> {
 }
 
 impl MetadataBuilder {
-    fn build_from_metadata(metadata: HashMap<String, Variant<Box<RefArg>>>) -> Result<Metadata, DBusError> {
+    fn build_from_metadata(
+        metadata: HashMap<String, Variant<Box<RefArg>>>,
+    ) -> Result<Metadata, DBusError> {
         let mut builder = MetadataBuilder::new();
 
         for (key, value) in metadata {
@@ -175,25 +181,25 @@ impl MetadataBuilder {
 
     fn finish(self) -> Result<Metadata, DBusError> {
         match self.track_id {
-            Some(track_id) => {
-                Ok(Metadata {
-                    track_id: track_id,
+            Some(track_id) => Ok(Metadata {
+                track_id: track_id,
 
-                    album_artists: self.album_artists,
-                    album_name: self.album_name,
-                    art_url: self.art_url,
-                    artists: self.artists,
-                    auto_rating: self.auto_rating,
-                    disc_number: self.disc_number,
-                    length_in_microseconds: self.length_in_microseconds,
-                    title: self.title,
-                    track_number: self.track_number,
-                    url: self.url,
+                album_artists: self.album_artists,
+                album_name: self.album_name,
+                art_url: self.art_url,
+                artists: self.artists,
+                auto_rating: self.auto_rating,
+                disc_number: self.disc_number,
+                length_in_microseconds: self.length_in_microseconds,
+                title: self.title,
+                track_number: self.track_number,
+                url: self.url,
 
-                    rest: self.rest,
-                })
-            }
-            None => Err(DBusError::new("TrackId is missing from metadata; client is not conforming to MPRIS-2")),
+                rest: self.rest,
+            }),
+            None => Err(DBusError::new(
+                "TrackId is missing from metadata; client is not conforming to MPRIS-2",
+            )),
         }
     }
 }

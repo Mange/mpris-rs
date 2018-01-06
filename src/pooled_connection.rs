@@ -1,9 +1,11 @@
-use dbus::{Connection, Path, ConnPath, BusName, Message};
-use player::MPRIS2_PATH;
-use extensions::DurationExtensions;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
+
+use dbus::{BusName, ConnPath, Connection, Message, Path};
+
+use extensions::DurationExtensions;
+use player::MPRIS2_PATH;
 
 #[derive(Debug)]
 pub(crate) struct PooledConnection {
@@ -108,16 +110,15 @@ impl PooledConnection {
     }
 
     fn process_message(&self, message: &Message) {
-        message.sender().map(|unique_name| {
-            self.mark_bus_as_updated((*unique_name).to_owned())
-        });
+        message
+            .sender()
+            .map(|unique_name| self.mark_bus_as_updated((*unique_name).to_owned()));
     }
 
     fn mark_bus_as_updated<S: Into<String>>(&self, bus_name: S) {
-        self.last_event.borrow_mut().insert(
-            bus_name.into(),
-            Instant::now(),
-        );
+        self.last_event
+            .borrow_mut()
+            .insert(bus_name.into(), Instant::now());
     }
 }
 

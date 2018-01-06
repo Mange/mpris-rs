@@ -1,7 +1,9 @@
 extern crate mpris;
-use mpris::{PlayerFinder, Metadata, PlaybackStatus, Progress};
+
 use std::io::{stdout, Write};
 use std::time::Duration;
+
+use mpris::{Metadata, PlaybackStatus, PlayerFinder, Progress};
 
 fn reset_line() {
     print!("\r\x1b[K");
