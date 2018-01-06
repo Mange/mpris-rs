@@ -3,7 +3,7 @@ extern crate mpris;
 use std::io::{stdout, Write};
 use std::time::Duration;
 
-use mpris::{Metadata, PlaybackStatus, PlayerFinder, Progress};
+use mpris::{LoopStatus, Metadata, PlaybackStatus, PlayerFinder, Progress};
 
 fn reset_line() {
     print!("\r\x1b[K");
@@ -64,6 +64,14 @@ fn print_shuffle_status(progress: &Progress) {
     }
 }
 
+fn print_loop_status(progress: &Progress) {
+    match progress.loop_status {
+        LoopStatus::None => print!(" "),
+        LoopStatus::Track => print!("🔂"),
+        LoopStatus::Playlist => print!("🔁"),
+    }
+}
+
 fn main() {
     let player = PlayerFinder::new().unwrap().find_active().unwrap();
     let identity = player.identity();
@@ -75,6 +83,7 @@ fn main() {
         reset_line();
         print_playback_status(progress);
         print_shuffle_status(progress);
+        print_loop_status(progress);
         print!("\t");
         print_artist(&progress.metadata);
         print!(" - ");
