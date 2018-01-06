@@ -56,6 +56,14 @@ fn print_playback_status(progress: &Progress) {
     }
 }
 
+fn print_shuffle_status(progress: &Progress) {
+    if progress.shuffle {
+        print!("🔀");
+    } else {
+        print!(" ");
+    }
+}
+
 fn main() {
     let player = PlayerFinder::new().unwrap().find_active().unwrap();
     let identity = player.identity();
@@ -66,6 +74,7 @@ fn main() {
 
         reset_line();
         print_playback_status(progress);
+        print_shuffle_status(progress);
         print!("\t");
         print_artist(&progress.metadata);
         print!(" - ");
