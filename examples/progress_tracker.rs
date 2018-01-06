@@ -89,7 +89,7 @@ fn main() {
         print!(" - ");
         print_title(&progress.metadata);
         print!(" [");
-        if progress.supports_position() {
+        if identity != "Spotify" {
             print_time(Some(progress.position()));
         } else {
             print_time(None);

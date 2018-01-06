@@ -15,7 +15,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Changed
 
 - `failure` replaces `error_chain` for error handling.
-  - All errors now implements the `failure::Fail` trait, and methods return more fine-grained `Result`s.
+  - All errors now implements the `failure::Fail` trait, and methods return
+    more fine-grained `Result`s.
+
+### Removed
+
+- The `supports_progress` method is removed from `Progress`.
+  - This is better left to clients to do themselves as this library cannot
+    guarantee anything anyway.
 
 ## 0.1.0 - 2017-12-29
 

@@ -162,6 +162,7 @@ impl<'a> App<'a> {
     }
 
     fn tick_progress_and_refresh(&mut self, should_refresh: bool) {
+        let supports_position = self.supports_position();
         let (progress, was_changed) = self.progress_tracker.tick();
 
         // Dirty tracking to keep CPU usage lower. In case nothing happened since the last refresh,
@@ -173,13 +174,17 @@ impl<'a> App<'a> {
             clear_screen(&mut self.screen);
             print_instructions(&mut self.screen, self.player);
             print_track_info(&mut self.screen, progress);
-            print_progress_bar(&mut self.screen, progress);
-        } else if progress.supports_position() {
+            print_progress_bar(&mut self.screen, progress, supports_position);
+        } else if supports_position {
             clear_progress_bar(&mut self.screen);
-            print_progress_bar(&mut self.screen, progress);
+            print_progress_bar(&mut self.screen, progress, supports_position);
         }
 
         self.screen.flush().unwrap();
+    }
+
+    fn supports_position(&self) -> bool {
+        self.player.identity() != "Spotify"
     }
 }
 
@@ -292,8 +297,8 @@ fn print_track_info(screen: &mut Screen, progress: &Progress) {
     ).unwrap();
 }
 
-fn print_progress_bar(screen: &mut Screen, progress: &Progress) {
-    let position_string: Cow<str> = if progress.supports_position() {
+fn print_progress_bar(screen: &mut Screen, progress: &Progress, supports_position: bool) {
+    let position_string: Cow<str> = if supports_position {
         Cow::Owned(format_duration(progress.position()))
     } else {
         Cow::Borrowed("??:??:??")
