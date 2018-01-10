@@ -234,7 +234,7 @@ fn print_instructions(screen: &mut Screen, player: &Player) {
 
         write!(
             screen,
-            "  {bold}{key:5}{nobold} - {description}",
+            "  {bold}{key:>5}{nobold} - {description}",
             bold = bold,
             nobold = nobold,
             key = action.key_name(),
