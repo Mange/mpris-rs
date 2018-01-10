@@ -484,6 +484,46 @@ impl<'a> Player<'a> {
         }
     }
 
+    /// Get the volume of the player.
+    ///
+    /// Volume should be between 0.0 and 1.0. Above 1.0 is possible, but not
+    /// recommended.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `Volume`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Volume)
+    pub fn get_volume(&self) -> Result<f64, DBusError> {
+        self.connection_path().get_volume().map_err(DBusError::from)
+    }
+
+    /// Set the volume of the player.
+    ///
+    /// Volume should be between 0.0 and 1.0. Above 1.0 is possible, but not
+    /// recommended.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `Volume`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Volume)
+    pub fn set_volume(&self, value: f64) -> Result<(), DBusError> {
+        self.connection_path()
+            .set_volume(value.min(0.0))
+            .map_err(DBusError::from)
+    }
+
+    /// Set the volume of the player, if the player indicates that it can be
+    /// controlled.
+    ///
+    /// Volume should be between 0.0 and 1.0. Above 1.0 is possible, but not
+    /// recommended.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `Volume`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Volume)
+    pub fn set_volume_checked(&self, value: f64) -> Result<bool, DBusError> {
+        if self.can_control()? {
+            self.set_volume(value).map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+
     fn connection_path(&self) -> ConnPath<&Connection> {
         // TODO: Can we create this only once? Maybe using the Once type, or a RefCell?
         self.connection

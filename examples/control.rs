@@ -26,6 +26,8 @@ enum Action {
     SeekBackwards,
     ToggleShuffle,
     CycleLoopStatus,
+    IncreaseVolume,
+    DecreaseVolume,
 }
 
 const ACTIONS: &[Action] = &[
@@ -37,6 +39,8 @@ const ACTIONS: &[Action] = &[
     Action::CycleLoopStatus,
     Action::SeekForwards,
     Action::SeekBackwards,
+    Action::IncreaseVolume,
+    Action::DecreaseVolume,
     Action::Quit,
 ];
 
@@ -53,6 +57,8 @@ impl Action {
             Key::Char('p') => Some(Previous),
             Key::Char('z') => Some(ToggleShuffle),
             Key::Char('x') => Some(CycleLoopStatus),
+            Key::Char('+') => Some(IncreaseVolume),
+            Key::Char('-') => Some(DecreaseVolume),
             Key::Left => Some(SeekForwards),
             Key::Right => Some(SeekBackwards),
             _ => None,
@@ -70,6 +76,8 @@ impl Action {
             Action::CycleLoopStatus => "x",
             Action::SeekForwards => "Left",
             Action::SeekBackwards => "Right",
+            Action::IncreaseVolume => "+",
+            Action::DecreaseVolume => "-",
         }
     }
 
@@ -84,6 +92,8 @@ impl Action {
             Action::CycleLoopStatus => "Cycle loop status",
             Action::SeekForwards => "Seek 5s forward",
             Action::SeekBackwards => "Seek 5s backward",
+            Action::IncreaseVolume => "Increase volume",
+            Action::DecreaseVolume => "Decrease volume",
         }
     }
 
@@ -94,8 +104,19 @@ impl Action {
             Action::Stop => player.can_stop().unwrap_or(false),
             Action::Next => player.can_go_next().unwrap_or(false),
             Action::Previous => player.can_go_previous().unwrap_or(false),
-            Action::ToggleShuffle => player.can_control().unwrap_or(false),
-            Action::CycleLoopStatus => player.can_control().unwrap_or(false),
+            Action::ToggleShuffle | Action::CycleLoopStatus => {
+                player.can_control().unwrap_or(false)
+            }
+            Action::IncreaseVolume => player
+                .can_control()
+                .and_then(|_| player.get_volume())
+                .map(|vol| vol < 1.0)
+                .unwrap_or(false),
+            Action::DecreaseVolume => player
+                .can_control()
+                .and_then(|_| player.get_volume())
+                .map(|vol| vol > 0.0)
+                .unwrap_or(false),
             Action::SeekForwards | Action::SeekBackwards => player.can_seek().unwrap_or(false),
         }
     }
@@ -158,6 +179,8 @@ impl<'a> App<'a> {
                 control_player(self.player.seek_backwards(&Duration::new(5, 0)))
             }
             Action::SeekForwards => control_player(self.player.seek_forwards(&Duration::new(5, 0))),
+            Action::IncreaseVolume => control_player(change_volume(self.player, 0.1)),
+            Action::DecreaseVolume => control_player(change_volume(self.player, -0.1)),
         };
     }
 
@@ -249,6 +272,12 @@ fn cycle_loop_status(player: &Player) -> Result<(), mpris::DBusError> {
     player.set_loop_status(next_status)
 }
 
+fn change_volume(player: &Player, diff: f64) -> Result<(), mpris::DBusError> {
+    let current_volume = player.get_volume()?;
+    let new_volume = (current_volume + diff).min(0.0).max(1.0);
+    player.set_volume(new_volume)
+}
+
 fn print_track_info(screen: &mut Screen, progress: &Progress) {
     let metadata = progress.metadata();
 
@@ -277,12 +306,15 @@ fn print_track_info(screen: &mut Screen, progress: &Progress) {
         LoopStatus::Track => format!("{}🔂", color::Fg(color::Yellow)),
     };
 
+    let volume_string = format!("(vol: {:3.0}%)", progress.current_volume());
+
     write!(
         screen,
-        "{playback} {shuffle} {loop} {color_reset} {blue}{bold}{artist}{nobold} - {title}{color_reset}\r\n",
+        "{playback} {shuffle} {loop} {color_reset} {blue}{bold}{artist}{nobold} - {title}{color_reset} {volume}\r\n",
         playback = playback_string,
         shuffle = shuffle_string,
         loop = loop_string,
+        volume = volume_string,
         blue = color::Fg(color::Blue),
         color_reset = color::Fg(color::Reset),
         bold = termion::style::Bold,

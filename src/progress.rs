@@ -24,6 +24,7 @@ pub struct Progress {
 
     position_in_microseconds: u64,
     rate: f32,
+    current_volume: f64,
 }
 
 /// Controller for calculating Progress for a given Player.
@@ -184,6 +185,7 @@ impl Progress {
             loop_status: player.get_loop_status()?,
             rate: player.get_playback_rate()?,
             position_in_microseconds: player.get_position_in_microseconds()?,
+            current_volume: player.get_volume()?,
             instant: Instant::now(),
         })
     }
@@ -251,6 +253,13 @@ impl Progress {
         self.instant.elapsed()
     }
 
+    /// Returns the player's volume as it was at the time of refresh.
+    ///
+    /// See: `Player::get_volume`.
+    pub fn current_volume(&self) -> f64 {
+        self.current_volume
+    }
+
     fn elapsed(&self) -> Duration {
         let elapsed_ms = match self.playback_status {
             PlaybackStatus::Playing => self.age().as_millis() as f32 * self.rate,
@@ -273,6 +282,7 @@ mod test {
             loop_status: LoopStatus::None,
             rate: 1.0,
             position_in_microseconds: 1,
+            current_volume: 0.0,
             instant: Instant::now(),
         };
 
@@ -289,6 +299,7 @@ mod test {
             loop_status: LoopStatus::None,
             rate: 1.0,
             position_in_microseconds: 1336,
+            current_volume: 0.0,
             instant: Instant::now() - Duration::from_millis(500),
         };
 
