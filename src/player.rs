@@ -614,7 +614,6 @@ impl<'a> Player<'a> {
     }
 
     fn connection_path(&self) -> ConnPath<&Connection> {
-        // TODO: Can we create this only once? Maybe using the Once type, or a RefCell?
         self.connection
             .with_path(self.bus_name.clone(), self.path.clone(), self.timeout_ms)
     }
