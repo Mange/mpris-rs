@@ -22,7 +22,7 @@ pub struct Progress {
     /// When this Progress was constructed, in order to calculate how old it is.
     instant: Instant,
 
-    position_in_microseconds: u64,
+    position: Duration,
     rate: f32,
     current_volume: f64,
 }
@@ -184,7 +184,7 @@ impl Progress {
             shuffle: player.get_shuffle()?,
             loop_status: player.get_loop_status()?,
             rate: player.get_playback_rate()?,
-            position_in_microseconds: player.get_position_in_microseconds()?,
+            position: player.get_position()?,
             current_volume: player.get_volume()?,
             instant: Instant::now(),
         })
@@ -229,14 +229,14 @@ impl Progress {
     /// `Playing` `PlaybackStatus` and if both are `0`, then it is likely that this client does not
     /// support positions.
     pub fn position(&self) -> Duration {
-        self.initial_position() + self.elapsed()
+        self.position + self.elapsed()
     }
 
     /// Returns the position that the current track was at when the `Progress` was created.
     ///
     /// This is the number that was returned for the `Position` property in the MPRIS2 interface.
     pub fn initial_position(&self) -> Duration {
-        Duration::from_micros_ext(self.position_in_microseconds)
+        self.position.clone()
     }
 
     /// The instant where this `Progress` was recorded.
@@ -281,7 +281,7 @@ mod test {
             shuffle: false,
             loop_status: LoopStatus::None,
             rate: 1.0,
-            position_in_microseconds: 1,
+            position: Duration::from_micros_ext(1),
             current_volume: 0.0,
             instant: Instant::now(),
         };
@@ -298,7 +298,7 @@ mod test {
             shuffle: false,
             loop_status: LoopStatus::None,
             rate: 1.0,
-            position_in_microseconds: 1336,
+            position: Duration::from_micros_ext(1336),
             current_volume: 0.0,
             instant: Instant::now() - Duration::from_millis(500),
         };
