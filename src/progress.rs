@@ -23,7 +23,7 @@ pub struct Progress {
     instant: Instant,
 
     position: Duration,
-    rate: f32,
+    rate: f64,
     current_volume: f64,
 }
 
@@ -262,7 +262,7 @@ impl Progress {
 
     fn elapsed(&self) -> Duration {
         let elapsed_ms = match self.playback_status {
-            PlaybackStatus::Playing => self.age().as_millis() as f32 * self.rate,
+            PlaybackStatus::Playing => self.age().as_millis() as f64 * self.rate,
             _ => 0.0,
         };
         Duration::from_millis(elapsed_ms as u64)

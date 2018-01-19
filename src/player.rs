@@ -4,6 +4,7 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use dbus::{BusName, ConnPath, Connection, Path};
+use std::ops::Range;
 
 use super::{DBusError, LoopStatus, PlaybackStatus, TrackID};
 use extensions::DurationExtensions;
@@ -175,11 +176,49 @@ impl<'a> Player<'a> {
     /// Returns the player's MPRIS (playback) `rate` as a factor.
     ///
     /// 1.0 would mean normal rate, while 2.0 would mean twice the playback speed.
-    pub fn get_playback_rate(&self) -> Result<f32, DBusError> {
+    pub fn get_playback_rate(&self) -> Result<f64, DBusError> {
+        self.connection_path().get_rate().map_err(|e| e.into())
+    }
+
+    /// Sets the player's MPRIS (playback) `rate` as a factor.
+    ///
+    /// 1.0 would mean normal rate, while 2.0 would mean twice the playback speed.
+    ///
+    /// It is not allowed to try to set playback rate to a value outside of the supported range.
+    /// `Player::get_valid_playback_rate_range` returns a `Range<f64>` that encodes the maximum and
+    /// minimum values.
+    ///
+    /// You must not set rate to 0.0; instead call `Player::pause`.
+    ///
+    /// See: [MPRIS2 specification about `Rate`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Rate)
+    pub fn set_playback_rate(&self, rate: f64) -> Result<(), DBusError> {
+        self.connection_path().set_rate(rate).map_err(|e| e.into())
+    }
+
+    /// Gets the minimum allowed value for playback rate.
+    ///
+    /// See: [MPRIS2 specification about `MinimumRate`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:MinimumRate)
+    pub fn get_minimum_playback_rate(&self) -> Result<f64, DBusError> {
         self.connection_path()
-            .get_rate()
-            .map(|p| p as f32)
+            .get_minimum_rate()
             .map_err(|e| e.into())
+    }
+
+    /// Gets the maximum allowed value for playback rate.
+    ///
+    /// See: [MPRIS2 specification about `MaximumRate`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:MaximumRate)
+    pub fn get_maximum_playback_rate(&self) -> Result<f64, DBusError> {
+        self.connection_path()
+            .get_maximum_rate()
+            .map_err(|e| e.into())
+    }
+
+    /// Gets the minimum-maximum allowed value range for playback rate.
+    ///
+    /// See: `get_minimum_playback_rate` and `get_maximum_playback_rate`.
+    pub fn get_valid_playback_rate_range(&self) -> Result<Range<f64>, DBusError> {
+        self.get_minimum_playback_rate()
+            .and_then(|min| self.get_maximum_playback_rate().map(|max| min..max))
     }
 
     /// Query the player for current metadata.
@@ -445,6 +484,12 @@ impl<'a> Player<'a> {
     /// [stop]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Stop
     pub fn can_stop(&self) -> Result<bool, DBusError> {
         self.can_control()
+    }
+
+    /// Queries the player to see if it currently supports/allows changing playback rate.
+    pub fn can_set_playback_rate(&self) -> Result<bool, DBusError> {
+        self.get_valid_playback_rate_range()
+            .map(|range| range.start < 1.0 || range.end > 1.0)
     }
 
     /// Query the player for current playback status.
