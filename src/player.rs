@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use dbus::{BusName, ConnPath, Connection, Path};
 
-use super::{DBusError, LoopStatus, PlaybackStatus};
+use super::{DBusError, LoopStatus, PlaybackStatus, TrackID};
 use extensions::DurationExtensions;
 use generated::OrgMprisMediaPlayer2;
 use generated::OrgMprisMediaPlayer2Player;
@@ -119,12 +119,56 @@ impl<'a> Player<'a> {
         &self.identity
     }
 
+    /// Returns the player's MPRIS `position` as a `Duration` since the start of the media.
+    pub fn get_position(&self) -> Result<Duration, DBusError> {
+        self.get_position_in_microseconds()
+            .map(|us| Duration::from_micros_ext(us))
+    }
+
     /// Returns the player's MPRIS `position` as a count of microseconds since the start of the
     /// media.
     pub fn get_position_in_microseconds(&self) -> Result<u64, DBusError> {
         self.connection_path()
             .get_position()
             .map(|p| p as u64)
+            .map_err(|e| e.into())
+    }
+
+    /// Sets the position of the current track to the given position (as a `Duration`).
+    ///
+    /// Current `TrackID` must be provided to avoid race conditions with the player, in case it
+    /// changes tracks while the signal is being sent.
+    ///
+    /// **Note:** There is currently no good way to retrieve the current `TrackID` through the
+    /// `mpris` library. You will have to manually retrieve it through D-Bus until implemented.
+    ///
+    /// See: [MPRIS2 specification about `SetPosition`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:SetPosition)
+    pub fn set_position<'id, ID>(&self, track_id: ID, position: &Duration) -> Result<(), DBusError>
+    where
+        ID: Into<TrackID<'id>>,
+    {
+        self.set_position_in_microseconds(track_id, position.as_micros())
+    }
+
+    /// Sets the position of the current track to the given position (in microseconds).
+    ///
+    /// Current `TrackID` must be provided to avoid race conditions with the player, in case it
+    /// changes tracks while the signal is being sent.
+    ///
+    /// **Note:** There is currently no good way to retrieve the current `TrackID` through the
+    /// `mpris` library. You will have to manually retrieve it through D-Bus until implemented.
+    ///
+    /// See: [MPRIS2 specification about `SetPosition`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:SetPosition)
+    pub fn set_position_in_microseconds<'id, ID>(
+        &self,
+        track_id: ID,
+        position_in_us: u64,
+    ) -> Result<(), DBusError>
+    where
+        ID: Into<TrackID<'id>>,
+    {
+        self.connection_path()
+            .set_position(track_id.into().0, position_in_us as i64)
             .map_err(|e| e.into())
     }
 

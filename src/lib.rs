@@ -119,6 +119,34 @@ impl LoopStatus {
     }
 }
 
+/// Represents [the MPRIS `Track_Id` type][track_id].
+///
+/// ```rust
+/// use mpris::TrackID;
+/// let no_track = TrackID::from("/org/mpris/MediaPlayer2/TrackList/NoTrack");
+/// ```
+///
+/// **Note:** There is currently no good way to retrieve values for this through the `mpris`
+/// library. You will have to manually retrieve them through D-Bus until implemented.
+///
+/// # Panics
+///
+/// Trying to construct a `TrackID` from a string that is not a valid D-Bus Path will result in a
+/// panic.
+///
+/// [track_id]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Simple-Type:Track_Id
+#[derive(Debug, Clone)]
+pub struct TrackID<'a>(pub(crate) dbus::Path<'a>);
+
+impl<'a, T> From<T> for TrackID<'a>
+where
+    T: Into<dbus::Path<'a>>,
+{
+    fn from(value: T) -> TrackID<'a> {
+        TrackID(value.into())
+    }
+}
+
 /// Something went wrong when communicating with the D-Bus. This could either be an underlying
 /// D-Bus library problem, or that the other side did not conform to the expected protocols.
 #[derive(Fail, Debug)]
@@ -159,6 +187,24 @@ impl From<InvalidLoopStatus> for DBusError {
     fn from(error: InvalidLoopStatus) -> Self {
         DBusError {
             message: error.to_string(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod track_id {
+        use super::*;
+
+        #[test]
+        fn it_creates_track_ids() {
+            let _: TrackID = "/org/mpris/MediaPlayer2/TrackList/NoTrack".into();
+            let _: TrackID = TrackID::from("/org/mpris/MediaPlayer2/TrackList/NoTrack");
+
+            let _: TrackID =
+                TrackID::from(String::from("/org/mpris/MediaPlayer2/TrackList/NoTrack"));
         }
     }
 }
