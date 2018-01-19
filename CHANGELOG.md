@@ -7,10 +7,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v1.0.0] - 2018-01-19
+
 ### Added
 
+- `TrackID` struct added.
 - `Player` can now query and change `Shuffle` status.
 - `Player` can now query and change `LoopStatus`.
+- `Player` can now change playback rate.
+- `Player` can now query for valid playback rates and if it supports setting
+  rates at all.
+- `Player` can now control volume.
+- `Player` can now query for current position as a `std::time::Duration` and
+  not just a microsecond count.
+- `Player` can set position, if a valid `TrackID` is given.
+  - Note: This library has no way of querying for valid `TrackID`s right now.
 
 ### Changed
 
@@ -18,6 +29,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   - All errors now implements the `failure::Fail` trait, and methods return
     more fine-grained `Result`s.
 - All fields on `Progress` and `Metadata` are now methods instead.
+- Playback rate is now `f64` instead of `f32`.
 
 ### Removed
 
@@ -27,4 +39,5 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## 0.1.0 - 2017-12-29
 
-[Unreleased]: https://github.com/Mange/mpris-rs/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Mange/mpris-rs/compare/v1.0.0...HEAD
+[v1.0.0]: https://github.com/Mange/mpris-rs/compare/v0.1.0...v1.0.0
