@@ -129,6 +129,11 @@ impl LoopStatus {
 /// **Note:** There is currently no good way to retrieve values for this through the `mpris`
 /// library. You will have to manually retrieve them through D-Bus until implemented.
 ///
+/// # Panics
+///
+/// Trying to construct a `TrackID` from a string that is not a valid D-Bus Path will result in a
+/// panic.
+///
 /// [track_id]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Simple-Type:Track_Id
 #[derive(Debug, Clone)]
 pub struct TrackID<'a>(pub(crate) dbus::Path<'a>);
