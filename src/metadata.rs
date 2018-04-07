@@ -35,6 +35,12 @@ pub struct Metadata {
 pub enum Value {
     /// Value is a string.
     String(String),
+
+    /// Value is a 64-bit integer.
+    I64(i64),
+
+    /// Value is a 32-bit integer.
+    I32(i32),
 }
 
 /// Simpler enum to encode the type of a `MetadataValue`.
@@ -42,6 +48,12 @@ pub enum Value {
 pub enum ValueKind {
     /// Value is a string.
     String,
+
+    /// Value is a 64-bit integer.
+    I64,
+
+    /// Value is a 32-bit integer.
+    I32,
 }
 
 impl Metadata {
@@ -227,6 +239,8 @@ impl Value {
         let data = &variant.0;
         match data.arg_type() {
             ArgType::String => data.as_str().map(Value::from),
+            ArgType::Int64 => data.as_i64().map(Value::from),
+            ArgType::Int32 => cast(data).cloned().map(|i| Value::I32(i)),
             _ => None,
         }
     }
@@ -246,7 +260,8 @@ impl Value {
     /// let rest_hash = metadata.rest_hash();
     /// if let Some(value) = rest_hash.get(key_name) {
     ///     match value.kind() {
-    ///       MetadataValueKind::String => println!("{} is a String", key_name),
+    ///       MetadataValueKind::String => println!("{} is a string", key_name),
+    ///       MetadataValueKind::I64 | MetadataValueKind::I32 => println!("{} is an integer", key_name),
     ///     }
     /// } else {
     ///     println!("Metadata does not have a {} key", key_name);
@@ -256,6 +271,8 @@ impl Value {
     pub fn kind(&self) -> ValueKind {
         match *self {
             Value::String(_) => ValueKind::String,
+            Value::I64(_) => ValueKind::I64,
+            Value::I32(_) => ValueKind::I32,
         }
     }
 }
@@ -269,6 +286,12 @@ impl From<String> for Value {
 impl<'a> From<&'a str> for Value {
     fn from(string: &'a str) -> Value {
         Value::String(String::from(string))
+    }
+}
+
+impl From<i64> for Value {
+    fn from(int: i64) -> Value {
+        Value::I64(int)
     }
 }
 
@@ -397,6 +420,28 @@ mod tests {
 
             let mut expected_hash: HashMap<String, Value> = HashMap::new();
             expected_hash.insert("foo".into(), "The string value".into());
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
+
+        #[test]
+        fn it_supports_i64_values() {
+            let data = 42i64;
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), 42i64.into());
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
+
+        #[test]
+        fn it_supports_i32() {
+            let data = 42i32;
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), Value::I32(42));
 
             assert_eq!(metadata.rest_hash(), expected_hash);
         }
