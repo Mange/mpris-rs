@@ -6,6 +6,7 @@ fn main() {
     match retrieve_metadata() {
         Ok(metadata) => {
             println!("Metadata:\n{:#?}", metadata);
+            println!("----\nRest of the metadata:\n{:#?}", metadata.rest_hash());
         }
         Err(error) => {
             println!("ERROR: {}", error);

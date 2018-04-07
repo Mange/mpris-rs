@@ -28,6 +28,22 @@ pub struct Metadata {
     rest: HashMap<String, Variant<Box<RefArg>>>,
 }
 
+/// Holds a dynamically-typed metadata value.
+///
+/// You will need to type-check this at runtime in order to use the value.
+#[derive(Debug, PartialEq)]
+pub enum Value {
+    /// Value is a string.
+    String(String),
+}
+
+/// Simpler enum to encode the type of a `MetadataValue`.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub enum ValueKind {
+    /// Value is a string.
+    String,
+}
+
 impl Metadata {
     /// Create a new `Metadata` struct with a given `track_id`.
     ///
@@ -144,6 +160,9 @@ impl Metadata {
     /// Remaining metadata that has not been parsed into one of the other fields of the `Metadata`,
     /// if any.
     ///
+    /// **NOTE:** This method is deprecated and will be removed in version 2.0. See `rest_hash` for
+    /// a successor.
+    ///
     /// As an example, if the media player exposed `xesam:composer`, then you could read that
     /// String like this:
     ///
@@ -161,6 +180,95 @@ impl Metadata {
     /// ```
     pub fn rest(&self) -> &HashMap<String, Variant<Box<RefArg>>> {
         &self.rest
+    }
+
+    /// Remaining metadata that has not been parsed into one of the other fields of the `Metadata`,
+    /// if any.
+    ///
+    /// **NOTE:** This method will be renamed and reworked in version 2.0 in order to replace
+    /// `rest`. Note that this method will likely become cheaper at that point.
+    ///
+    /// **NOTE:** This method returns an *owned* value in the 1.x series for
+    /// backwards-compatibility reasons. That means that this method is expensive to call and you
+    /// should reuse the value if possible.
+    ///
+    /// As an example, if the media player exposed `xesam:composer`, then you could read that
+    /// String like this:
+    ///
+    /// ```rust
+    /// # extern crate mpris;
+    /// # extern crate dbus;
+    /// use mpris::{Metadata, MetadataValue};
+    /// # fn main() {
+    /// # let metadata = Metadata::new(String::from("1234"));
+    /// let rest_hash = metadata.rest_hash();
+    /// let composer = rest_hash.get("xesam:composer");
+    /// match composer {
+    ///     Some(&MetadataValue::String(ref name)) => println!("Composed by: {}", name),
+    ///     Some(value) => println!("xesam:composer had an unexpected type: {:?}", value.kind()),
+    ///     None => println!("Composer is not set"),
+    /// }
+    /// # }
+    /// ```
+    pub fn rest_hash(&self) -> HashMap<String, Value> {
+        let mut map = HashMap::new();
+        for (key, variant) in self.rest.iter() {
+            if let Some(value) = Value::from_variant(variant) {
+                map.insert(key.clone(), value);
+            }
+        }
+        map
+    }
+}
+
+impl Value {
+    fn from_variant(variant: &Variant<Box<RefArg>>) -> Option<Value> {
+        use dbus::arg::ArgType;
+        let data = &variant.0;
+        match data.arg_type() {
+            ArgType::String => data.as_str().map(Value::from),
+            _ => None,
+        }
+    }
+
+    /// Returns a simple enum representing the type of value that this value holds.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # extern crate mpris;
+    /// # extern crate dbus;
+    /// # use mpris::Metadata;
+    /// # fn main() {
+    /// # let metadata = Metadata::new(String::from("1234"));
+    /// # let key_name = "foo";
+    /// use mpris::MetadataValueKind;
+    /// let rest_hash = metadata.rest_hash();
+    /// if let Some(value) = rest_hash.get(key_name) {
+    ///     match value.kind() {
+    ///       MetadataValueKind::String => println!("{} is a String", key_name),
+    ///     }
+    /// } else {
+    ///     println!("Metadata does not have a {} key", key_name);
+    /// }
+    /// # }
+    /// ```
+    pub fn kind(&self) -> ValueKind {
+        match *self {
+            Value::String(_) => ValueKind::String,
+        }
+    }
+}
+
+impl From<String> for Value {
+    fn from(string: String) -> Value {
+        Value::String(string)
+    }
+}
+
+impl<'a> From<&'a str> for Value {
+    fn from(string: &'a str) -> Value {
+        Value::String(String::from(string))
     }
 }
 
@@ -260,5 +368,37 @@ mod tests {
     fn it_creates_new_metadata() {
         let metadata = Metadata::new(String::from("foo"));
         assert_eq!(metadata.track_id, "foo");
+    }
+
+    mod rest {
+        use super::*;
+
+        fn metadata_builder() -> MetadataBuilder {
+            let mut builder = MetadataBuilder::new();
+            builder.track_id = Some(String::new());
+            builder
+        }
+
+        fn metadata_with_rest<S>(key: S, value: Variant<Box<RefArg>>) -> Metadata
+        where
+            S: Into<String>,
+        {
+            let mut builder = metadata_builder();
+            builder.add_rest(key.into(), value);
+            builder
+                .finish()
+                .expect("Failed to build Metadata for example")
+        }
+
+        #[test]
+        fn it_supports_string_values() {
+            let data = String::from("The string value");
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), "The string value".into());
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
     }
 }
