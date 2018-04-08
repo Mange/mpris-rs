@@ -37,11 +37,26 @@ pub enum Value {
     /// Value is a string.
     String(String),
 
-    /// Value is a 64-bit integer.
-    I64(i64),
+    /// Value is a 16-bit integer.
+    I16(i16),
 
     /// Value is a 32-bit integer.
     I32(i32),
+
+    /// Value is a 64-bit integer.
+    I64(i64),
+
+    /// Value is an unsigned 8-bit integer.
+    U8(u8),
+
+    /// Value is an unsigned 16-bit integer.
+    U16(u16),
+
+    /// Value is an unsigned 32-bit integer.
+    U32(u32),
+
+    /// Value is an unsigned 64-bit integer.
+    U64(u64),
 
     /// Value is a 64-bit float.
     F64(f64),
@@ -256,8 +271,13 @@ impl Value {
         let data = &variant.0;
         cast_variants! { data, Some(Value::Unsupported),
             ArgType::String => { data.as_str().map(Value::from) },
-            ArgType::Int64 => { data.as_i64().map(Value::from) },
+            ArgType::Int16 => i16,
             ArgType::Int32 => i32,
+            ArgType::Int64 => { data.as_i64().map(Value::from) },
+            ArgType::UInt16 => u16,
+            ArgType::UInt32 => u32,
+            ArgType::UInt64 => u64,
+            ArgType::Byte => u8,
             ArgType::Double => f64,
             ArgType::Boolean => bool
         }
@@ -279,7 +299,13 @@ impl Value {
     /// if let Some(value) = rest_hash.get(key_name) {
     ///     match value.kind() {
     ///       MetadataValueKind::String => println!("{} is a string", key_name),
-    ///       MetadataValueKind::I64 | MetadataValueKind::I32 => println!("{} is an integer", key_name),
+    ///       MetadataValueKind::I16 |
+    ///       MetadataValueKind::I32 |
+    ///       MetadataValueKind::I64 |
+    ///       MetadataValueKind::U8 |
+    ///       MetadataValueKind::U16 |
+    ///       MetadataValueKind::U32 |
+    ///       MetadataValueKind::U64 => println!("{} is an integer", key_name),
     ///       MetadataValueKind::F64 => println!("{} is a float", key_name),
     ///       MetadataValueKind::Bool => println!("{} is a boolean", key_name),
     ///       MetadataValueKind::Unsupported => println!("{} is not a supported type", key_name),
@@ -447,6 +473,61 @@ mod tests {
 
             let mut expected_hash: HashMap<String, Value> = HashMap::new();
             expected_hash.insert("foo".into(), Value::I32(42));
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
+
+        #[test]
+        fn it_supports_i16() {
+            let data = 42i16;
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), Value::I16(42));
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
+
+        #[test]
+        fn it_supports_u64() {
+            let data = 42u64;
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), Value::U64(42));
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
+
+        #[test]
+        fn it_supports_u32() {
+            let data = 42u32;
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), Value::U32(42));
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
+
+        #[test]
+        fn it_supports_u16() {
+            let data = 42u16;
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), Value::U16(42));
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
+
+        #[test]
+        fn it_supports_u8() {
+            let data = 42u8;
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), Value::U8(42));
 
             assert_eq!(metadata.rest_hash(), expected_hash);
         }
