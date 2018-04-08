@@ -41,6 +41,15 @@ pub enum Value {
 
     /// Value is a 32-bit integer.
     I32(i32),
+
+    /// Value is a 64-bit float.
+    F64(f64),
+
+    /// Value is a boolean.
+    Bool(bool),
+
+    /// Unsupported value type.
+    Unsupported,
 }
 
 /// Simpler enum to encode the type of a `MetadataValue`.
@@ -54,6 +63,15 @@ pub enum ValueKind {
 
     /// Value is a 32-bit integer.
     I32,
+
+    /// Value is a 64-bit float.
+    F64,
+
+    /// Value is a boolean.
+    Bool,
+
+    /// Unsupported value type.
+    Unsupported,
 }
 
 impl Metadata {
@@ -241,7 +259,9 @@ impl Value {
             ArgType::String => data.as_str().map(Value::from),
             ArgType::Int64 => data.as_i64().map(Value::from),
             ArgType::Int32 => cast(data).cloned().map(|i| Value::I32(i)),
-            _ => None,
+            ArgType::Double => cast(data).cloned().map(|f| Value::F64(f)),
+            ArgType::Boolean => cast(data).cloned().map(|b| Value::Bool(b)),
+            _ => Some(Value::Unsupported),
         }
     }
 
@@ -262,6 +282,9 @@ impl Value {
     ///     match value.kind() {
     ///       MetadataValueKind::String => println!("{} is a string", key_name),
     ///       MetadataValueKind::I64 | MetadataValueKind::I32 => println!("{} is an integer", key_name),
+    ///       MetadataValueKind::F64 => println!("{} is a float", key_name),
+    ///       MetadataValueKind::Bool => println!("{} is a boolean", key_name),
+    ///       MetadataValueKind::Unsupported => println!("{} is not a supported type", key_name),
     ///     }
     /// } else {
     ///     println!("Metadata does not have a {} key", key_name);
@@ -273,6 +296,9 @@ impl Value {
             Value::String(_) => ValueKind::String,
             Value::I64(_) => ValueKind::I64,
             Value::I32(_) => ValueKind::I32,
+            Value::F64(_) => ValueKind::F64,
+            Value::Bool(_) => ValueKind::Bool,
+            Value::Unsupported => ValueKind::Unsupported,
         }
     }
 }
@@ -430,7 +456,7 @@ mod tests {
             let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
 
             let mut expected_hash: HashMap<String, Value> = HashMap::new();
-            expected_hash.insert("foo".into(), 42i64.into());
+            expected_hash.insert("foo".into(), Value::I64(42));
 
             assert_eq!(metadata.rest_hash(), expected_hash);
         }
@@ -442,6 +468,39 @@ mod tests {
 
             let mut expected_hash: HashMap<String, Value> = HashMap::new();
             expected_hash.insert("foo".into(), Value::I32(42));
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
+
+        #[test]
+        fn it_supports_f64_values() {
+            let data = 42.0f64;
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), Value::F64(42.0));
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
+
+        #[test]
+        fn it_supports_bool_values() {
+            let data = true;
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), Value::Bool(true));
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
+
+        #[test]
+        fn it_stores_unknown_types() {
+            let data = dbus::Path::default();
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), Value::Unsupported);
 
             assert_eq!(metadata.rest_hash(), expected_hash);
         }
