@@ -30,7 +30,8 @@ pub trait OrgFreedesktopDBusProperties {
 }
 
 impl<'a, C: ::std::ops::Deref<Target = dbus::Connection>> OrgFreedesktopDBusProperties
-    for dbus::ConnPath<'a, C> {
+    for dbus::ConnPath<'a, C>
+{
     type Err = dbus::Error;
 
     fn get(
@@ -56,7 +57,8 @@ impl<'a, C: ::std::ops::Deref<Target = dbus::Connection>> OrgFreedesktopDBusProp
     fn get_all(
         &self,
         interface_name: &str,
-    ) -> Result<::std::collections::HashMap<String, arg::Variant<Box<arg::RefArg>>>, Self::Err> {
+    ) -> Result<::std::collections::HashMap<String, arg::Variant<Box<arg::RefArg>>>, Self::Err>
+    {
         let mut m = try!(self.method_call_with_args(
             &"org.freedesktop.DBus.Properties".into(),
             &"GetAll".into(),
@@ -122,12 +124,16 @@ pub trait OrgFreedesktopDBusIntrospectable {
 }
 
 impl<'a, C: ::std::ops::Deref<Target = dbus::Connection>> OrgFreedesktopDBusIntrospectable
-    for dbus::ConnPath<'a, C> {
+    for dbus::ConnPath<'a, C>
+{
     type Err = dbus::Error;
 
     fn introspect(&self) -> Result<String, Self::Err> {
-        let mut m = try!(self.method_call_with_args(&"org.freedesktop.DBus.Introspectable".into(), &"Introspect".into(), |_| {
-        }));
+        let mut m = try!(self.method_call_with_args(
+            &"org.freedesktop.DBus.Introspectable".into(),
+            &"Introspect".into(),
+            |_| {}
+        ));
         try!(m.as_result());
         let mut i = m.iter_init();
         let xml_data: String = try!(i.read());
@@ -142,7 +148,8 @@ pub trait OrgFreedesktopDBusPeer {
 }
 
 impl<'a, C: ::std::ops::Deref<Target = dbus::Connection>> OrgFreedesktopDBusPeer
-    for dbus::ConnPath<'a, C> {
+    for dbus::ConnPath<'a, C>
+{
     type Err = dbus::Error;
 
     fn ping(&self) -> Result<(), Self::Err> {
@@ -182,7 +189,8 @@ pub trait OrgMprisMediaPlayer2 {
 }
 
 impl<'a, C: ::std::ops::Deref<Target = dbus::Connection>> OrgMprisMediaPlayer2
-    for dbus::ConnPath<'a, C> {
+    for dbus::ConnPath<'a, C>
+{
     type Err = dbus::Error;
 
     fn raise(&self) -> Result<(), Self::Err> {
@@ -297,7 +305,8 @@ pub trait OrgMprisMediaPlayer2Player {
 }
 
 impl<'a, C: ::std::ops::Deref<Target = dbus::Connection>> OrgMprisMediaPlayer2Player
-    for dbus::ConnPath<'a, C> {
+    for dbus::ConnPath<'a, C>
+{
     type Err = dbus::Error;
 
     fn next(&self) -> Result<(), Self::Err> {
@@ -434,7 +443,8 @@ impl<'a, C: ::std::ops::Deref<Target = dbus::Connection>> OrgMprisMediaPlayer2Pl
 
     fn get_metadata(
         &self,
-    ) -> Result<::std::collections::HashMap<String, arg::Variant<Box<arg::RefArg>>>, Self::Err> {
+    ) -> Result<::std::collections::HashMap<String, arg::Variant<Box<arg::RefArg>>>, Self::Err>
+    {
         <Self as dbus::stdintf::org_freedesktop_dbus::Properties>::get(
             &self,
             "org.mpris.MediaPlayer2.Player",
