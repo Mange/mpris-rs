@@ -31,6 +31,15 @@ extern crate failure_derive;
 #[macro_use]
 extern crate failure;
 
+#[macro_use]
+extern crate enum_kinds;
+
+#[macro_use]
+extern crate derive_is_enum_variant;
+
+#[macro_use]
+extern crate from_variants;
+
 extern crate dbus;
 
 mod generated;

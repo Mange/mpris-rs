@@ -31,7 +31,8 @@ pub struct Metadata {
 /// Holds a dynamically-typed metadata value.
 ///
 /// You will need to type-check this at runtime in order to use the value.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, EnumKind, is_enum_variant, FromVariants)]
+#[enum_kind(ValueKind)]
 pub enum Value {
     /// Value is a string.
     String(String),
@@ -49,28 +50,7 @@ pub enum Value {
     Bool(bool),
 
     /// Unsupported value type.
-    Unsupported,
-}
-
-/// Simpler enum to encode the type of a `MetadataValue`.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub enum ValueKind {
-    /// Value is a string.
-    String,
-
-    /// Value is a 64-bit integer.
-    I64,
-
-    /// Value is a 32-bit integer.
-    I32,
-
-    /// Value is a 64-bit float.
-    F64,
-
-    /// Value is a boolean.
-    Bool,
-
-    /// Unsupported value type.
+    #[from_variants(skip)]
     Unsupported,
 }
 
@@ -251,17 +231,35 @@ impl Metadata {
     }
 }
 
+macro_rules! cast_variants {
+    ( $data:expr, $fallback:expr, $( $variant:pat => $into:tt ),+ ) => {
+        let data = $data;
+        match data.arg_type() {
+            $(
+                $variant => { cast_variant!(data, $into) },
+            )+
+            _ => $fallback,
+        }
+    }
+}
+
+macro_rules! cast_variant {
+    ( $data:expr, $into:ty ) => {
+        cast::<$into>($data).cloned().map(Value::from)
+    };
+    ( $data:expr, $handler:expr ) => { $handler };
+}
+
 impl Value {
     fn from_variant(variant: &Variant<Box<RefArg>>) -> Option<Value> {
         use dbus::arg::ArgType;
         let data = &variant.0;
-        match data.arg_type() {
-            ArgType::String => data.as_str().map(Value::from),
-            ArgType::Int64 => data.as_i64().map(Value::from),
-            ArgType::Int32 => cast(data).cloned().map(|i| Value::I32(i)),
-            ArgType::Double => cast(data).cloned().map(|f| Value::F64(f)),
-            ArgType::Boolean => cast(data).cloned().map(|b| Value::Bool(b)),
-            _ => Some(Value::Unsupported),
+        cast_variants! { data, Some(Value::Unsupported),
+            ArgType::String => { data.as_str().map(Value::from) },
+            ArgType::Int64 => { data.as_i64().map(Value::from) },
+            ArgType::Int32 => i32,
+            ArgType::Double => f64,
+            ArgType::Boolean => bool
         }
     }
 
@@ -292,32 +290,13 @@ impl Value {
     /// # }
     /// ```
     pub fn kind(&self) -> ValueKind {
-        match *self {
-            Value::String(_) => ValueKind::String,
-            Value::I64(_) => ValueKind::I64,
-            Value::I32(_) => ValueKind::I32,
-            Value::F64(_) => ValueKind::F64,
-            Value::Bool(_) => ValueKind::Bool,
-            Value::Unsupported => ValueKind::Unsupported,
-        }
-    }
-}
-
-impl From<String> for Value {
-    fn from(string: String) -> Value {
-        Value::String(string)
+        ValueKind::from(self)
     }
 }
 
 impl<'a> From<&'a str> for Value {
     fn from(string: &'a str) -> Value {
         Value::String(String::from(string))
-    }
-}
-
-impl From<i64> for Value {
-    fn from(int: i64) -> Value {
-        Value::I64(int)
     }
 }
 

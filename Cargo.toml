@@ -17,6 +17,9 @@ maintenance = { status = "actively-developed" }
 dbus = "0.6.0"
 failure = "0.1.1"
 failure_derive = "0.1.1"
+enum-kinds = "0.4.0"
+derive_is_enum_variant = "0.1.1"
+from_variants = "0.3.0"
 
 # For examples
 [dev-dependencies]
