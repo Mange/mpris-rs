@@ -1,12 +1,13 @@
 extern crate dbus;
 
+use std::collections::HashMap;
+use std::ops::Range;
 use std::rc::Rc;
 use std::time::Duration;
 
 use dbus::{BusName, ConnPath, Connection, Path};
-use std::ops::Range;
 
-use super::{DBusError, LoopStatus, PlaybackStatus, TrackID};
+use super::{DBusError, LoopStatus, MetadataValue, PlaybackStatus, TrackID};
 use extensions::DurationExtensions;
 use generated::OrgMprisMediaPlayer2;
 use generated::OrgMprisMediaPlayer2Player;
@@ -229,6 +230,23 @@ impl<'a> Player<'a> {
             .get_metadata()
             .map_err(|e| e.into())
             .and_then(Metadata::new_from_dbus)
+    }
+
+    /// Query the player for current metadata, returned as a plain HashMap of `MetadataValue`s.
+    ///
+    /// NOTE: This method should be considered an escape hatch until version 2.0, where `Metadata`
+    /// will contain this data and allow you to query it.
+    pub fn get_metadata_hash(&self) -> Result<HashMap<String, MetadataValue>, DBusError> {
+        let connection_path = self.connection_path();
+        dbus::stdintf::org_freedesktop_dbus::Properties::get::<MetadataValue>(
+            &connection_path,
+            "org.mpris.MediaPlayer2.Player",
+            "Metadata",
+        ).map_err(|e| e.into())
+            .map(|val| {
+                println!("{:#?}", val);
+                val.into_map().unwrap_or_else(|| HashMap::new())
+            })
     }
 
     /// Returns a new `ProgressTracker` for the player.

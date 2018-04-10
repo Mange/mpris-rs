@@ -191,8 +191,8 @@ impl Metadata {
     /// Remaining metadata that has not been parsed into one of the other fields of the `Metadata`,
     /// if any.
     ///
-    /// **NOTE:** This method is deprecated and will be removed in version 2.0. See `rest_hash` for
-    /// a successor.
+    /// **NOTE:** This method is deprecated and will be removed in version 2.0. See `rest_hash` or
+    /// `Player::get_metadata_hash` for better alternatives.
     ///
     /// As an example, if the media player exposed `xesam:composer`, then you could read that
     /// String like this:
@@ -222,6 +222,10 @@ impl Metadata {
     /// **NOTE:** This method returns an *owned* value in the 1.x series for
     /// backwards-compatibility reasons. That means that this method is expensive to call and you
     /// should reuse the value if possible.
+    ///
+    /// **NOTE:** This method will not be able to return all possible fields and types. There is an
+    /// escape hatch at `Player::get_metadata_hash` that will be able to convert all of the values,
+    /// but it is entirely divorced from the 1.x version of `Metadata`.
     ///
     /// As an example, if the media player exposed `xesam:composer`, then you could read that
     /// String like this:
