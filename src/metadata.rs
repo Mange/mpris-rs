@@ -276,16 +276,16 @@ impl Value {
         use dbus::arg::ArgType;
         let data = &variant.0;
         cast_variants! { data, Some(Value::Unsupported),
-            ArgType::String => { data.as_str().map(Value::from) },
+            ArgType::Boolean => bool,
+            ArgType::Byte => u8,
+            ArgType::Double => f64,
             ArgType::Int16 => i16,
             ArgType::Int32 => i32,
             ArgType::Int64 => { data.as_i64().map(Value::from) },
+            ArgType::String => { data.as_str().map(Value::from) },
             ArgType::UInt16 => u16,
             ArgType::UInt32 => u32,
-            ArgType::UInt64 => u64,
-            ArgType::Byte => u8,
-            ArgType::Double => f64,
-            ArgType::Boolean => bool
+            ArgType::UInt64 => u64
         }
     }
 
@@ -608,6 +608,25 @@ mod tests {
 
             assert_eq!(metadata.rest_hash(), expected_hash);
         }
+
+        // Arrays cannot be read out after-the-fact, after the Message has been dropped in the
+        // current dbus crate.
+        // #[test]
+        // fn it_supports_array_of_strings() {
+        //     let data: Vec<String> = vec![String::from("foo"), String::from("bar")];
+        //     let metadata = metadata_with_rest("arr", Variant(Box::new(data)));
+
+        //     let mut expected_hash: HashMap<String, Value> = HashMap::new();
+        //     expected_hash.insert(
+        //         "arr".into(),
+        //         Value::Array(vec![
+        //             Value::String(String::from("foo")),
+        //             Value::String(String::from("bar")),
+        //         ]),
+        //     );
+
+        //     assert_eq!(metadata.rest_hash(), expected_hash);
+        // }
 
         #[test]
         fn it_stores_unknown_types() {
