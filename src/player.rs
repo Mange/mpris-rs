@@ -236,6 +236,8 @@ impl<'a> Player<'a> {
     ///
     /// NOTE: This method should be considered an escape hatch until version 2.0, where `Metadata`
     /// will contain this data and allow you to query it.
+    #[deprecated(since = "1.1.0",
+                 note = "This is an experimental function until full Metadata overhaul in 2.0.")]
     pub fn get_metadata_hash(&self) -> Result<HashMap<String, MetadataValue>, DBusError> {
         let connection_path = self.connection_path();
         dbus::stdintf::org_freedesktop_dbus::Properties::get::<MetadataValue>(

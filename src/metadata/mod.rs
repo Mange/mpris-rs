@@ -165,6 +165,8 @@ impl Metadata {
     /// }
     /// # }
     /// ```
+    #[deprecated(since = "1.1.0",
+                 note = "This function will be removed or change signature in 2.0. See `rest_hash` for a version more closely related to how 2.0 will work.")]
     pub fn rest(&self) -> &HashMap<String, Variant<Box<RefArg>>> {
         &self.rest
     }
