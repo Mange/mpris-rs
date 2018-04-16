@@ -6,8 +6,12 @@ rust:
 matrix:
   allow_failures:
     - rust: nightly
+  fast_finish: true
 cache: cargo
 addons:
   apt:
     packages:
-    - libdbus-1-dev
+    - libdbus-1-dev # To be able to compile dbus-rs
+    - dbus # DBus server
+script:
+  - xvfb-run ./script/ci.sh

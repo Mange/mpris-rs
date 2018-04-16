@@ -192,18 +192,23 @@ mod tests {
         //
         // Open a connection, send a message to it and then read the message back again.
         //
-        let connection = Connection::get_private(BusType::Session).unwrap();
-        connection.register_object_path("/hello").unwrap();
+        let connection = Connection::get_private(BusType::Session)
+            .expect("Could not open a D-Bus session connection");
+        connection
+            .register_object_path("/hello")
+            .expect("Could not register object path");
         let send_message = Message::new_method_call(
             &connection.unique_name(),
             "/hello",
             "com.example.hello",
             "Hello",
-        ).unwrap();
+        ).expect("Could not create message");
 
         let send_message = appender(send_message);
 
-        connection.send(send_message).unwrap();
+        connection
+            .send(send_message)
+            .expect("Could not send message to myself");
 
         for item in connection.iter(200) {
             if let ConnectionItem::MethodCall(received_message) = item {
