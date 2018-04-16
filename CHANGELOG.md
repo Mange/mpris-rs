@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+
+- `MetadataValue` type, for dynamically types metadata values. This will
+  replace the raw DBus values in `Metadata` in version 2.0.
+- `Player::get_metadata_hash` which returns a `Result<HashMap<String,
+  MetadataValue>, DBusError>`.
+- `Metadata::rest_hash` which converts values in the `rest` hash into
+  `MetadataValue`s, where possible. This is closer to how `Metadata` will work
+  in 2.0.
+
+### Deprecated
+
+- `Metadata::rest` is deprecated; version 2.0 will have a method that returns
+  `MetadataValue`s instead.
+- `Player::get_metadata_hash` is added as deprecated. It will likely be merged
+  into `Metadata` in version 2.0, but presents a way to get all supported
+  metadata values where `Metadata::rest` might not.
+
 ## [v1.0.0] - 2018-01-19
 
 ### Added
