@@ -1,26 +1,31 @@
+extern crate failure;
 extern crate mpris;
 
-use mpris::{Metadata, PlayerFinder};
+use failure::{Error, ResultExt};
+use mpris::PlayerFinder;
 
 fn main() {
-    match retrieve_metadata() {
-        Ok(metadata) => {
-            println!("Metadata:\n{:#?}", metadata);
-        }
+    match print_metadata() {
+        Ok(_) => {}
         Err(error) => {
-            println!("ERROR: {}", error);
+            for (i, cause) in error.causes().enumerate() {
+                if i == 0 {
+                    println!("Error: {}", cause);
+                } else {
+                    println!("Caused by: {}", cause);
+                }
+            }
             std::process::exit(1);
         }
     }
 }
 
-fn retrieve_metadata() -> Result<Metadata, String> {
-    let player_finder =
-        PlayerFinder::new().map_err(|e| format!("Could not connect to D-Bus: {}", e))?;
+fn print_metadata() -> Result<(), Error> {
+    let player_finder = PlayerFinder::new().context("Could not connect to D-Bus")?;
 
     let player = player_finder
         .find_active()
-        .map_err(|e| format!("Could not find any player: {}", e))?;
+        .context("Could not find any player")?;
 
     println!(
         "Found {identity} (on bus {bus_name})",
@@ -28,7 +33,22 @@ fn retrieve_metadata() -> Result<Metadata, String> {
         identity = player.identity(),
     );
 
-    player
+    let metadata = player
         .get_metadata()
-        .map_err(|e| format!("Could not get metadata for player: {}", e))
+        .context("Could not get metadata for player")?;
+
+    println!("Metadata:\n{:#?}\n", metadata);
+    println!(
+        "\nRest of the metadata (emulated raw data):\n{:#?}",
+        metadata.rest_hash()
+    );
+
+    println!(
+        "\nRaw metadata value:\n{:#?}",
+        player
+            .get_metadata_hash()
+            .context("Could not fetch raw metadata hash")?
+    );
+
+    Ok(())
 }

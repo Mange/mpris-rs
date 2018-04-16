@@ -1,5 +1,8 @@
 extern crate dbus;
 
+mod value;
+pub use self::value::{Value, ValueKind};
+
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -144,6 +147,9 @@ impl Metadata {
     /// Remaining metadata that has not been parsed into one of the other fields of the `Metadata`,
     /// if any.
     ///
+    /// **NOTE:** This method is deprecated and will be removed in version 2.0. See `rest_hash` or
+    /// `Player::get_metadata_hash` for better alternatives.
+    ///
     /// As an example, if the media player exposed `xesam:composer`, then you could read that
     /// String like this:
     ///
@@ -159,11 +165,54 @@ impl Metadata {
     /// }
     /// # }
     /// ```
+    #[deprecated(since = "1.1.0",
+                 note = "This function will be removed or change signature in 2.0. See `rest_hash` for a version more closely related to how 2.0 will work.")]
     pub fn rest(&self) -> &HashMap<String, Variant<Box<RefArg>>> {
         &self.rest
     }
-}
 
+    /// Remaining metadata that has not been parsed into one of the other fields of the `Metadata`,
+    /// if any.
+    ///
+    /// **NOTE:** This method will be renamed and reworked in version 2.0 in order to replace
+    /// `rest`. Note that this method will likely become cheaper at that point.
+    ///
+    /// **NOTE:** This method returns an *owned* value in the 1.x series for
+    /// backwards-compatibility reasons. That means that this method is expensive to call and you
+    /// should reuse the value if possible.
+    ///
+    /// **NOTE:** This method will not be able to return all possible fields and types. There is an
+    /// escape hatch at `Player::get_metadata_hash` that will be able to convert all of the values,
+    /// but it is entirely divorced from the 1.x version of `Metadata`.
+    ///
+    /// As an example, if the media player exposed `xesam:composer`, then you could read that
+    /// String like this:
+    ///
+    /// ```rust
+    /// # extern crate mpris;
+    /// # extern crate dbus;
+    /// use mpris::{Metadata, MetadataValue};
+    /// # fn main() {
+    /// # let metadata = Metadata::new(String::from("1234"));
+    /// let rest_hash = metadata.rest_hash();
+    /// let composer = rest_hash.get("xesam:composer");
+    /// match composer {
+    ///     Some(&MetadataValue::String(ref name)) => println!("Composed by: {}", name),
+    ///     Some(value) => println!("xesam:composer had an unexpected type: {:?}", value.kind()),
+    ///     None => println!("Composer is not set"),
+    /// }
+    /// # }
+    /// ```
+    pub fn rest_hash(&self) -> HashMap<String, Value> {
+        let mut map = HashMap::new();
+        for (key, variant) in self.rest.iter() {
+            if let Some(value) = Value::from_variant(variant) {
+                map.insert(key.clone(), value);
+            }
+        }
+        map
+    }
+}
 #[derive(Debug, Default)]
 struct MetadataBuilder {
     track_id: Option<String>,
@@ -251,7 +300,6 @@ impl MetadataBuilder {
         }
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -260,5 +308,166 @@ mod tests {
     fn it_creates_new_metadata() {
         let metadata = Metadata::new(String::from("foo"));
         assert_eq!(metadata.track_id, "foo");
+    }
+
+    mod rest {
+        use super::*;
+
+        fn metadata_builder() -> MetadataBuilder {
+            let mut builder = MetadataBuilder::new();
+            builder.track_id = Some(String::new());
+            builder
+        }
+
+        fn metadata_with_rest<S>(key: S, value: Variant<Box<RefArg>>) -> Metadata
+        where
+            S: Into<String>,
+        {
+            let mut builder = metadata_builder();
+            builder.add_rest(key.into(), value);
+            builder
+                .finish()
+                .expect("Failed to build Metadata for example")
+        }
+
+        #[test]
+        fn it_supports_string_values() {
+            let data = String::from("The string value");
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), "The string value".into());
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
+
+        #[test]
+        fn it_supports_i64_values() {
+            let data = 42i64;
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), Value::I64(42));
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
+
+        #[test]
+        fn it_supports_i32() {
+            let data = 42i32;
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), Value::I32(42));
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
+
+        #[test]
+        fn it_supports_i16() {
+            let data = 42i16;
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), Value::I16(42));
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
+
+        #[test]
+        fn it_supports_u64() {
+            let data = 42u64;
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), Value::U64(42));
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
+
+        #[test]
+        fn it_supports_u32() {
+            let data = 42u32;
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), Value::U32(42));
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
+
+        #[test]
+        fn it_supports_u16() {
+            let data = 42u16;
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), Value::U16(42));
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
+
+        #[test]
+        fn it_supports_u8() {
+            let data = 42u8;
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), Value::U8(42));
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
+
+        #[test]
+        fn it_supports_f64_values() {
+            let data = 42.0f64;
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), Value::F64(42.0));
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
+
+        #[test]
+        fn it_supports_bool_values() {
+            let data = true;
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), Value::Bool(true));
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
+
+        // Arrays cannot be read out after-the-fact, after the Message has been dropped in the
+        // current dbus crate.
+        // #[test]
+        // fn it_supports_array_of_strings() {
+        //     let data: Vec<String> = vec![String::from("foo"), String::from("bar")];
+        //     let metadata = metadata_with_rest("arr", Variant(Box::new(data)));
+
+        //     let mut expected_hash: HashMap<String, Value> = HashMap::new();
+        //     expected_hash.insert(
+        //         "arr".into(),
+        //         Value::Array(vec![
+        //             Value::String(String::from("foo")),
+        //             Value::String(String::from("bar")),
+        //         ]),
+        //     );
+
+        //     assert_eq!(metadata.rest_hash(), expected_hash);
+        // }
+
+        #[test]
+        fn it_stores_unknown_types() {
+            let data = dbus::Path::default();
+            let metadata = metadata_with_rest("foo", Variant(Box::new(data)));
+
+            let mut expected_hash: HashMap<String, Value> = HashMap::new();
+            expected_hash.insert("foo".into(), Value::Unsupported);
+
+            assert_eq!(metadata.rest_hash(), expected_hash);
+        }
     }
 }

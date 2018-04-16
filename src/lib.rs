@@ -31,6 +31,15 @@ extern crate failure_derive;
 #[macro_use]
 extern crate failure;
 
+#[macro_use]
+extern crate enum_kinds;
+
+#[macro_use]
+extern crate derive_is_enum_variant;
+
+#[macro_use]
+extern crate from_variants;
+
 extern crate dbus;
 
 mod generated;
@@ -43,7 +52,7 @@ mod player;
 mod progress;
 
 pub use find::{FindingError, PlayerFinder};
-pub use metadata::Metadata;
+pub use metadata::{Metadata, Value as MetadataValue, ValueKind as MetadataValueKind};
 pub use player::Player;
 pub use progress::{Progress, ProgressTracker};
 
