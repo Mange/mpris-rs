@@ -210,6 +210,11 @@ impl Progress {
         self.loop_status
     }
 
+    /// The playback rate at the point in time that this Progress was constructed.
+    pub fn playback_rate(&self) -> f64 {
+        self.rate
+    }
+
     /// Returns the length of the current track as a `Duration`.
     pub fn length(&self) -> Option<Duration> {
         self.metadata.length()

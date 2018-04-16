@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - `Metadata::rest_hash` which converts values in the `rest` hash into
   `MetadataValue`s, where possible. This is closer to how `Metadata` will work
   in 2.0.
+- `Progress::playback_rate` returns the playback rate at the time of
+  measurement.
 
 ### Deprecated
 
