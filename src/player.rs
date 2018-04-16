@@ -259,6 +259,17 @@ impl<'a> Player<'a> {
         ProgressTracker::new(self, interval_ms)
     }
 
+    /// Returns true if the bus of this player is still occupied in the connection, or put in
+    /// another way: If there's a process still listening on messages on this bus.
+    ///
+    /// If the player that you are controlling / querying has shut down, then this would return
+    /// false. You can use this to do graceful restarts, begin looking for another player, etc.
+    pub fn is_running(&self) -> bool {
+        self.connection()
+            .name_has_owner(self.bus_name.to_string())
+            .unwrap_or(false)
+    }
+
     pub(crate) fn connection(&self) -> &PooledConnection {
         &self.connection
     }

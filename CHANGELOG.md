@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   in 2.0.
 - `Progress::playback_rate` returns the playback rate at the time of
   measurement.
+- `Player::is_running` checks if a player is still running. Use this to detect
+  players shutting down.
 
 ### Deprecated
 

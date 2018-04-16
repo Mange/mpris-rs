@@ -15,6 +15,7 @@ pub(crate) struct PooledConnection {
 }
 
 const GET_NAME_OWNER_TIMEOUT: i32 = 100; // ms
+const NAME_HAS_OWNER_TIMEOUT: i32 = 100; // ms
 
 impl PooledConnection {
     pub(crate) fn new(connection: Connection) -> Self {
@@ -55,6 +56,21 @@ impl PooledConnection {
 
         self.connection
             .send_with_reply_and_block(get_name_owner, GET_NAME_OWNER_TIMEOUT)
+            .ok()
+            .and_then(|reply| reply.get1())
+    }
+
+    pub(crate) fn name_has_owner<S: Into<String>>(&self, bus_name: S) -> Option<bool> {
+        let name_has_owner = Message::new_method_call(
+            "org.freedesktop.DBus",
+            "/",
+            "org.freedesktop.DBus",
+            "NameHasOwner",
+        ).unwrap()
+            .append1(bus_name.into());
+
+        self.connection
+            .send_with_reply_and_block(name_has_owner, NAME_HAS_OWNER_TIMEOUT)
             .ok()
             .and_then(|reply| reply.get1())
     }
