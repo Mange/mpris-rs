@@ -48,6 +48,27 @@ impl Metadata {
         MetadataBuilder::build_from_metadata(metadata)
     }
 
+    /// Clones Metadata without the `rest` data.
+    ///
+    /// The `rest` data uses a non-cloneable type, which makes it impossible to clone a Metadata in
+    /// the 1.x series of the mpris crate. In version 2.0 this will be fixed.
+    pub fn clone_without_rest(&self) -> Metadata {
+        Metadata {
+            track_id: self.track_id.clone(),
+            album_artists: self.album_artists.clone(),
+            album_name: self.album_name.clone(),
+            art_url: self.art_url.clone(),
+            artists: self.artists.clone(),
+            auto_rating: self.auto_rating.clone(),
+            disc_number: self.disc_number.clone(),
+            length_in_microseconds: self.length_in_microseconds.clone(),
+            title: self.title.clone(),
+            track_number: self.track_number.clone(),
+            url: self.url.clone(),
+            rest: HashMap::new(),
+        }
+    }
+
     /// The track ID.
     ///
     /// Based on `mpris:trackId`
