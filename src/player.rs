@@ -658,7 +658,9 @@ impl<'a> Player<'a> {
 
     /// Blocks until player gets an event on the bus.
     ///
-    /// Other player events will also be recorded, but will not cause this function to return.
+    /// Other player events will also be recorded, but will not cause this function to return. Note
+    /// that this will block forever if player is not running. Make sure to check that the player
+    /// is running before calling this method!
     pub(crate) fn process_events_blocking_until_dirty(&self) {
         self.connection
             .process_events_blocking_until_dirty(&self.unique_name);

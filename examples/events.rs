@@ -1,6 +1,6 @@
 extern crate mpris;
 
-use mpris::PlayerFinder;
+use mpris::{Event, PlayerFinder};
 
 fn main() {
     let player = PlayerFinder::new()
@@ -15,7 +15,13 @@ fn main() {
 
     let events = player.events().expect("Could not start event stream");
     for event in events {
-        println!("{:#?}", event);
+        match event {
+            Ok(event) => println!("{:#?}", event),
+            Err(err) => {
+                println!("D-Bus error: {}. Aborting.", err);
+                break;
+            }
+        }
     }
 
     println!("Event stream ended.");

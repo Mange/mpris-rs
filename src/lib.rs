@@ -56,6 +56,7 @@ pub use find::{FindingError, PlayerFinder};
 pub use metadata::{Metadata, Value as MetadataValue, ValueKind as MetadataValueKind};
 pub use player::Player;
 pub use progress::{Progress, ProgressTracker};
+pub use event::Event;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 #[allow(missing_docs)]

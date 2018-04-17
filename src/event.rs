@@ -6,6 +6,9 @@ use super::{DBusError, LoopStatus, Metadata, PlaybackStatus, Player, Progress};
 /// for playing media).
 #[derive(Debug)]
 pub enum Event {
+    /// Player was shut down / quit.
+    PlayerShutDown,
+
     /// Player was paused.
     Paused,
 
@@ -34,12 +37,22 @@ pub enum Event {
     TrackChanged(Metadata),
 }
 
+/// Iterator that blocks forever until the player has an event.
+///
+/// Iteration will stop if player stops running. If the player was running before this iterator
+/// blocks, one last `Event::PlayerShutDown` event will be emitted before stopping iteration.
+///
+/// If multiple events are found between processing D-Bus events then all of them will be iterated
+/// in rapid succession before processing more events.
 #[derive(Debug)]
 pub struct PlayerEvents<'a> {
+    /// Player to watch.
     player: &'a Player<'a>,
 
+    /// Queued up events found after the last signal.
     buffer: Vec<Event>,
 
+    /// Used to diff older state to find events.
     last_progress: Progress,
 }
 
@@ -55,6 +68,13 @@ impl<'a> PlayerEvents<'a> {
 
     fn read_events(&mut self) -> Result<(), DBusError> {
         self.player.process_events_blocking_until_dirty();
+
+        // NOTE: read_events will be called after first checking that the player was running, so if
+        // it isn't running anymore then it must have shut down.
+        if !self.player.is_running() {
+            self.buffer.push(Event::PlayerShutDown);
+            return Ok(());
+        }
 
         let new_progress = Progress::from_player(self.player)?;
 
@@ -119,15 +139,18 @@ impl<'a> Iterator for PlayerEvents<'a> {
     type Item = Result<Event, DBusError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.read_events() {
-            Ok(_) => {}
-            Err(err) => return Some(Err(err)),
-        };
+        while self.buffer.is_empty() {
+            // Stop iteration when player is not running. Why beat a dead horse?
+            if !self.player.is_running() {
+                return None;
+            }
 
-        debug_assert!(
-            !self.buffer.is_empty(),
-            "Internal Events buffer is empty, which should never happen!"
-        );
+            match self.read_events() {
+                Ok(_) => {}
+                Err(err) => return Some(Err(err)),
+            };
+        }
+
         let event = self.buffer.remove(0);
         Some(Ok(event))
     }
