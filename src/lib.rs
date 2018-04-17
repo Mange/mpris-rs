@@ -45,10 +45,11 @@ extern crate dbus;
 mod generated;
 mod extensions;
 
-mod pooled_connection;
+mod event;
 mod find;
 mod metadata;
 mod player;
+mod pooled_connection;
 mod progress;
 
 pub use find::{FindingError, PlayerFinder};

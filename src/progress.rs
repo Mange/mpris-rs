@@ -136,13 +136,11 @@ impl<'a> ProgressTracker<'a> {
         }
 
         // If we got a new event since the last time we ticked, then reload fresh data.
-        if let Some(last_event_at) = self.player
+        if self.player
             .connection()
-            .last_event_for_unique_name(self.player.unique_name())
+            .is_bus_updated_after(self.player.unique_name(), &self.last_tick)
         {
-            if last_event_at > self.last_tick {
-                did_refresh = self.refresh();
-            }
+            did_refresh = self.refresh();
         }
 
         (self.progress(), did_refresh)
@@ -177,7 +175,7 @@ impl<'a> ProgressTracker<'a> {
 }
 
 impl Progress {
-    fn from_player<'a>(player: &'a Player<'a>) -> Result<Progress, DBusError> {
+    pub(crate) fn from_player<'a>(player: &'a Player<'a>) -> Result<Progress, DBusError> {
         Ok(Progress {
             metadata: player.get_metadata()?,
             playback_status: player.get_playback_status()?,

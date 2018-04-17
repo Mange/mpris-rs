@@ -14,6 +14,7 @@ use generated::OrgMprisMediaPlayer2Player;
 use metadata::Metadata;
 use pooled_connection::PooledConnection;
 use progress::ProgressTracker;
+use event::PlayerEvents;
 
 pub(crate) const MPRIS2_PREFIX: &str = "org.mpris.MediaPlayer2.";
 pub(crate) const MPRIS2_PATH: &str = "/org/mpris/MediaPlayer2";
@@ -257,6 +258,12 @@ impl<'a> Player<'a> {
     /// about it.
     pub fn track_progress(&self, interval_ms: u32) -> Result<ProgressTracker, DBusError> {
         ProgressTracker::new(self, interval_ms)
+    }
+
+    /// Returns a `PlayerEvents` iterator, or an `DBusError` if there was a problem with the D-Bus
+    /// connection to the player.
+    pub fn events(&self) -> Result<PlayerEvents, DBusError> {
+        PlayerEvents::new(self)
     }
 
     /// Returns true if the bus of this player is still occupied in the connection, or put in
@@ -647,5 +654,13 @@ impl<'a> Player<'a> {
     fn connection_path(&self) -> ConnPath<&Connection> {
         self.connection
             .with_path(self.bus_name.clone(), self.path.clone(), self.timeout_ms)
+    }
+
+    /// Blocks until player gets an event on the bus.
+    ///
+    /// Other player events will also be recorded, but will not cause this function to return.
+    pub(crate) fn process_events_blocking_until_dirty(&self) {
+        self.connection
+            .process_events_blocking_until_dirty(&self.unique_name);
     }
 }

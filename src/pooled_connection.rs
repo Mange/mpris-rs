@@ -75,8 +75,17 @@ impl PooledConnection {
             .and_then(|reply| reply.get1())
     }
 
-    pub(crate) fn last_event_for_unique_name(&self, unique_name: &str) -> Option<Instant> {
-        self.last_event.borrow().get(unique_name).cloned()
+    /// Returns `true` is an event has been recorded for the given bus name, after the given
+    /// instant.
+    ///
+    /// If no event have been seen at all for the given bus name, or the last event was on or
+    /// before the provided instant then `false` will be returned.
+    pub(crate) fn is_bus_updated_after(&self, bus_name: &str, after: &Instant) -> bool {
+        self.last_event
+            .borrow()
+            .get(bus_name)
+            .map(|updated_at| updated_at > after)
+            .unwrap_or(false)
     }
 
     pub(crate) fn process_events_blocking(&self, duration: Duration) {
@@ -93,20 +102,41 @@ impl PooledConnection {
             if ms_left < 2 {
                 break;
             }
-            match self.connection.incoming(ms_left as u32).next() {
-                Some(message) => {
-                    if PooledConnection::is_watched_message(&message) {
-                        self.process_message(&message);
-                    }
-                }
-                None => {
-                    // Time is up. No more messages.
-                    break;
+            if let Some(message) = self.connection
+                .incoming(ms_left as u32)
+                .filter(PooledConnection::is_watched_message)
+                .next()
+            {
+                self.process_message(&message);
+            }
+        }
+    }
+
+    /// Block until a MPRIS2 event for the given unique bus name is detected.
+    ///
+    /// Events for other buses will also be recorded, but the method will not return until a
+    /// matching one has been found.
+    pub(crate) fn process_events_blocking_until_dirty(&self, unique_name: &str) {
+        // mpris2 library must have a timeout, but since this function calls it in a loop it
+        // doesn't really matter what limit we set.
+        const LOOP_INTERVAL_MS: u32 = 1000;
+        let start = Instant::now();
+
+        loop {
+            for message in self.connection
+                .incoming(LOOP_INTERVAL_MS)
+                .filter(PooledConnection::is_watched_message)
+            {
+                self.process_message(&message);
+                if self.is_bus_updated_after(unique_name, &start) {
+                    return;
                 }
             }
         }
     }
 
+    /// Returns true if a given D-Bus Message is a MPRIS2 event (`ProeprtiesChanged` or `Seeked`
+    /// delivered to a MPRIS2 path).
     fn is_watched_message(message: &Message) -> bool {
         use std::ops::Deref;
 
@@ -125,6 +155,7 @@ impl PooledConnection {
         false
     }
 
+    /// Takes a message and updates the latest update time of the sender bus.
     fn process_message(&self, message: &Message) {
         message
             .sender()
