@@ -21,6 +21,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - `Player::is_running` checks if a player is still running. Use this to detect
   players shutting down.
 
+### Changed
+
+- `Metadata` can now be constructed with empty metadata; `track_id` will then be the empty string.
+  * Some players (like VLC) without any tracks on its play queue emits empty
+    metadata, which would cause this library to return an error instead of an
+    empty metadata.
+- `Metadata` now implements `Default`.
+
 ### Deprecated
 
 - `Metadata::rest` is deprecated; version 2.0 will have a method that returns
