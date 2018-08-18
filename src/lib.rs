@@ -45,16 +45,18 @@ extern crate dbus;
 mod generated;
 mod extensions;
 
-mod pooled_connection;
+mod event;
 mod find;
 mod metadata;
 mod player;
+mod pooled_connection;
 mod progress;
 
 pub use find::{FindingError, PlayerFinder};
 pub use metadata::{Metadata, Value as MetadataValue, ValueKind as MetadataValueKind};
 pub use player::Player;
 pub use progress::{Progress, ProgressTracker};
+pub use event::Event;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 #[allow(missing_docs)]

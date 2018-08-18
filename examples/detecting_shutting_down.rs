@@ -1,5 +1,6 @@
 extern crate mpris;
-use std::thread::sleep_ms;
+use std::time::Duration;
+use std::thread::sleep;
 
 use mpris::{Player, PlayerFinder};
 
@@ -9,10 +10,6 @@ fn move_cursor_up(n: usize) {
 
 fn cursor_beginning_of_line() {
     print!("\r");
-}
-
-fn cursor_start_of_next_line() {
-    print!("\r\n");
 }
 
 fn clear_to_end_of_line() {
@@ -73,6 +70,6 @@ Exit with Ctrl-C.
 
         println!("\n(Refreshing running state every second)");
         lines_drawn += 2;
-        sleep_ms(1000);
+        sleep(Duration::from_secs(1));
     }
 }

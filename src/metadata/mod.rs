@@ -15,7 +15,7 @@ use super::DBusError;
 /// * [Read more about the MPRIS2 `Metadata_Map`
 /// type.](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Mapping:Metadata_Map)
 /// * [Read MPRIS v2 metadata guidelines](https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/)
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Metadata {
     track_id: String,
     album_artists: Option<Vec<String>>,
@@ -39,7 +39,7 @@ impl Metadata {
     pub fn new(track_id: String) -> Self {
         let mut builder = MetadataBuilder::new();
         builder.track_id = Some(track_id);
-        builder.finish().unwrap()
+        builder.finish()
     }
 
     pub(crate) fn new_from_dbus(
@@ -48,10 +48,35 @@ impl Metadata {
         MetadataBuilder::build_from_metadata(metadata)
     }
 
+    /// Clones Metadata without the `rest` data.
+    ///
+    /// The `rest` data uses a non-cloneable type, which makes it impossible to clone a Metadata in
+    /// the 1.x series of the mpris crate. In version 2.0 this will be fixed.
+    pub fn clone_without_rest(&self) -> Metadata {
+        Metadata {
+            track_id: self.track_id.clone(),
+            album_artists: self.album_artists.clone(),
+            album_name: self.album_name.clone(),
+            art_url: self.art_url.clone(),
+            artists: self.artists.clone(),
+            auto_rating: self.auto_rating.clone(),
+            disc_number: self.disc_number.clone(),
+            length_in_microseconds: self.length_in_microseconds.clone(),
+            title: self.title.clone(),
+            track_number: self.track_number.clone(),
+            url: self.url.clone(),
+            rest: HashMap::new(),
+        }
+    }
+
     /// The track ID.
     ///
     /// Based on `mpris:trackId`
     /// > A unique identity for this track within the context of an MPRIS object.
+    ///
+    /// **NOTE:** In 2.0 this will be an `Option<&str>` as players can emit empty metadata when
+    /// there is no track present. To keep this backwards compatible with 1.x it will instead be an
+    /// empty string when no track ID is present.
     pub fn track_id(&self) -> &str {
         &self.track_id
     }
@@ -265,7 +290,7 @@ impl MetadataBuilder {
             };
         }
 
-        builder.finish()
+        Ok(builder.finish())
     }
 
     fn new() -> Self {
@@ -276,27 +301,21 @@ impl MetadataBuilder {
         self.rest.insert(key, value);
     }
 
-    fn finish(self) -> Result<Metadata, DBusError> {
-        match self.track_id {
-            Some(track_id) => Ok(Metadata {
-                track_id: track_id,
+    fn finish(self) -> Metadata {
+        Metadata {
+            track_id: self.track_id.unwrap_or_else(String::new),
+            album_artists: self.album_artists,
+            album_name: self.album_name,
+            art_url: self.art_url,
+            artists: self.artists,
+            auto_rating: self.auto_rating,
+            disc_number: self.disc_number,
+            length_in_microseconds: self.length_in_microseconds,
+            title: self.title,
+            track_number: self.track_number,
+            url: self.url,
 
-                album_artists: self.album_artists,
-                album_name: self.album_name,
-                art_url: self.art_url,
-                artists: self.artists,
-                auto_rating: self.auto_rating,
-                disc_number: self.disc_number,
-                length_in_microseconds: self.length_in_microseconds,
-                title: self.title,
-                track_number: self.track_number,
-                url: self.url,
-
-                rest: self.rest,
-            }),
-            None => Err(DBusError::new(
-                "TrackId is missing from metadata; client is not conforming to MPRIS-2",
-            )),
+            rest: self.rest,
         }
     }
 }
@@ -308,6 +327,12 @@ mod tests {
     fn it_creates_new_metadata() {
         let metadata = Metadata::new(String::from("foo"));
         assert_eq!(metadata.track_id, "foo");
+    }
+
+    #[test]
+    fn it_supports_blank_metadata() {
+        let metadata = MetadataBuilder::build_from_metadata(HashMap::new()).unwrap();
+        assert_eq!(metadata.track_id, "");
     }
 
     mod rest {
@@ -325,9 +350,7 @@ mod tests {
         {
             let mut builder = metadata_builder();
             builder.add_rest(key.into(), value);
-            builder
-                .finish()
-                .expect("Failed to build Metadata for example")
+            builder.finish()
         }
 
         #[test]
