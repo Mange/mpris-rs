@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
+- `Player::events(&self)` returns a blocking iterator of player events.
+  - Use this to block single-threaded apps until something happens and then
+    react on this event.
+  - This is not suitable if you want to render a progress bar as it will only
+    return when something changes; if you want to render the information at a
+    regular update interval then keep using `Player::track_progress(&self)`
+    instead.
 - `MetadataValue` type, for dynamically types metadata values. This will
   replace the raw DBus values in `Metadata` in version 2.0.
 - `Player::get_metadata_hash` which returns a `Result<HashMap<String,

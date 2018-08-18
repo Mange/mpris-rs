@@ -47,6 +47,8 @@ fn main() {
 }
 ```
 
+See the `examples` directory for more examples.
+
 ## License
 
 Copyright 2017-2018 Magnus Bergmark
