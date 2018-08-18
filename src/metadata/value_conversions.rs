@@ -96,6 +96,15 @@ impl Value {
         }
     }
 
+    /// Returns the value as a `Some(Vec<&str>)` if it is a `MetadataValue::Array`. Any elements
+    /// that are not `MetadataValue::String` values will be ignored.
+    pub fn as_str_array(&self) -> Option<Vec<&str>> {
+        match *self {
+            Value::Array(ref vec) => Some(vec.iter().flat_map(Value::as_str).collect()),
+            _ => None,
+        }
+    }
+
     /// Returns the value as a `Some(&str)` if it is a `MetadataValue::String`, or `None` otherwise.
     pub fn as_str(&self) -> Option<&str> {
         match *self {

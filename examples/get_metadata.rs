@@ -38,17 +38,6 @@ fn print_metadata() -> Result<(), Error> {
         .context("Could not get metadata for player")?;
 
     println!("Metadata:\n{:#?}\n", metadata);
-    println!(
-        "\nRest of the metadata (emulated raw data):\n{:#?}",
-        metadata.rest_hash()
-    );
-
-    println!(
-        "\nRaw metadata value:\n{:#?}",
-        player
-            .get_metadata_hash()
-            .context("Could not fetch raw metadata hash")?
-    );
 
     Ok(())
 }

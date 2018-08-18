@@ -1,12 +1,12 @@
 extern crate dbus;
 
 use std::collections::HashMap;
-use dbus::arg::{cast, RefArg, Variant};
+use dbus::arg::{RefArg, Variant, ArgType};
 
 /// Holds a dynamically-typed metadata value.
 ///
 /// You will need to type-check this at runtime in order to use the value.
-#[derive(Debug, PartialEq, EnumKind, is_enum_variant, FromVariants)]
+#[derive(Debug, PartialEq, Clone, EnumKind, is_enum_variant, FromVariants)]
 #[enum_kind(ValueKind)]
 pub enum Value {
     /// Value is a string.
@@ -50,40 +50,27 @@ pub enum Value {
     Unsupported,
 }
 
-macro_rules! cast_variants {
-    ( $data:expr, $fallback:expr, $( $variant:pat => $into:tt ),+ ) => {
-        let data = $data;
-        match data.arg_type() {
-            $(
-                $variant => { cast_variant!(data, $into) },
-            )+
-            _ => $fallback,
-        }
-    }
-}
-
-macro_rules! cast_variant {
-    ( $data:expr, $into:ty ) => {
-        cast::<$into>($data).cloned().map(Value::from)
-    };
-    ( $data:expr, $handler:expr ) => { $handler };
-}
-
 impl Value {
-    pub(crate) fn from_variant(variant: &Variant<Box<RefArg>>) -> Option<Value> {
-        use dbus::arg::ArgType;
-        let data = &variant.0;
-        cast_variants! { data, Some(Value::Unsupported),
-            ArgType::Boolean => bool,
-            ArgType::Byte => u8,
-            ArgType::Double => f64,
-            ArgType::Int16 => i16,
-            ArgType::Int32 => i32,
-            ArgType::Int64 => { data.as_i64().map(Value::from) },
-            ArgType::String => { data.as_str().map(Value::from) },
-            ArgType::UInt16 => u16,
-            ArgType::UInt32 => u32,
-            ArgType::UInt64 => u64
+    pub(crate) fn from_variant(variant: Variant<Box<RefArg>>) -> Option<Value> {
+        Value::from_ref_arg(&variant.0)
+    }
+
+    pub(crate) fn from_ref_arg(ref_arg: &RefArg) -> Option<Value> {
+        match ref_arg.arg_type() {
+            ArgType::Array => ref_arg.as_iter().map(|iter| {
+                iter.flat_map(Value::from_ref_arg).collect::<Vec<_>>()
+            }).map(Value::from),
+            ArgType::Boolean => ref_arg.as_u64().map(|n| n == 1).map(Value::from),
+            ArgType::Byte => ref_arg.as_u64().map(|n| n as u8).map(Value::from),
+            ArgType::Double => ref_arg.as_f64().map(Value::from),
+            ArgType::Int16 => ref_arg.as_i64().map(|n| n as i16).map(Value::from),
+            ArgType::Int32 => ref_arg.as_i64().map(|n| n as i32).map(Value::from),
+            ArgType::Int64 => ref_arg.as_i64().map(Value::from),
+            ArgType::String => ref_arg.as_str().map(String::from).map(Value::from),
+            ArgType::UInt16 => ref_arg.as_u64().map(|n| n as u16).map(Value::from),
+            ArgType::UInt32 => ref_arg.as_u64().map(|n| n as u32).map(Value::from),
+            ArgType::UInt64 => ref_arg.as_u64().map(Value::from),
+            _ => Some(Value::Unsupported),
         }
     }
 
@@ -96,11 +83,10 @@ impl Value {
     /// # extern crate dbus;
     /// # use mpris::Metadata;
     /// # fn main() {
-    /// # let metadata = Metadata::new(String::from("1234"));
+    /// # let metadata = Metadata::new("1234");
     /// # let key_name = "foo";
     /// use mpris::MetadataValueKind;
-    /// let rest_hash = metadata.rest_hash();
-    /// if let Some(value) = rest_hash.get(key_name) {
+    /// if let Some(value) = metadata.get(key_name) {
     ///     match value.kind() {
     ///       MetadataValueKind::String => println!("{} is a string", key_name),
     ///       MetadataValueKind::I16 |
@@ -135,7 +121,7 @@ impl<'a> From<&'a str> for Value {
 }
 
 impl dbus::arg::Arg for Value {
-    const ARG_TYPE: dbus::arg::ArgType = dbus::arg::ArgType::Variant;
+    const ARG_TYPE: ArgType = ArgType::Variant;
     fn signature() -> dbus::Signature<'static> {
         dbus::Signature::from_slice(b"v\0").unwrap()
     }

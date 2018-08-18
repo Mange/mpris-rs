@@ -230,7 +230,7 @@ impl<'a> Player<'a> {
         self.connection_path()
             .get_metadata()
             .map_err(|e| e.into())
-            .and_then(Metadata::new_from_dbus)
+            .map(Metadata::new_from_dbus)
     }
 
     /// Query the player for current metadata, returned as a plain HashMap of `MetadataValue`s.
