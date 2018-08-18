@@ -37,12 +37,12 @@ mod test {
     #[test]
     fn it_calculates_whole_millis_from_durations() {
         let duration = Duration::new(5, 543_210_000);
-        assert_eq!(duration.as_millis(), 5543);
+        assert_eq!(DurationExtensions::as_millis(&duration), 5543);
     }
 
     #[test]
     fn it_calculates_whole_micros_from_durations() {
         let duration = Duration::new(5, 543_210_000);
-        assert_eq!(duration.as_micros(), 5_543_210);
+        assert_eq!(DurationExtensions::as_micros(&duration), 5_543_210);
     }
 }

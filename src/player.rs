@@ -150,7 +150,7 @@ impl<'a> Player<'a> {
     where
         ID: Into<TrackID<'id>>,
     {
-        self.set_position_in_microseconds(track_id, position.as_micros())
+        self.set_position_in_microseconds(track_id, DurationExtensions::as_micros(position))
     }
 
     /// Sets the position of the current track to the given position (in microseconds).
@@ -336,14 +336,14 @@ impl<'a> Player<'a> {
     ///
     /// See: `seek` method on `Player`.
     pub fn seek_forwards(&self, offset: &Duration) -> Result<(), DBusError> {
-        self.seek(offset.as_micros() as i64)
+        self.seek(DurationExtensions::as_micros(offset) as i64)
     }
 
     /// Tell the player to seek backwards.
     ///
     /// See: `seek` method on `Player`.
     pub fn seek_backwards(&self, offset: &Duration) -> Result<(), DBusError> {
-        self.seek(-(offset.as_micros() as i64))
+        self.seek(-(DurationExtensions::as_micros(offset) as i64))
     }
 
     /// Sends a `PlayPause` signal to the player, if the player indicates that it can pause.

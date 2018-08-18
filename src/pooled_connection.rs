@@ -101,7 +101,7 @@ impl PooledConnection {
         while start.elapsed() < duration {
             let ms_left = duration
                 .checked_sub(start.elapsed())
-                .map(|d| d.as_millis())
+                .map(|d| DurationExtensions::as_millis(&d))
                 .unwrap_or(0);
             // Don't bother if we have very little time left
             if ms_left < 2 {

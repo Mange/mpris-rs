@@ -265,7 +265,7 @@ impl Progress {
 
     fn elapsed(&self) -> Duration {
         let elapsed_ms = match self.playback_status {
-            PlaybackStatus::Playing => self.age().as_millis() as f64 * self.rate,
+            PlaybackStatus::Playing => DurationExtensions::as_millis(&self.age()) as f64 * self.rate,
             _ => 0.0,
         };
         Duration::from_millis(elapsed_ms as u64)
