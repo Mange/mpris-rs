@@ -239,27 +239,6 @@ impl<'a> Player<'a> {
             .map_err(DBusError::from)
     }
 
-    /// Query the player for current metadata, returned as a plain HashMap of `MetadataValue`s.
-    ///
-    /// NOTE: This method should be considered an escape hatch until version 2.0, where `Metadata`
-    /// will contain this data and allow you to query it.
-    #[deprecated(
-        since = "1.1.0",
-        note = "This is an experimental function until full Metadata overhaul in 2.0."
-    )]
-    pub fn get_metadata_hash(&self) -> Result<HashMap<String, MetadataValue>, DBusError> {
-        let connection_path = self.connection_path();
-        dbus::stdintf::org_freedesktop_dbus::Properties::get::<MetadataValue>(
-            &connection_path,
-            "org.mpris.MediaPlayer2.Player",
-            "Metadata",
-        ).map_err(|e| e.into())
-            .map(|val| {
-                println!("{:#?}", val);
-                val.into_map().unwrap_or_else(|| HashMap::new())
-            })
-    }
-
     /// Returns a new `ProgressTracker` for the player.
     ///
     /// Use this if you want to monitor a player in order to show close-to-realtime information
