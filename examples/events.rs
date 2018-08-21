@@ -1,6 +1,6 @@
 extern crate mpris;
 
-use mpris::{Event, PlayerFinder};
+use mpris::PlayerFinder;
 
 fn main() {
     let player = PlayerFinder::new()
