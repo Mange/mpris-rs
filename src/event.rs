@@ -111,14 +111,14 @@ impl<'a> PlayerEvents<'a> {
 
     fn detect_volume_events(&mut self, new_progress: &Progress) {
         let volume = new_progress.current_volume();
-        if self.last_progress.current_volume() != volume {
+        if is_different_float(self.last_progress.current_volume(), volume) {
             self.buffer.push(Event::VolumeChanged(volume));
         }
     }
 
     fn detect_playback_rate_events(&mut self, new_progress: &Progress) {
         let rate = new_progress.playback_rate();
-        if self.last_progress.playback_rate() != rate {
+        if is_different_float(self.last_progress.playback_rate(), rate) {
             self.buffer.push(Event::PlaybackRateChanged(rate));
         }
     }
@@ -129,6 +129,10 @@ impl<'a> PlayerEvents<'a> {
             self.buffer.push(Event::TrackChanged(metadata.clone()));
         }
     }
+}
+
+fn is_different_float(a: f64, b: f64) -> bool {
+    (a - b).abs() < ::std::f64::EPSILON
 }
 
 impl<'a> Iterator for PlayerEvents<'a> {

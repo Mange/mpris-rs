@@ -82,11 +82,11 @@ impl<'a> Player<'a> {
 
         Ok(Player {
             connection: pooled_connection,
-            bus_name: bus_name,
-            unique_name: unique_name,
-            identity: identity,
-            path: path,
-            timeout_ms: timeout_ms,
+            bus_name,
+            unique_name,
+            identity,
+            path,
+            timeout_ms,
         })
     }
 
@@ -125,7 +125,7 @@ impl<'a> Player<'a> {
     /// Returns the player's MPRIS `position` as a `Duration` since the start of the media.
     pub fn get_position(&self) -> Result<Duration, DBusError> {
         self.get_position_in_microseconds()
-            .map(|us| Duration::from_micros_ext(us))
+            .map(Duration::from_micros_ext)
     }
 
     /// Returns the player's MPRIS `position` as a count of microseconds since the start of the

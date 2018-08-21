@@ -5,6 +5,10 @@
 
 [![Crates.io][crate-badge]][crate] [![Documentation][docs-badge]][docs] [![Build Status][ci-badge]][ci] ![Actively developed][maintenance-badge]
 
+**NOTE:** Until it is possible to mark a minimum Rust version in the crate
+manifest, this library is only officially supported for "the latest stable
+Rust".
+
 ## What is MPRIS2?
 
 > The Media Player Remote Interfacing Specification is a standard D-Bus

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Changed
+
+- This library now only supports "latest stable" version of Rust. Hopefully
+  this can be changed the day it is possible to mark minimum version in the
+  crate manifest.
+
 ### Fixed
 
 - Emitted `Event::TrackChanged` events now contains full metadata.

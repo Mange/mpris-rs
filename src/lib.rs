@@ -123,8 +123,8 @@ impl ::std::str::FromStr for LoopStatus {
 }
 
 impl LoopStatus {
-    fn dbus_value(&self) -> String {
-        String::from(match *self {
+    fn dbus_value(self) -> String {
+        String::from(match self {
             LoopStatus::None => "None",
             LoopStatus::Track => "Track",
             LoopStatus::Playlist => "Playlist",

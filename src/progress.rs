@@ -51,7 +51,7 @@ impl<'a> ProgressTracker<'a> {
     /// Returns an error in case Player metadata or state retrieval over DBus fails.
     pub fn new(player: &'a Player<'a>, interval_ms: u32) -> Result<Self, DBusError> {
         Ok(ProgressTracker {
-            player: player,
+            player,
             interval: Duration::from_millis(u64::from(interval_ms)),
             last_tick: Instant::now(),
             last_progress: Progress::from_player(player)?,
@@ -241,7 +241,7 @@ impl Progress {
     ///
     /// This is the number that was returned for the `Position` property in the MPRIS2 interface.
     pub fn initial_position(&self) -> Duration {
-        self.position.clone()
+        self.position
     }
 
     /// The instant where this `Progress` was recorded.

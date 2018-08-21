@@ -114,7 +114,7 @@ impl Value {
     pub fn as_u16(&self) -> Option<u16> {
         match *self {
             Value::U16(val) => Some(val),
-            Value::U8(val) => Some(val as u16),
+            Value::U8(val) => Some(u16::from(val)),
             _ => None,
         }
     }
@@ -124,8 +124,8 @@ impl Value {
     pub fn as_u32(&self) -> Option<u32> {
         match *self {
             Value::U32(val) => Some(val),
-            Value::U16(val) => Some(val as u32),
-            Value::U8(val) => Some(val as u32),
+            Value::U16(val) => Some(u32::from(val)),
+            Value::U8(val) => Some(u32::from(val)),
             _ => None,
         }
     }
@@ -135,9 +135,9 @@ impl Value {
     pub fn as_u64(&self) -> Option<u64> {
         match *self {
             Value::U64(val) => Some(val),
-            Value::U32(val) => Some(val as u64),
-            Value::U16(val) => Some(val as u64),
-            Value::U8(val) => Some(val as u64),
+            Value::U32(val) => Some(u64::from(val)),
+            Value::U16(val) => Some(u64::from(val)),
+            Value::U8(val) => Some(u64::from(val)),
             _ => None,
         }
     }
@@ -156,7 +156,7 @@ impl Value {
     pub fn as_i32(&self) -> Option<i32> {
         match *self {
             Value::I32(val) => Some(val),
-            Value::I16(val) => Some(val as i32),
+            Value::I16(val) => Some(i32::from(val)),
             _ => None,
         }
     }
@@ -166,8 +166,8 @@ impl Value {
     pub fn as_i64(&self) -> Option<i64> {
         match *self {
             Value::I64(val) => Some(val),
-            Value::I32(val) => Some(val as i64),
-            Value::I16(val) => Some(val as i64),
+            Value::I32(val) => Some(i64::from(val)),
+            Value::I16(val) => Some(i64::from(val)),
             _ => None,
         }
     }
@@ -233,7 +233,7 @@ impl Value {
     pub fn into_u16(self) -> Option<u16> {
         match self {
             Value::U16(val) => Some(val),
-            Value::U8(val) => Some(val as u16),
+            Value::U8(val) => Some(u16::from(val)),
             _ => None,
         }
     }
@@ -243,8 +243,8 @@ impl Value {
     pub fn into_u32(self) -> Option<u32> {
         match self {
             Value::U32(val) => Some(val),
-            Value::U16(val) => Some(val as u32),
-            Value::U8(val) => Some(val as u32),
+            Value::U16(val) => Some(u32::from(val)),
+            Value::U8(val) => Some(u32::from(val)),
             _ => None,
         }
     }
@@ -254,9 +254,9 @@ impl Value {
     pub fn into_u64(self) -> Option<u64> {
         match self {
             Value::U64(val) => Some(val),
-            Value::U32(val) => Some(val as u64),
-            Value::U16(val) => Some(val as u64),
-            Value::U8(val) => Some(val as u64),
+            Value::U32(val) => Some(u64::from(val)),
+            Value::U16(val) => Some(u64::from(val)),
+            Value::U8(val) => Some(u64::from(val)),
             _ => None,
         }
     }
@@ -275,7 +275,7 @@ impl Value {
     pub fn into_i32(self) -> Option<i32> {
         match self {
             Value::I32(val) => Some(val),
-            Value::I16(val) => Some(val as i32),
+            Value::I16(val) => Some(i32::from(val)),
             _ => None,
         }
     }
@@ -285,8 +285,8 @@ impl Value {
     pub fn into_i64(self) -> Option<i64> {
         match self {
             Value::I64(val) => Some(val),
-            Value::I32(val) => Some(val as i64),
-            Value::I16(val) => Some(val as i64),
+            Value::I32(val) => Some(i64::from(val)),
+            Value::I16(val) => Some(i64::from(val)),
             _ => None,
         }
     }

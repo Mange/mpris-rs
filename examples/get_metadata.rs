@@ -8,7 +8,7 @@ fn main() {
     match print_metadata() {
         Ok(_) => {}
         Err(error) => {
-            for (i, cause) in error.causes().enumerate() {
+            for (i, cause) in error.iter_chain().enumerate() {
                 if i == 0 {
                     println!("Error: {}", cause);
                 } else {

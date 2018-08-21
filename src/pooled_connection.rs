@@ -31,7 +31,7 @@ impl PooledConnection {
             "type='signal',sender='org.freedesktop.DBus',interface='org.freedesktop.DBus',member='NameOwnerChanged'",
         );
         PooledConnection {
-            connection: connection,
+            connection,
             last_tick: Instant::now(),
             last_event: RefCell::new(HashMap::new()),
         }
@@ -110,8 +110,7 @@ impl PooledConnection {
             if let Some(message) = self
                 .connection
                 .incoming(ms_left as u32)
-                .filter(PooledConnection::is_watched_message)
-                .next()
+                .find(PooledConnection::is_watched_message)
             {
                 self.process_message(&message);
             }
@@ -165,12 +164,9 @@ impl PooledConnection {
     /// Takes a message and updates the latest update time of the sender bus.
     fn process_message(&self, message: &Message) {
         if message.member() == Some(Member::from("NameOwnerChanged")) {
-            let _ = self.process_name_owner_changed_event(message);
-        } else {
-            // Process mpris signal
-            message
-                .sender()
-                .map(|unique_name| self.mark_bus_as_updated((*unique_name).to_owned()));
+            self.process_name_owner_changed_event(message).ok();
+        } else if let Some(unique_name) = message.sender() {
+            self.mark_bus_as_updated((*unique_name).to_owned());
         }
     }
 
