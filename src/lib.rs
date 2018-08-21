@@ -1,7 +1,9 @@
 #![warn(missing_docs)]
-#![deny(missing_debug_implementations, missing_copy_implementations, trivial_casts,
-        trivial_numeric_casts, unsafe_code, unstable_features, unused_import_braces,
-        unused_qualifications)]
+#![deny(
+    missing_debug_implementations, missing_copy_implementations, trivial_casts,
+    trivial_numeric_casts, unsafe_code, unstable_features, unused_import_braces,
+    unused_qualifications
+)]
 
 //!
 //! # mpris
@@ -42,8 +44,8 @@ extern crate from_variants;
 
 extern crate dbus;
 
-mod generated;
 mod extensions;
+mod generated;
 
 mod event;
 mod find;
@@ -52,11 +54,11 @@ mod player;
 mod pooled_connection;
 mod progress;
 
+pub use event::Event;
 pub use find::{FindingError, PlayerFinder};
 pub use metadata::{Metadata, Value as MetadataValue, ValueKind as MetadataValueKind};
 pub use player::Player;
 pub use progress::{Progress, ProgressTracker};
-pub use event::Event;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 #[allow(missing_docs)]

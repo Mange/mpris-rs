@@ -8,13 +8,13 @@ use std::time::Duration;
 use dbus::{BusName, ConnPath, Connection, Path};
 
 use super::{DBusError, LoopStatus, MetadataValue, PlaybackStatus, TrackID};
+use event::PlayerEvents;
 use extensions::DurationExtensions;
 use generated::OrgMprisMediaPlayer2;
 use generated::OrgMprisMediaPlayer2Player;
 use metadata::Metadata;
 use pooled_connection::PooledConnection;
 use progress::ProgressTracker;
-use event::PlayerEvents;
 
 pub(crate) const MPRIS2_PREFIX: &str = "org.mpris.MediaPlayer2.";
 pub(crate) const MPRIS2_PATH: &str = "/org/mpris/MediaPlayer2";
@@ -150,7 +150,7 @@ impl<'a> Player<'a> {
     where
         ID: Into<TrackID<'id>>,
     {
-        self.set_position_in_microseconds(track_id, position.as_micros())
+        self.set_position_in_microseconds(track_id, DurationExtensions::as_micros(position))
     }
 
     /// Sets the position of the current track to the given position (in microseconds).
@@ -227,29 +227,16 @@ impl<'a> Player<'a> {
     ///
     /// See `Metadata` for more information about what is included here.
     pub fn get_metadata(&self) -> Result<Metadata, DBusError> {
-        self.connection_path()
-            .get_metadata()
-            .map_err(|e| e.into())
-            .and_then(Metadata::new_from_dbus)
-    }
+        use dbus::stdintf::org_freedesktop_dbus::Properties;
 
-    /// Query the player for current metadata, returned as a plain HashMap of `MetadataValue`s.
-    ///
-    /// NOTE: This method should be considered an escape hatch until version 2.0, where `Metadata`
-    /// will contain this data and allow you to query it.
-    #[deprecated(since = "1.1.0",
-                 note = "This is an experimental function until full Metadata overhaul in 2.0.")]
-    pub fn get_metadata_hash(&self) -> Result<HashMap<String, MetadataValue>, DBusError> {
         let connection_path = self.connection_path();
-        dbus::stdintf::org_freedesktop_dbus::Properties::get::<MetadataValue>(
+
+        Properties::get::<HashMap<String, MetadataValue>>(
             &connection_path,
             "org.mpris.MediaPlayer2.Player",
             "Metadata",
-        ).map_err(|e| e.into())
-            .map(|val| {
-                println!("{:#?}", val);
-                val.into_map().unwrap_or_else(|| HashMap::new())
-            })
+        ).map(Metadata::from)
+            .map_err(DBusError::from)
     }
 
     /// Returns a new `ProgressTracker` for the player.
@@ -336,14 +323,14 @@ impl<'a> Player<'a> {
     ///
     /// See: `seek` method on `Player`.
     pub fn seek_forwards(&self, offset: &Duration) -> Result<(), DBusError> {
-        self.seek(offset.as_micros() as i64)
+        self.seek(DurationExtensions::as_micros(offset) as i64)
     }
 
     /// Tell the player to seek backwards.
     ///
     /// See: `seek` method on `Player`.
     pub fn seek_backwards(&self, offset: &Duration) -> Result<(), DBusError> {
-        self.seek(-(offset.as_micros() as i64))
+        self.seek(-(DurationExtensions::as_micros(offset) as i64))
     }
 
     /// Sends a `PlayPause` signal to the player, if the player indicates that it can pause.

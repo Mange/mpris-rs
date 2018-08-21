@@ -16,16 +16,19 @@ pub trait OrgFreedesktopDBusProperties {
         &self,
         interface_name: &str,
         property_name: &str,
-    ) -> Result<arg::Variant<Box<arg::RefArg>>, Self::Err>;
+    ) -> Result<arg::Variant<Box<arg::RefArg + 'static>>, Self::Err>;
     fn get_all(
         &self,
         interface_name: &str,
-    ) -> Result<::std::collections::HashMap<String, arg::Variant<Box<arg::RefArg>>>, Self::Err>;
+    ) -> Result<
+        ::std::collections::HashMap<String, arg::Variant<Box<arg::RefArg + 'static>>>,
+        Self::Err,
+    >;
     fn set(
         &self,
         interface_name: &str,
         property_name: &str,
-        value: arg::Variant<Box<arg::RefArg>>,
+        value: arg::Variant<Box<arg::RefArg + 'static>>,
     ) -> Result<(), Self::Err>;
 }
 
@@ -38,7 +41,7 @@ impl<'a, C: ::std::ops::Deref<Target = dbus::Connection>> OrgFreedesktopDBusProp
         &self,
         interface_name: &str,
         property_name: &str,
-    ) -> Result<arg::Variant<Box<arg::RefArg>>, Self::Err> {
+    ) -> Result<arg::Variant<Box<arg::RefArg + 'static>>, Self::Err> {
         let mut m = try!(self.method_call_with_args(
             &"org.freedesktop.DBus.Properties".into(),
             &"Get".into(),
@@ -50,15 +53,17 @@ impl<'a, C: ::std::ops::Deref<Target = dbus::Connection>> OrgFreedesktopDBusProp
         ));
         try!(m.as_result());
         let mut i = m.iter_init();
-        let value: arg::Variant<Box<arg::RefArg>> = try!(i.read());
+        let value: arg::Variant<Box<arg::RefArg + 'static>> = try!(i.read());
         Ok(value)
     }
 
     fn get_all(
         &self,
         interface_name: &str,
-    ) -> Result<::std::collections::HashMap<String, arg::Variant<Box<arg::RefArg>>>, Self::Err>
-    {
+    ) -> Result<
+        ::std::collections::HashMap<String, arg::Variant<Box<arg::RefArg + 'static>>>,
+        Self::Err,
+    > {
         let mut m = try!(self.method_call_with_args(
             &"org.freedesktop.DBus.Properties".into(),
             &"GetAll".into(),
@@ -69,8 +74,10 @@ impl<'a, C: ::std::ops::Deref<Target = dbus::Connection>> OrgFreedesktopDBusProp
         ));
         try!(m.as_result());
         let mut i = m.iter_init();
-        let properties: ::std::collections::HashMap<String, arg::Variant<Box<arg::RefArg>>> =
-            try!(i.read());
+        let properties: ::std::collections::HashMap<
+            String,
+            arg::Variant<Box<arg::RefArg + 'static>>,
+        > = try!(i.read());
         Ok(properties)
     }
 
@@ -78,7 +85,7 @@ impl<'a, C: ::std::ops::Deref<Target = dbus::Connection>> OrgFreedesktopDBusProp
         &self,
         interface_name: &str,
         property_name: &str,
-        value: arg::Variant<Box<arg::RefArg>>,
+        value: arg::Variant<Box<arg::RefArg + 'static>>,
     ) -> Result<(), Self::Err> {
         let mut m = try!(self.method_call_with_args(
             &"org.freedesktop.DBus.Properties".into(),
@@ -98,7 +105,8 @@ impl<'a, C: ::std::ops::Deref<Target = dbus::Connection>> OrgFreedesktopDBusProp
 #[derive(Debug, Default)]
 pub struct OrgFreedesktopDBusPropertiesPropertiesChanged {
     pub interface_name: String,
-    pub changed_properties: ::std::collections::HashMap<String, arg::Variant<Box<arg::RefArg>>>,
+    pub changed_properties:
+        ::std::collections::HashMap<String, arg::Variant<Box<arg::RefArg + 'static>>>,
     pub invalidated_properties: Vec<String>,
 }
 
@@ -290,7 +298,10 @@ pub trait OrgMprisMediaPlayer2Player {
     fn set_shuffle(&self, value: bool) -> Result<(), Self::Err>;
     fn get_metadata(
         &self,
-    ) -> Result<::std::collections::HashMap<String, arg::Variant<Box<arg::RefArg>>>, Self::Err>;
+    ) -> Result<
+        ::std::collections::HashMap<String, arg::Variant<Box<arg::RefArg + 'static>>>,
+        Self::Err,
+    >;
     fn get_volume(&self) -> Result<f64, Self::Err>;
     fn set_volume(&self, value: f64) -> Result<(), Self::Err>;
     fn get_position(&self) -> Result<i64, Self::Err>;
@@ -443,8 +454,10 @@ impl<'a, C: ::std::ops::Deref<Target = dbus::Connection>> OrgMprisMediaPlayer2Pl
 
     fn get_metadata(
         &self,
-    ) -> Result<::std::collections::HashMap<String, arg::Variant<Box<arg::RefArg>>>, Self::Err>
-    {
+    ) -> Result<
+        ::std::collections::HashMap<String, arg::Variant<Box<arg::RefArg + 'static>>>,
+        Self::Err,
+    > {
         <Self as dbus::stdintf::org_freedesktop_dbus::Properties>::get(
             &self,
             "org.mpris.MediaPlayer2.Player",

@@ -31,9 +31,6 @@ pub enum Event {
     PlaybackRateChanged(f64),
 
     /// Player's track changed. Metadata of the new track is provided.
-    ///
-    /// **NOTE:*** In the 1.x series of mpris this provided metadata will be missing all of the
-    /// `rest` metadata. See `Metadata::clone_without_rest` for more information.
     TrackChanged(Metadata),
 }
 
@@ -129,8 +126,7 @@ impl<'a> PlayerEvents<'a> {
     fn detect_metadata_events(&mut self, new_progress: &Progress) {
         let metadata = new_progress.metadata();
         if self.last_progress.metadata().track_id() != metadata.track_id() {
-            self.buffer
-                .push(Event::TrackChanged(metadata.clone_without_rest()));
+            self.buffer.push(Event::TrackChanged(metadata.clone()));
         }
     }
 }

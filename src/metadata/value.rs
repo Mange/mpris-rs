@@ -1,12 +1,12 @@
 extern crate dbus;
 
+use dbus::arg::ArgType;
 use std::collections::HashMap;
-use dbus::arg::{cast, RefArg, Variant};
 
 /// Holds a dynamically-typed metadata value.
 ///
 /// You will need to type-check this at runtime in order to use the value.
-#[derive(Debug, PartialEq, EnumKind, is_enum_variant, FromVariants)]
+#[derive(Debug, PartialEq, Clone, EnumKind, is_enum_variant, FromVariants)]
 #[enum_kind(ValueKind)]
 pub enum Value {
     /// Value is a string.
@@ -50,43 +50,7 @@ pub enum Value {
     Unsupported,
 }
 
-macro_rules! cast_variants {
-    ( $data:expr, $fallback:expr, $( $variant:pat => $into:tt ),+ ) => {
-        let data = $data;
-        match data.arg_type() {
-            $(
-                $variant => { cast_variant!(data, $into) },
-            )+
-            _ => $fallback,
-        }
-    }
-}
-
-macro_rules! cast_variant {
-    ( $data:expr, $into:ty ) => {
-        cast::<$into>($data).cloned().map(Value::from)
-    };
-    ( $data:expr, $handler:expr ) => { $handler };
-}
-
 impl Value {
-    pub(crate) fn from_variant(variant: &Variant<Box<RefArg>>) -> Option<Value> {
-        use dbus::arg::ArgType;
-        let data = &variant.0;
-        cast_variants! { data, Some(Value::Unsupported),
-            ArgType::Boolean => bool,
-            ArgType::Byte => u8,
-            ArgType::Double => f64,
-            ArgType::Int16 => i16,
-            ArgType::Int32 => i32,
-            ArgType::Int64 => { data.as_i64().map(Value::from) },
-            ArgType::String => { data.as_str().map(Value::from) },
-            ArgType::UInt16 => u16,
-            ArgType::UInt32 => u32,
-            ArgType::UInt64 => u64
-        }
-    }
-
     /// Returns a simple enum representing the type of value that this value holds.
     ///
     /// # Examples
@@ -96,11 +60,10 @@ impl Value {
     /// # extern crate dbus;
     /// # use mpris::Metadata;
     /// # fn main() {
-    /// # let metadata = Metadata::new(String::from("1234"));
+    /// # let metadata = Metadata::new("1234");
     /// # let key_name = "foo";
     /// use mpris::MetadataValueKind;
-    /// let rest_hash = metadata.rest_hash();
-    /// if let Some(value) = rest_hash.get(key_name) {
+    /// if let Some(value) = metadata.get(key_name) {
     ///     match value.kind() {
     ///       MetadataValueKind::String => println!("{} is a string", key_name),
     ///       MetadataValueKind::I16 |
@@ -124,9 +87,251 @@ impl Value {
     pub fn kind(&self) -> ValueKind {
         ValueKind::from(self)
     }
-}
 
-include!("value_conversions.rs");
+    /// Returns the value as a `Some(Vec<&str>)` if it is a `MetadataValue::Array`. Any elements
+    /// that are not `MetadataValue::String` values will be ignored.
+    pub fn as_str_array(&self) -> Option<Vec<&str>> {
+        match *self {
+            Value::Array(ref vec) => Some(vec.iter().flat_map(Value::as_str).collect()),
+            _ => None,
+        }
+    }
+
+    /// Returns the value as a `Some(u8)` if it is a `MetadataValue::U8`, or `None` otherwise.
+    pub fn as_u8(&self) -> Option<u8> {
+        match *self {
+            Value::U8(val) => Some(val),
+            _ => None,
+        }
+    }
+
+    /// Returns the value as a `Some(u16)` if it is an unsigned int smaller than or equal to u16,
+    /// or `None` otherwise.
+    pub fn as_u16(&self) -> Option<u16> {
+        match *self {
+            Value::U16(val) => Some(val),
+            Value::U8(val) => Some(val as u16),
+            _ => None,
+        }
+    }
+
+    /// Returns the value as a `Some(u32)` if it is an unsigned int smaller than or equal to u32,
+    /// or `None` otherwise.
+    pub fn as_u32(&self) -> Option<u32> {
+        match *self {
+            Value::U32(val) => Some(val),
+            Value::U16(val) => Some(val as u32),
+            Value::U8(val) => Some(val as u32),
+            _ => None,
+        }
+    }
+
+    /// Returns the value as a `Some(u64)` if it is an unsigned int smaller than or equal to u64,
+    /// or `None` otherwise.
+    pub fn as_u64(&self) -> Option<u64> {
+        match *self {
+            Value::U64(val) => Some(val),
+            Value::U32(val) => Some(val as u64),
+            Value::U16(val) => Some(val as u64),
+            Value::U8(val) => Some(val as u64),
+            _ => None,
+        }
+    }
+
+    /// Returns the value as a `Some(i16)` if it is a signed integer smaller than or equal to i16,
+    /// or `None` otherwise.
+    pub fn as_i16(&self) -> Option<i16> {
+        match *self {
+            Value::I16(val) => Some(val),
+            _ => None,
+        }
+    }
+
+    /// Returns the value as a `Some(i32)` if it is a signed integer smaller than or equal to i32,
+    /// or `None` otherwise.
+    pub fn as_i32(&self) -> Option<i32> {
+        match *self {
+            Value::I32(val) => Some(val),
+            Value::I16(val) => Some(val as i32),
+            _ => None,
+        }
+    }
+
+    /// Returns the value as a `Some(i64)` if it is a signed integer smaller than or equal to i64,
+    /// or `None` otherwise.
+    pub fn as_i64(&self) -> Option<i64> {
+        match *self {
+            Value::I64(val) => Some(val),
+            Value::I32(val) => Some(val as i64),
+            Value::I16(val) => Some(val as i64),
+            _ => None,
+        }
+    }
+
+    /// Returns the value as a `Some(f64)` if it is a `MetadataValue::F64`, or `None` otherwise.
+    pub fn as_f64(&self) -> Option<f64> {
+        match *self {
+            Value::F64(val) => Some(val),
+            _ => None,
+        }
+    }
+
+    /// Returns the value as a `Some(bool)` if it is a `MetadataValue::Bool`, or `None` otherwise.
+    pub fn as_bool(&self) -> Option<bool> {
+        match *self {
+            Value::Bool(val) => Some(val),
+            _ => None,
+        }
+    }
+
+    /// Returns the value as a `Some(&str)` if it is a `MetadataValue::String`, or `None` otherwise.
+    pub fn as_str(&self) -> Option<&str> {
+        match *self {
+            Value::String(ref val) => Some(val),
+            _ => None,
+        }
+    }
+
+    /// Returns the value as a `Some(&String)` if it is a `MetadataValue::String`, or `None` otherwise.
+    pub fn as_string(&self) -> Option<&String> {
+        match *self {
+            Value::String(ref val) => Some(val),
+            _ => None,
+        }
+    }
+
+    /// Returns the value as a `Some(&HashMap<String, Value>)` if it is a `MetadataValue::Map`, or `None` otherwise.
+    pub fn as_map(&self) -> Option<&HashMap<String, Value>> {
+        match *self {
+            Value::Map(ref val) => Some(val),
+            _ => None,
+        }
+    }
+
+    /// Returns the value as a `Some(&Vec<Value>)` if it is a `MetadataValue::Array`, or `None` otherwise.
+    pub fn as_array(&self) -> Option<&Vec<Value>> {
+        match *self {
+            Value::Array(ref val) => Some(val),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and returns the inner value as a `Some(u8)` if it is a `MetadataValue::U8`, or `None` otherwise.
+    pub fn into_u8(self) -> Option<u8> {
+        match self {
+            Value::U8(val) => Some(val),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and returns the inner value as a `Some(u16)` if it is an unsigned integer
+    /// smaller than or equal to u16, or `None` otherwise.
+    pub fn into_u16(self) -> Option<u16> {
+        match self {
+            Value::U16(val) => Some(val),
+            Value::U8(val) => Some(val as u16),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and returns the inner value as a `Some(u32)` if it is an unsigned integer
+    /// smaller than or equal to u32, or `None` otherwise.
+    pub fn into_u32(self) -> Option<u32> {
+        match self {
+            Value::U32(val) => Some(val),
+            Value::U16(val) => Some(val as u32),
+            Value::U8(val) => Some(val as u32),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and returns the inner value as a `Some(u64)` if it is an unsigned integer
+    /// smaller than or equal to u64, or `None` otherwise.
+    pub fn into_u64(self) -> Option<u64> {
+        match self {
+            Value::U64(val) => Some(val),
+            Value::U32(val) => Some(val as u64),
+            Value::U16(val) => Some(val as u64),
+            Value::U8(val) => Some(val as u64),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and returns the inner value as a `Some(i16)` if it is a signed integer
+    /// smaller than or equal to i16, or `None` otherwise.
+    pub fn into_i16(self) -> Option<i16> {
+        match self {
+            Value::I16(val) => Some(val),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and returns the inner value as a `Some(i32)` if it is a signed integer
+    /// smaller than or equal to i32, or `None` otherwise.
+    pub fn into_i32(self) -> Option<i32> {
+        match self {
+            Value::I32(val) => Some(val),
+            Value::I16(val) => Some(val as i32),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and returns the inner value as a `Some(i64)` if it is a signed integer
+    /// smaller than or equal to i64, or `None` otherwise.
+    pub fn into_i64(self) -> Option<i64> {
+        match self {
+            Value::I64(val) => Some(val),
+            Value::I32(val) => Some(val as i64),
+            Value::I16(val) => Some(val as i64),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and returns the inner value as a `Some(f64)` if it is a
+    /// `MetadataValue::F64`, or `None` otherwise.
+    pub fn into_f64(self) -> Option<f64> {
+        match self {
+            Value::F64(val) => Some(val),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and returns the inner value as a `Some(bool)` if it is a
+    /// `MetadataValue::Bool`, or `None` otherwise.
+    pub fn into_bool(self) -> Option<bool> {
+        match self {
+            Value::Bool(val) => Some(val),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and returns the inner value as a `Some(String)` if it is a
+    /// `MetadataValue::String`, or `None` otherwise.
+    pub fn into_string(self) -> Option<String> {
+        match self {
+            Value::String(val) => Some(val),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and returns the inner value as a `Some(HashMap<String, Value>)` if it is a
+    /// `MetadataValue::Map`, or `None` otherwise.
+    pub fn into_map(self) -> Option<HashMap<String, Value>> {
+        match self {
+            Value::Map(val) => Some(val),
+            _ => None,
+        }
+    }
+
+    /// Consumes `self` and returns the inner value as a `Some(Vec<Value>)` if it is a
+    /// `MetadataValue::Array`, or `None` otherwise.
+    pub fn into_array(self) -> Option<Vec<Value>> {
+        match self {
+            Value::Array(val) => Some(val),
+            _ => None,
+        }
+    }
+}
 
 impl<'a> From<&'a str> for Value {
     fn from(string: &'a str) -> Value {
@@ -135,7 +340,7 @@ impl<'a> From<&'a str> for Value {
 }
 
 impl dbus::arg::Arg for Value {
-    const ARG_TYPE: dbus::arg::ArgType = dbus::arg::ArgType::Variant;
+    const ARG_TYPE: ArgType = ArgType::Variant;
     fn signature() -> dbus::Signature<'static> {
         dbus::Signature::from_slice(b"v\0").unwrap()
     }
@@ -155,19 +360,19 @@ impl<'a> dbus::arg::Get<'a> for Value {
         match arg_type {
             // Hashes in DBus are arrays of Dict pairs ({string, variant})
             ArgType::Array if *signature == *"a{sv}" => {
-                i.get::<HashMap<String, Value>>().map(Value::from)
+                i.get::<HashMap<String, Value>>().map(Value::Map)
             }
-            ArgType::Array => i.get::<Vec<Value>>().map(Value::from),
-            ArgType::Boolean => i.get::<bool>().map(Value::from),
-            ArgType::Byte => i.get::<u8>().map(Value::from),
-            ArgType::Double => i.get::<f64>().map(Value::from),
-            ArgType::Int16 => i.get::<i16>().map(Value::from),
-            ArgType::Int32 => i.get::<i32>().map(Value::from),
-            ArgType::Int64 => i.get::<i64>().map(Value::from),
-            ArgType::String => i.get::<String>().map(Value::from),
-            ArgType::UInt16 => i.get::<u16>().map(Value::from),
-            ArgType::UInt32 => i.get::<u32>().map(Value::from),
-            ArgType::UInt64 => i.get::<u64>().map(Value::from),
+            ArgType::Array => i.get::<Vec<Value>>().map(Value::Array),
+            ArgType::Boolean => i.get::<bool>().map(Value::Bool),
+            ArgType::Byte => i.get::<u8>().map(Value::U8),
+            ArgType::Double => i.get::<f64>().map(Value::F64),
+            ArgType::Int16 => i.get::<i16>().map(Value::I16),
+            ArgType::Int32 => i.get::<i32>().map(Value::I32),
+            ArgType::Int64 => i.get::<i64>().map(Value::I64),
+            ArgType::String => i.get::<String>().map(Value::String),
+            ArgType::UInt16 => i.get::<u16>().map(Value::U16),
+            ArgType::UInt32 => i.get::<u32>().map(Value::U32),
+            ArgType::UInt64 => i.get::<u64>().map(Value::U64),
             ArgType::Variant => i.recurse(ArgType::Variant).and_then(|mut iter| iter.get()),
             ArgType::Invalid => unreachable!("Early return at the top of the method"),
             ArgType::DictEntry
@@ -182,8 +387,8 @@ impl<'a> dbus::arg::Get<'a> for Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dbus::arg::{Append, RefArg, Variant};
     use dbus::{BusType, Connection, ConnectionItem, Message};
-    use dbus::arg::Append;
 
     fn send_values_over_dbus<F>(appender: F) -> Message
     where
