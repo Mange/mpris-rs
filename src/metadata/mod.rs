@@ -6,8 +6,6 @@ pub use self::value::{Value, ValueKind};
 use std::collections::HashMap;
 use std::time::Duration;
 
-use dbus::arg::{RefArg, Variant};
-
 /// A structured representation of the `Player` metadata.
 ///
 /// * [Read more about the MPRIS2 `Metadata_Map`
@@ -34,17 +32,6 @@ impl Metadata {
         );
 
         Metadata { values }
-    }
-
-    pub(crate) fn new_from_dbus(
-        metadata: HashMap<String, Variant<Box<RefArg + 'static>>>,
-    ) -> Metadata {
-        Metadata {
-            values: metadata
-                .into_iter()
-                .map(|(key, variant)| (key, Value::from_variant(variant)))
-                .collect(),
-        }
     }
 
     /// Get a value from the metadata by key name.
@@ -187,159 +174,7 @@ mod tests {
 
     #[test]
     fn it_supports_blank_metadata() {
-        let metadata = Metadata::new_from_dbus(HashMap::new());
+        let metadata = Metadata::from(HashMap::new());
         assert_eq!(metadata.track_id(), None);
-    }
-
-    mod values {
-        use super::*;
-
-        fn metadata_with_value<S>(key: S, value: Variant<Box<RefArg + 'static>>) -> Metadata
-        where
-            S: Into<String>,
-        {
-            let mut values = HashMap::with_capacity(1);
-            values.insert(key.into(), value);
-
-            Metadata::new_from_dbus(values)
-        }
-
-        #[test]
-        fn it_supports_string_values() {
-            let data = String::from("The string value");
-            let metadata = metadata_with_value("foo", Variant(Box::new(data)));
-
-            let mut expected_hash: HashMap<String, Value> = HashMap::new();
-            expected_hash.insert("foo".into(), "The string value".into());
-
-            assert_eq!(metadata.values, expected_hash);
-        }
-
-        #[test]
-        fn it_supports_i64_values() {
-            let data = 42i64;
-            let metadata = metadata_with_value("foo", Variant(Box::new(data)));
-
-            let mut expected_hash: HashMap<String, Value> = HashMap::new();
-            expected_hash.insert("foo".into(), Value::I64(42));
-
-            assert_eq!(metadata.values, expected_hash);
-        }
-
-        #[test]
-        fn it_supports_i32() {
-            let data = 42i32;
-            let metadata = metadata_with_value("foo", Variant(Box::new(data)));
-
-            let mut expected_hash: HashMap<String, Value> = HashMap::new();
-            expected_hash.insert("foo".into(), Value::I32(42));
-
-            assert_eq!(metadata.values, expected_hash);
-        }
-
-        #[test]
-        fn it_supports_i16() {
-            let data = 42i16;
-            let metadata = metadata_with_value("foo", Variant(Box::new(data)));
-
-            let mut expected_hash: HashMap<String, Value> = HashMap::new();
-            expected_hash.insert("foo".into(), Value::I16(42));
-
-            assert_eq!(metadata.values, expected_hash);
-        }
-
-        #[test]
-        fn it_supports_u64() {
-            let data = 42u64;
-            let metadata = metadata_with_value("foo", Variant(Box::new(data)));
-
-            let mut expected_hash: HashMap<String, Value> = HashMap::new();
-            expected_hash.insert("foo".into(), Value::U64(42));
-
-            assert_eq!(metadata.values, expected_hash);
-        }
-
-        #[test]
-        fn it_supports_u32() {
-            let data = 42u32;
-            let metadata = metadata_with_value("foo", Variant(Box::new(data)));
-
-            let mut expected_hash: HashMap<String, Value> = HashMap::new();
-            expected_hash.insert("foo".into(), Value::U32(42));
-
-            assert_eq!(metadata.values, expected_hash);
-        }
-
-        #[test]
-        fn it_supports_u16() {
-            let data = 42u16;
-            let metadata = metadata_with_value("foo", Variant(Box::new(data)));
-
-            let mut expected_hash: HashMap<String, Value> = HashMap::new();
-            expected_hash.insert("foo".into(), Value::U16(42));
-
-            assert_eq!(metadata.values, expected_hash);
-        }
-
-        #[test]
-        fn it_supports_u8() {
-            let data = 42u8;
-            let metadata = metadata_with_value("foo", Variant(Box::new(data)));
-
-            let mut expected_hash: HashMap<String, Value> = HashMap::new();
-            expected_hash.insert("foo".into(), Value::U8(42));
-
-            assert_eq!(metadata.values, expected_hash);
-        }
-
-        #[test]
-        fn it_supports_f64_values() {
-            let data = 42.0f64;
-            let metadata = metadata_with_value("foo", Variant(Box::new(data)));
-
-            let mut expected_hash: HashMap<String, Value> = HashMap::new();
-            expected_hash.insert("foo".into(), Value::F64(42.0));
-
-            assert_eq!(metadata.values, expected_hash);
-        }
-
-        #[test]
-        fn it_supports_bool_values() {
-            let data = true;
-            let metadata = metadata_with_value("foo", Variant(Box::new(data)));
-
-            let mut expected_hash: HashMap<String, Value> = HashMap::new();
-            expected_hash.insert("foo".into(), Value::Bool(true));
-
-            assert_eq!(metadata.values, expected_hash);
-        }
-
-        #[test]
-        fn it_supports_array_of_strings() {
-            let data: Vec<String> = vec![String::from("foo"), String::from("bar")];
-            let metadata = metadata_with_value("arr", Variant(Box::new(data)));
-
-            let mut expected_hash: HashMap<String, Value> = HashMap::new();
-            expected_hash.insert(
-                "arr".into(),
-                Value::Array(vec![
-                    Value::String(String::from("foo")),
-                    Value::String(String::from("bar")),
-                ]),
-            );
-
-            assert_eq!(metadata.values, expected_hash);
-        }
-
-        #[test]
-        fn it_stores_unknown_types() {
-            let data = dbus::Path::default();
-            let metadata = metadata_with_value("foo", Variant(Box::new(data)));
-
-            let mut expected_hash: HashMap<String, Value> = HashMap::new();
-            expected_hash.insert("foo".into(), Value::Unsupported);
-
-            assert_eq!(metadata.values, expected_hash);
-        }
     }
 }

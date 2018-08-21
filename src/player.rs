@@ -227,10 +227,16 @@ impl<'a> Player<'a> {
     ///
     /// See `Metadata` for more information about what is included here.
     pub fn get_metadata(&self) -> Result<Metadata, DBusError> {
-        self.connection_path()
-            .get_metadata()
-            .map_err(|e| e.into())
-            .map(Metadata::new_from_dbus)
+        use dbus::stdintf::org_freedesktop_dbus::Properties;
+
+        let connection_path = self.connection_path();
+
+        Properties::get::<HashMap<String, MetadataValue>>(
+            &connection_path,
+            "org.mpris.MediaPlayer2.Player",
+            "Metadata",
+        ).map(Metadata::from)
+            .map_err(DBusError::from)
     }
 
     /// Query the player for current metadata, returned as a plain HashMap of `MetadataValue`s.
