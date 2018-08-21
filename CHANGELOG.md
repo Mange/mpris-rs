@@ -7,7 +7,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+- Emitted `Event::TrackChanged` events now contains full metadata.
+- Compilation warnings caused by newer Rust versions (up to 1.28) have been
+  fixed.
+
+### Added
+
+- A new version of `Metadata` that should be much easier to use with extra
+  metadata values, or to populate for tests.
+
+### Removed
+
+- All deprecated items in [v1.1.0] have been removed.
 
 ## [v1.1.0] - 2018-08-18
 
@@ -80,6 +93,6 @@ Nothing yet.
 
 ## 0.1.0 - 2017-12-29
 
-[Unreleased]: https://github.com/Mange/mpris-rs/compare/v1.0.0...HEAD
-[v1.0.0]: https://github.com/Mange/mpris-rs/compare/v0.1.0...v1.0.0
+[Unreleased]: https://github.com/Mange/mpris-rs/compare/v1.1.0...HEAD
 [v1.1.0]: https://github.com/Mange/mpris-rs/compare/v1.0.0...v1.1.0
+[v1.0.0]: https://github.com/Mange/mpris-rs/compare/v0.1.0...v1.0.0
