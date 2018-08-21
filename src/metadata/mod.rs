@@ -23,25 +23,30 @@ impl Metadata {
     ///
     /// This is mostly useful for test fixtures and other places where you want to work with mock
     /// data.
-    pub fn new<S>(track_id: S) -> Self where S: Into<String> {
+    pub fn new<S>(track_id: S) -> Self
+    where
+        S: Into<String>,
+    {
         let mut values = HashMap::with_capacity(1);
-        values.insert(String::from("mpris:trackid"), Value::String(track_id.into()));
+        values.insert(
+            String::from("mpris:trackid"),
+            Value::String(track_id.into()),
+        );
 
-        Metadata {
-            values
-        }
+        Metadata { values }
     }
 
     pub(crate) fn new_from_dbus(
         metadata: HashMap<String, Variant<Box<RefArg + 'static>>>,
     ) -> Metadata {
         Metadata {
-            values: metadata.into_iter().flat_map(|(key, variant)| {
-                match Value::from_variant(variant) {
+            values: metadata
+                .into_iter()
+                .flat_map(|(key, variant)| match Value::from_variant(variant) {
                     Some(value) => Some((key, value)),
                     None => None,
-                }
-            }).collect(),
+                })
+                .collect(),
         }
     }
 
@@ -133,8 +138,7 @@ impl Metadata {
     /// Based on `mpris:length`.
     pub fn length(&self) -> Option<Duration> {
         use extensions::DurationExtensions;
-        self.length_in_microseconds()
-            .map(Duration::from_micros_ext)
+        self.length_in_microseconds().map(Duration::from_micros_ext)
     }
 
     /// The name of the track.

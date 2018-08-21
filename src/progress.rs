@@ -126,7 +126,8 @@ impl<'a> ProgressTracker<'a> {
         let mut did_refresh = false;
 
         // Calculate time left until we're expected to return with new data.
-        let time_left = self.interval
+        let time_left = self
+            .interval
             .checked_sub(self.last_tick.elapsed())
             .unwrap_or_else(|| Duration::from_millis(0));
 
@@ -136,7 +137,8 @@ impl<'a> ProgressTracker<'a> {
         }
 
         // If we got a new event since the last time we ticked, then reload fresh data.
-        if self.player
+        if self
+            .player
             .connection()
             .is_bus_updated_after(self.player.unique_name(), &self.last_tick)
         {
@@ -265,7 +267,9 @@ impl Progress {
 
     fn elapsed(&self) -> Duration {
         let elapsed_ms = match self.playback_status {
-            PlaybackStatus::Playing => DurationExtensions::as_millis(&self.age()) as f64 * self.rate,
+            PlaybackStatus::Playing => {
+                DurationExtensions::as_millis(&self.age()) as f64 * self.rate
+            }
             _ => 0.0,
         };
         Duration::from_millis(elapsed_ms as u64)

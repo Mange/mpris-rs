@@ -112,7 +112,8 @@ impl PlayerFinder {
             "ListNames",
         ).unwrap();
 
-        let reply = self.connection
+        let reply = self
+            .connection
             .underlying()
             .send_with_reply_and_block(list_names, LIST_NAMES_TIMEOUT_MS)?;
 

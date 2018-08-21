@@ -126,8 +126,7 @@ impl<'a> PlayerEvents<'a> {
     fn detect_metadata_events(&mut self, new_progress: &Progress) {
         let metadata = new_progress.metadata();
         if self.last_progress.metadata().track_id() != metadata.track_id() {
-            self.buffer
-                .push(Event::TrackChanged(metadata.clone()));
+            self.buffer.push(Event::TrackChanged(metadata.clone()));
         }
     }
 }

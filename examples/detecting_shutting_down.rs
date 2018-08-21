@@ -1,6 +1,6 @@
 extern crate mpris;
-use std::time::Duration;
 use std::thread::sleep;
+use std::time::Duration;
 
 use mpris::{Player, PlayerFinder};
 

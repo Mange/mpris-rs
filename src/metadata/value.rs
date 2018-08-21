@@ -1,7 +1,7 @@
 extern crate dbus;
 
+use dbus::arg::{ArgType, RefArg, Variant};
 use std::collections::HashMap;
-use dbus::arg::{RefArg, Variant, ArgType};
 
 /// Holds a dynamically-typed metadata value.
 ///
@@ -57,9 +57,10 @@ impl Value {
 
     pub(crate) fn from_ref_arg(ref_arg: &RefArg) -> Option<Value> {
         match ref_arg.arg_type() {
-            ArgType::Array => ref_arg.as_iter().map(|iter| {
-                iter.flat_map(Value::from_ref_arg).collect::<Vec<_>>()
-            }).map(Value::from),
+            ArgType::Array => ref_arg
+                .as_iter()
+                .map(|iter| iter.flat_map(Value::from_ref_arg).collect::<Vec<_>>())
+                .map(Value::from),
             ArgType::Boolean => ref_arg.as_u64().map(|n| n == 1).map(Value::from),
             ArgType::Byte => ref_arg.as_u64().map(|n| n as u8).map(Value::from),
             ArgType::Double => ref_arg.as_f64().map(Value::from),
@@ -168,8 +169,8 @@ impl<'a> dbus::arg::Get<'a> for Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use dbus::{BusType, Connection, ConnectionItem, Message};
     use dbus::arg::Append;
+    use dbus::{BusType, Connection, ConnectionItem, Message};
 
     fn send_values_over_dbus<F>(appender: F) -> Message
     where

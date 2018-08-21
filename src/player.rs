@@ -8,13 +8,13 @@ use std::time::Duration;
 use dbus::{BusName, ConnPath, Connection, Path};
 
 use super::{DBusError, LoopStatus, MetadataValue, PlaybackStatus, TrackID};
+use event::PlayerEvents;
 use extensions::DurationExtensions;
 use generated::OrgMprisMediaPlayer2;
 use generated::OrgMprisMediaPlayer2Player;
 use metadata::Metadata;
 use pooled_connection::PooledConnection;
 use progress::ProgressTracker;
-use event::PlayerEvents;
 
 pub(crate) const MPRIS2_PREFIX: &str = "org.mpris.MediaPlayer2.";
 pub(crate) const MPRIS2_PATH: &str = "/org/mpris/MediaPlayer2";
@@ -237,8 +237,10 @@ impl<'a> Player<'a> {
     ///
     /// NOTE: This method should be considered an escape hatch until version 2.0, where `Metadata`
     /// will contain this data and allow you to query it.
-    #[deprecated(since = "1.1.0",
-                 note = "This is an experimental function until full Metadata overhaul in 2.0.")]
+    #[deprecated(
+        since = "1.1.0",
+        note = "This is an experimental function until full Metadata overhaul in 2.0."
+    )]
     pub fn get_metadata_hash(&self) -> Result<HashMap<String, MetadataValue>, DBusError> {
         let connection_path = self.connection_path();
         dbus::stdintf::org_freedesktop_dbus::Properties::get::<MetadataValue>(

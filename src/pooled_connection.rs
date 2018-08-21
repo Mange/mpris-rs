@@ -107,7 +107,8 @@ impl PooledConnection {
             if ms_left < 2 {
                 break;
             }
-            if let Some(message) = self.connection
+            if let Some(message) = self
+                .connection
                 .incoming(ms_left as u32)
                 .filter(PooledConnection::is_watched_message)
                 .next()
@@ -129,7 +130,8 @@ impl PooledConnection {
         let start = Instant::now();
 
         loop {
-            for message in self.connection
+            for message in self
+                .connection
                 .incoming(LOOP_INTERVAL_MS)
                 .filter(PooledConnection::is_watched_message)
             {
