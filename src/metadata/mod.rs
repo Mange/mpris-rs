@@ -42,10 +42,7 @@ impl Metadata {
         Metadata {
             values: metadata
                 .into_iter()
-                .flat_map(|(key, variant)| match Value::from_variant(variant) {
-                    Some(value) => Some((key, value)),
-                    None => None,
-                })
+                .map(|(key, variant)| (key, Value::from_variant(variant)))
                 .collect(),
         }
     }

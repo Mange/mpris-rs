@@ -51,28 +51,27 @@ pub enum Value {
 }
 
 impl Value {
-    pub(crate) fn from_variant(variant: Variant<Box<RefArg + 'static>>) -> Option<Value> {
+    pub(crate) fn from_variant(variant: Variant<Box<RefArg + 'static>>) -> Value {
         Value::from_ref_arg(&variant.0)
     }
 
-    pub(crate) fn from_ref_arg(ref_arg: &RefArg) -> Option<Value> {
+    pub(crate) fn from_ref_arg(ref_arg: &RefArg) -> Value {
         match ref_arg.arg_type() {
             ArgType::Array => ref_arg
                 .as_iter()
-                .map(|iter| iter.flat_map(Value::from_ref_arg).collect::<Vec<_>>())
-                .map(Value::from),
-            ArgType::Boolean => ref_arg.as_u64().map(|n| n == 1).map(Value::from),
-            ArgType::Byte => ref_arg.as_u64().map(|n| n as u8).map(Value::from),
+                .map(|iter| Value::Array(iter.map(Value::from_ref_arg).collect())),
+            ArgType::Boolean => ref_arg.as_u64().map(|n| Value::Bool(n == 1)),
+            ArgType::Byte => ref_arg.as_u64().map(|n| Value::U8(n as u8)),
             ArgType::Double => ref_arg.as_f64().map(Value::from),
-            ArgType::Int16 => ref_arg.as_i64().map(|n| n as i16).map(Value::from),
-            ArgType::Int32 => ref_arg.as_i64().map(|n| n as i32).map(Value::from),
-            ArgType::Int64 => ref_arg.as_i64().map(Value::from),
-            ArgType::String => ref_arg.as_str().map(String::from).map(Value::from),
-            ArgType::UInt16 => ref_arg.as_u64().map(|n| n as u16).map(Value::from),
-            ArgType::UInt32 => ref_arg.as_u64().map(|n| n as u32).map(Value::from),
-            ArgType::UInt64 => ref_arg.as_u64().map(Value::from),
-            _ => Some(Value::Unsupported),
-        }
+            ArgType::Int16 => ref_arg.as_i64().map(|n| Value::I16(n as i16)),
+            ArgType::Int32 => ref_arg.as_i64().map(|n| Value::I32(n as i32)),
+            ArgType::Int64 => ref_arg.as_i64().map(Value::I64),
+            ArgType::String => ref_arg.as_str().map(Value::from),
+            ArgType::UInt16 => ref_arg.as_u64().map(|n| Value::U16(n as u16)),
+            ArgType::UInt32 => ref_arg.as_u64().map(|n| Value::U32(n as u32)),
+            ArgType::UInt64 => ref_arg.as_u64().map(Value::U64),
+            _ => None,
+        }.unwrap_or(Value::Unsupported)
     }
 
     /// Returns a simple enum representing the type of value that this value holds.
