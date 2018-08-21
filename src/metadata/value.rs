@@ -51,7 +51,7 @@ pub enum Value {
 }
 
 impl Value {
-    pub(crate) fn from_variant(variant: Variant<Box<RefArg>>) -> Option<Value> {
+    pub(crate) fn from_variant(variant: Variant<Box<RefArg + 'static>>) -> Option<Value> {
         Value::from_ref_arg(&variant.0)
     }
 

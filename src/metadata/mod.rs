@@ -33,7 +33,7 @@ impl Metadata {
     }
 
     pub(crate) fn new_from_dbus(
-        metadata: HashMap<String, Variant<Box<RefArg>>>,
+        metadata: HashMap<String, Variant<Box<RefArg + 'static>>>,
     ) -> Metadata {
         Metadata {
             values: metadata.into_iter().flat_map(|(key, variant)| {
@@ -193,7 +193,7 @@ mod tests {
     mod values {
         use super::*;
 
-        fn metadata_with_value<S>(key: S, value: Variant<Box<RefArg>>) -> Metadata
+        fn metadata_with_value<S>(key: S, value: Variant<Box<RefArg + 'static>>) -> Metadata
         where
             S: Into<String>,
         {
