@@ -360,19 +360,19 @@ impl<'a> dbus::arg::Get<'a> for Value {
         match arg_type {
             // Hashes in DBus are arrays of Dict pairs ({string, variant})
             ArgType::Array if *signature == *"a{sv}" => {
-                i.get::<HashMap<String, Value>>().map(Value::from)
+                i.get::<HashMap<String, Value>>().map(Value::Map)
             }
-            ArgType::Array => i.get::<Vec<Value>>().map(Value::from),
-            ArgType::Boolean => i.get::<bool>().map(Value::from),
-            ArgType::Byte => i.get::<u8>().map(Value::from),
-            ArgType::Double => i.get::<f64>().map(Value::from),
-            ArgType::Int16 => i.get::<i16>().map(Value::from),
-            ArgType::Int32 => i.get::<i32>().map(Value::from),
-            ArgType::Int64 => i.get::<i64>().map(Value::from),
-            ArgType::String => i.get::<String>().map(Value::from),
-            ArgType::UInt16 => i.get::<u16>().map(Value::from),
-            ArgType::UInt32 => i.get::<u32>().map(Value::from),
-            ArgType::UInt64 => i.get::<u64>().map(Value::from),
+            ArgType::Array => i.get::<Vec<Value>>().map(Value::Array),
+            ArgType::Boolean => i.get::<bool>().map(Value::Bool),
+            ArgType::Byte => i.get::<u8>().map(Value::U8),
+            ArgType::Double => i.get::<f64>().map(Value::F64),
+            ArgType::Int16 => i.get::<i16>().map(Value::I16),
+            ArgType::Int32 => i.get::<i32>().map(Value::I32),
+            ArgType::Int64 => i.get::<i64>().map(Value::I64),
+            ArgType::String => i.get::<String>().map(Value::String),
+            ArgType::UInt16 => i.get::<u16>().map(Value::U16),
+            ArgType::UInt32 => i.get::<u32>().map(Value::U32),
+            ArgType::UInt64 => i.get::<u64>().map(Value::U64),
             ArgType::Variant => i.recurse(ArgType::Variant).and_then(|mut iter| iter.get()),
             ArgType::Invalid => unreachable!("Early return at the top of the method"),
             ArgType::DictEntry
