@@ -539,19 +539,8 @@ impl<'a> Player<'a> {
     /// `CanSetFullscreen`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:CanSetFullscreen)
     /// and the `set_fullscreen` method.
     pub fn can_set_fullscreen(&self) -> Result<bool, DBusError> {
-        let result = self.connection_path().get_can_set_fullscreen();
-
-        if let Err(ref error) = result {
-            if let Some(error_name) = error.name() {
-                if error_name == "org.freedesktop.DBus.Error.InvalidArgs" {
-                    // This property was likely just missing, which means that the player has not
-                    // implemented it and we may assume `false`.
-                    return Ok(false);
-                }
-            }
-        }
-
-        result.map_err(|e| e.into())
+        handle_optional_property(self.connection_path().get_can_set_fullscreen())
+            .map(|o| o.unwrap_or(false))
     }
 
     /// Queries the player to see if it can be controlled or not.
@@ -617,6 +606,37 @@ impl<'a> Player<'a> {
     pub fn can_set_playback_rate(&self) -> Result<bool, DBusError> {
         self.get_valid_playback_rate_range()
             .map(|range| range.start < 1.0 || range.end > 1.0)
+    }
+
+    /// Query the player for current fullscreen state.
+    ///
+    /// This property was added in MPRIS 2.2, and not all players will implement it. This method
+    /// will try to detect this case and fall back to `Ok(None)`.
+    ///
+    /// It is up to you to decide if you want to ignore errors caused by this method or not.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `Fullscreen`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:Fullscreen)
+    /// and the `can_set_fullscreen` method.
+    pub fn get_fullscreen(&self) -> Result<Option<bool>, DBusError> {
+        handle_optional_property(self.connection_path().get_fullscreen())
+    }
+
+    /// Asks the player to change fullscreen state.
+    ///
+    /// If method call succeeded, `Ok(true)` will be returned.
+    ///
+    /// This property was added in MPRIS 2.2, and not all players will implement it. This method
+    /// will try to detect this case and fall back to `Ok(false)`.
+    ///
+    /// Other errors will be returned as `Err`.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `Fullscreen`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:Fullscreen)
+    /// and the `can_set_fullscreen` method.
+    pub fn set_fullscreen(&self, new_state: bool) -> Result<bool, DBusError> {
+        handle_optional_property(self.connection_path().set_fullscreen(new_state))
+            .map(|o| o.is_some())
     }
 
     /// Query the player for current playback status.
@@ -754,4 +774,18 @@ impl<'a> Player<'a> {
         self.connection
             .process_events_blocking_until_dirty(&self.unique_name);
     }
+}
+
+fn handle_optional_property<T>(result: Result<T, dbus::Error>) -> Result<Option<T>, DBusError> {
+    if let Err(ref error) = result {
+        if let Some(error_name) = error.name() {
+            if error_name == "org.freedesktop.DBus.Error.InvalidArgs" {
+                // This property was likely just missing, which means that the player has not
+                // implemented it.
+                return Ok(None);
+            }
+        }
+    }
+
+    result.map(|v| Some(v)).map_err(|e| e.into())
 }
