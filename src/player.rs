@@ -75,9 +75,9 @@ impl<'a> Player<'a> {
         let unique_name = pooled_connection
             .determine_unique_name(&*bus_name)
             .ok_or_else(|| {
-                DBusError::new(
+                DBusError::Miscellaneous(String::from(
                     "Could not determine player's unique name. Did it exit during initialization?",
-                )
+                ))
             })?;
 
         Ok(Player {

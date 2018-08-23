@@ -117,9 +117,7 @@ impl PlayerFinder {
             .underlying()
             .send_with_reply_and_block(list_names, LIST_NAMES_TIMEOUT_MS)?;
 
-        let names: arg::Array<&str, _> = reply
-            .get1()
-            .ok_or_else(|| DBusError::new("Could not get ListNames reply"))?;
+        let names: arg::Array<&str, _> = reply.read1().map_err(DBusError::from)?;
 
         Ok(names
             .into_iter()
