@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 - A new version of `Metadata` that should be much easier to use with extra
   metadata values, or to populate for tests.
+- A full implementation of all properties and methods on the
+  `org.mpris.MediaPlayer2` interface.
 
 ### Removed
 
