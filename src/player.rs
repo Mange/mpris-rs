@@ -528,6 +528,32 @@ impl<'a> Player<'a> {
         self.connection_path().get_can_quit().map_err(|e| e.into())
     }
 
+    /// Queries the player to see if it can be asked to entrer fullscreen.
+    ///
+    /// This property was added in MPRIS 2.2, and not all players will implement it. This method
+    /// will try to detect this case and fall back to `Ok(false)`.
+    ///
+    /// It is up to you to decide if you want to ignore errors caused by this method or not.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `CanSetFullscreen`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:CanSetFullscreen)
+    /// and the `set_fullscreen` method.
+    pub fn can_set_fullscreen(&self) -> Result<bool, DBusError> {
+        let result = self.connection_path().get_can_set_fullscreen();
+
+        if let Err(ref error) = result {
+            if let Some(error_name) = error.name() {
+                if error_name == "org.freedesktop.DBus.Error.InvalidArgs" {
+                    // This property was likely just missing, which means that the player has not
+                    // implemented it and we may assume `false`.
+                    return Ok(false);
+                }
+            }
+        }
+
+        result.map_err(|e| e.into())
+    }
+
     /// Queries the player to see if it can be controlled or not.
     ///
     /// See: [MPRIS2 specification about `CanControl`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanControl)
