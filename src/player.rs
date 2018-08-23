@@ -326,6 +326,64 @@ impl<'a> Player<'a> {
         self.seek(DurationExtensions::as_micros(offset) as i64)
     }
 
+    /// Send a `Raise` signal to the player.
+    ///
+    /// > Brings the media player's user interface to the front using any appropriate mechanism
+    /// > available.
+    /// >
+    /// > The media player may be unable to control how its user interface is displayed, or it may
+    /// > not have a graphical user interface at all. In this case, the CanRaise property is false
+    /// > and this method does nothing.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `Raise`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Method:Raise)
+    /// and the `can_raise` method.
+    pub fn raise(&self) -> Result<(), DBusError> {
+        self.connection_path().raise().map_err(|e| e.into())
+    }
+
+    /// Send a `Raise` signal to the player, if it supports it.
+    ///
+    /// See: `can_raise` and `raise` methods.
+    pub fn checked_raise(&self) -> Result<bool, DBusError> {
+        if self.can_raise()? {
+            self.raise().map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// Send a `Quit` signal to the player.
+    ///
+    /// > Causes the media player to stop running.
+    /// >
+    /// > The media player may refuse to allow clients to shut it down. In this case, the CanQuit
+    /// > property is false and this method does nothing.
+    /// >
+    /// > Note: Media players which can be D-Bus activated, or for which there is no sensibly easy
+    /// > way to terminate a running instance (via the main interface or a notification area icon for
+    /// > example) should allow clients to use this method. Otherwise, it should not be needed.
+    /// >
+    /// > If the media player does not have a UI, this should be implemented.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `Quit`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Method:Quit)
+    /// and the `can_raise` method.
+    pub fn quit(&self) -> Result<(), DBusError> {
+        self.connection_path().quit().map_err(|e| e.into())
+    }
+
+    /// Send a `Quit` signal to the player, if it supports it.
+    ///
+    /// See: `can_quit` and `quit` methods.
+    pub fn checked_quit(&self) -> Result<bool, DBusError> {
+        if self.can_quit()? {
+            self.quit().map(|_| true)
+        } else {
+            Ok(false)
+        }
+    }
+
     /// Tell the player to seek backwards.
     ///
     /// See: `seek` method on `Player`.
@@ -450,6 +508,24 @@ impl<'a> Player<'a> {
         } else {
             Ok(false)
         }
+    }
+
+    /// Queries the player to see if it can be raised or not.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `CanRaise`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:CanRaise)
+    /// and the `raise` method.
+    pub fn can_raise(&self) -> Result<bool, DBusError> {
+        self.connection_path().get_can_raise().map_err(|e| e.into())
+    }
+
+    /// Queries the player to see if it can be asked to quit.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `CanQuit`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:CanQuit)
+    /// and the `quit` method.
+    pub fn can_quit(&self) -> Result<bool, DBusError> {
+        self.connection_path().get_can_quit().map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can be controlled or not.
