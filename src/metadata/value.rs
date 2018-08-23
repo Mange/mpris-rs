@@ -1,7 +1,3 @@
-// Need to disable this lint to get rid of all warnings.
-// https://bitbucket.org/Soft/enum-kinds/issues/2/emit-allow-missing_docs-or-generate-docs
-#![allow(missing_docs)]
-
 extern crate dbus;
 
 use dbus::arg::ArgType;
