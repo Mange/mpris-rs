@@ -150,6 +150,16 @@ impl<'a> Player<'a> {
             .map_err(|e| e.into())
     }
 
+    /// Returns the player's `HasTrackList` property.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `HasTrackList`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:HasTrackList).
+    pub fn get_has_track_list(&self) -> Result<bool, DBusError> {
+        self.connection_path()
+            .get_has_track_list()
+            .map_err(|e| e.into())
+    }
+
     /// Returns the player's MPRIS `position` as a `Duration` since the start of the media.
     pub fn get_position(&self) -> Result<Duration, DBusError> {
         self.get_position_in_microseconds()
