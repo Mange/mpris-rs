@@ -15,4 +15,4 @@ fi
 
 cargo build --verbose &&
   cargo test --verbose &&
-  cargo doc
+  cargo doc --no-deps

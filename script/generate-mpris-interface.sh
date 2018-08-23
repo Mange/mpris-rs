@@ -19,35 +19,34 @@ if ! hash dbus-codegen-rust 2> /dev/null; then
   fi
 fi
 
-player=$1
-if [[ -z $player ]]; then
-  echo "I need a running player to introspect. Enter a player name on the bus."
-  echo "(Example: 'spotify' for org.mpris.MediaPlayer2.spotify)"
-  echo -n "> "
-  read -r player
-fi
-
-if [[ -z $player ]]; then
-  echo "No player selected. Aborting."
-  exit 1
-fi
-
 dest="$root/src/generated"
-mkdir -p "$dest"
 
-echo "Generating code... "
-cat <<EOF > "$dest/mod.rs"
+for spec in "$root"/mpris-spec/spec/org.mpris.*.xml; do
+  basename=$(
+    basename "$spec" | \
+      sed -r 's/org\.mpris\.MediaPlayer2(\.(\w+))?\.xml/media_player_\2.rs/; s/_\.rs$/\.rs/' | \
+      tr '[:upper:]' '[:lower:]'
+  )
+  dest_file="${dest}/${basename}"
+  echo "Generating code from $(basename "${spec}") to ${basename}…"
+
+  cat <<EOF > "$dest_file"
 #![allow(unknown_lints)]
 #![allow(clippy)]
-#![allow(missing_debug_implementations, missing_copy_implementations,
-        trivial_casts, trivial_numeric_casts,
+#![allow(missing_debug_implementations,
+        missing_copy_implementations,
+        trivial_casts,
+        trivial_numeric_casts,
         unsafe_code,
         unstable_features,
-        unused_import_braces, unused_qualifications)]
+        unused_import_braces,
+        unused_qualifications,
+        unused_imports)]
 EOF
-dbus-codegen-rust -d "org.mpris.MediaPlayer2.${player}" -p "/org/mpris/MediaPlayer2" -m None >> "$dest/mod.rs"
+  dbus-codegen-rust -m None < "$spec" >> "$dest_file"
+done
 
 echo "Formatting code... "
-rustfmt --write-mode replace "$dest/mod.rs" 2> /dev/null || true
+rustfmt --write-mode replace "$dest/*.rs" 2> /dev/null || true
 
 echo "Done."

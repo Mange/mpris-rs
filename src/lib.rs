@@ -163,44 +163,47 @@ where
 /// Something went wrong when communicating with the D-Bus. This could either be an underlying
 /// D-Bus library problem, or that the other side did not conform to the expected protocols.
 #[derive(Fail, Debug)]
-#[fail(display = "D-Bus call failed: {}", message)]
-pub struct DBusError {
-    /// The reported error message from the underlying D-Bus error.
-    message: String,
-}
+pub enum DBusError {
+    /// An error occurred while talking to the D-Bus.
+    #[fail(display = "D-Bus call failed: {}", _0)]
+    TransportError(#[cause] dbus::Error),
 
-impl DBusError {
-    fn new<S: Into<String>>(message: S) -> Self {
-        DBusError {
-            message: message.into(),
-        }
-    }
+    /// Failed to parse an enum from a string value received from the player. This means that the
+    /// player replied with unexpected data.
+    #[fail(display = "Failed to parse enum value: {}", _0)]
+    EnumParseError(String),
+
+    /// A D-Bus method call did not pass arguments of the correct type. This means that the player
+    /// replied with unexpected data.
+    #[fail(display = "D-Bus call failed: {}", _0)]
+    TypeMismatchError(#[cause] dbus::arg::TypeMismatchError),
+
+    /// Some other unexpected error occurred.
+    #[fail(display = "Unexpected error: {}", _0)]
+    Miscellaneous(String),
 }
 
 impl From<dbus::Error> for DBusError {
     fn from(error: dbus::Error) -> Self {
-        DBusError {
-            message: error
-                .message()
-                .unwrap_or("No error message present")
-                .to_string(),
-        }
+        DBusError::TransportError(error)
+    }
+}
+
+impl From<dbus::arg::TypeMismatchError> for DBusError {
+    fn from(error: dbus::arg::TypeMismatchError) -> Self {
+        DBusError::TypeMismatchError(error)
     }
 }
 
 impl From<InvalidPlaybackStatus> for DBusError {
     fn from(error: InvalidPlaybackStatus) -> Self {
-        DBusError {
-            message: error.to_string(),
-        }
+        DBusError::EnumParseError(error.to_string())
     }
 }
 
 impl From<InvalidLoopStatus> for DBusError {
     fn from(error: InvalidLoopStatus) -> Self {
-        DBusError {
-            message: error.to_string(),
-        }
+        DBusError::EnumParseError(error.to_string())
     }
 }
 
