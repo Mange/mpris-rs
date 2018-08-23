@@ -122,6 +122,14 @@ impl<'a> Player<'a> {
         &self.identity
     }
 
+    /// Returns the player's `DesktopEntry` property, if supported.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `DesktopEntry`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:DesktopEntry).
+    pub fn get_desktop_entry(&self) -> Result<Option<String>, DBusError> {
+        handle_optional_property(self.connection_path().get_desktop_entry())
+    }
+
     /// Returns the player's MPRIS `position` as a `Duration` since the start of the media.
     pub fn get_position(&self) -> Result<Duration, DBusError> {
         self.get_position_in_microseconds()
