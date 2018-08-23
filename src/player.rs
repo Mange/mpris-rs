@@ -130,6 +130,26 @@ impl<'a> Player<'a> {
         handle_optional_property(self.connection_path().get_desktop_entry())
     }
 
+    /// Returns the player's `SupportedMimeTypes` property.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `SupportedMimeTypes`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:SupportedMimeTypes).
+    pub fn get_supported_mime_types(&self) -> Result<Vec<String>, DBusError> {
+        self.connection_path()
+            .get_supported_mime_types()
+            .map_err(|e| e.into())
+    }
+
+    /// Returns the player's `SupportedUriSchemes` property.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `SupportedUriSchemes`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:SupportedUriSchemes).
+    pub fn get_supported_uri_schemes(&self) -> Result<Vec<String>, DBusError> {
+        self.connection_path()
+            .get_supported_uri_schemes()
+            .map_err(|e| e.into())
+    }
+
     /// Returns the player's MPRIS `position` as a `Duration` since the start of the media.
     pub fn get_position(&self) -> Result<Duration, DBusError> {
         self.get_position_in_microseconds()
