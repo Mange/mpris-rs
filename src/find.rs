@@ -5,7 +5,7 @@ use std::rc::Rc;
 use dbus::{arg, BusType, Connection, Message};
 
 use super::DBusError;
-use player::{MPRIS2_PATH, MPRIS2_PREFIX, Player, DEFAULT_TIMEOUT_MS};
+use player::{Player, DEFAULT_TIMEOUT_MS, MPRIS2_PATH, MPRIS2_PREFIX};
 use pooled_connection::PooledConnection;
 
 const LIST_NAMES_TIMEOUT_MS: i32 = 500;
@@ -72,8 +72,7 @@ impl PlayerFinder {
                     MPRIS2_PATH.into(),
                     DEFAULT_TIMEOUT_MS,
                 ).map_err(FindingError::from)
-            })
-            .collect()
+            }).collect()
     }
 
     /// Try to find the "active" player in the connection.
@@ -120,7 +119,6 @@ impl PlayerFinder {
         let names: arg::Array<&str, _> = reply.read1().map_err(DBusError::from)?;
 
         Ok(names
-            .into_iter()
             .filter(|name| name.starts_with(MPRIS2_PREFIX))
             .map(|str_ref| str_ref.to_owned())
             .collect())

@@ -825,5 +825,5 @@ fn handle_optional_property<T>(result: Result<T, dbus::Error>) -> Result<Option<
         }
     }
 
-    result.map(|v| Some(v)).map_err(|e| e.into())
+    result.map(Some).map_err(|e| e.into())
 }
