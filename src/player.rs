@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use dbus::{BusName, ConnPath, Connection, Path};
 
-use super::{DBusError, LoopStatus, MetadataValue, PlaybackStatus, TrackID};
+use super::{DBusError, LoopStatus, MetadataValue, PlaybackStatus, TrackID, TrackList};
 use event::PlayerEvents;
 use extensions::DurationExtensions;
 use generated::OrgMprisMediaPlayer2;
@@ -275,6 +275,53 @@ impl<'a> Player<'a> {
             "Metadata",
         ).map(Metadata::from)
         .map_err(DBusError::from)
+    }
+
+    /// Query the player for the current tracklist, if supported.
+    pub fn get_track_list(&self) -> Result<TrackList, DBusError> {
+        use dbus::stdintf::org_freedesktop_dbus::Properties;
+
+        let connection_path = self.connection_path();
+
+        Properties::get::<Vec<Path>>(
+            &connection_path,
+            "org.mpris.MediaPlayer2.TrackList",
+            "Tracks",
+        ).map(TrackList::from)
+        .map_err(DBusError::from)
+    }
+
+    /// Query the player for metadata for the given `TrackID`s.
+    ///
+    /// This is used by the `TrackList` type to iterator metadata for the tracks in the track list.
+    ///
+    /// See
+    /// [MediaPlayer2.TrackList.GetTracksMetadata](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:GetTracksMetadata)
+    pub fn get_tracks_metadata(&self, track_ids: &[TrackID]) -> Result<Vec<Metadata>, DBusError> {
+        use dbus::arg::IterAppend;
+        let connection_path = self.connection_path();
+
+        let mut method = connection_path.method_call_with_args(
+            &"org.mpris.MediaPlayer2.TrackList".into(),
+            &"GetTracksMetadata".into(),
+            |msg| {
+                let mut i = IterAppend::new(msg);
+                i.append(track_ids.iter().map(|id| &id.0).collect::<Vec<_>>());
+            },
+        )?;
+        method.as_result()?;
+        let mut i = method.iter_init();
+        let metadata: Vec<::std::collections::HashMap<String, MetadataValue>> = i.read()?;
+
+        if metadata.len() == track_ids.len() {
+            Ok(metadata.into_iter().map(Metadata::from).collect())
+        } else {
+            Err(DBusError::Miscellaneous(format!(
+                "Expected {} tracks, but got {} tracks returned.",
+                track_ids.len(),
+                metadata.len()
+            )))
+        }
     }
 
     /// Returns a new `ProgressTracker` for the player.

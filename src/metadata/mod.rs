@@ -2,6 +2,7 @@ extern crate dbus;
 
 mod value;
 pub use self::value::{Value, ValueKind};
+use super::TrackID;
 
 use std::collections::HashMap;
 use std::time::Duration;
@@ -56,11 +57,15 @@ impl Metadata {
 
     /// The track ID.
     ///
+    /// If the TrackID could not be parsed as a proper TrackID, `None` will be returned.
+    ///
     /// Based on `mpris:trackid`
     /// > A unique identity for this track within the context of an MPRIS object.
     ///
-    pub fn track_id(&self) -> Option<&str> {
-        self.get("mpris:trackid").and_then(Value::as_str)
+    pub fn track_id(&self) -> Option<TrackID> {
+        self.get("mpris:trackid")
+            .and_then(Value::as_str)
+            .and_then(|v| TrackID::new(v).ok())
     }
 
     /// A list of artists of the album the track appears on.
@@ -171,8 +176,8 @@ mod tests {
 
     #[test]
     fn it_creates_new_metadata() {
-        let metadata = Metadata::new("foo");
-        assert_eq!(metadata.track_id(), Some("foo"));
+        let metadata = Metadata::new("/foo");
+        assert_eq!(metadata.track_id(), Some(TrackID::from("/foo")));
     }
 
     #[test]
