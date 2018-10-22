@@ -42,8 +42,8 @@ fn print_track_list() -> Result<(), Error> {
         .metadata_iter(&player)
         .context("Could not load metadata for tracks")?;
 
-    for (id, metadata) in iter {
-        println!("{}:\n{:#?}", id, metadata);
+    for metadata in iter {
+        println!("{:#?}", metadata);
     }
 
     Ok(())

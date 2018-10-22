@@ -306,7 +306,7 @@ impl<'a> Player<'a> {
             &"GetTracksMetadata".into(),
             |msg| {
                 let mut i = IterAppend::new(msg);
-                i.append(track_ids.iter().map(|id| &id.0).collect::<Vec<_>>());
+                i.append(track_ids.iter().map(|id| id.0.clone()).collect::<Vec<_>>());
             },
         )?;
         method.as_result()?;
@@ -322,6 +322,25 @@ impl<'a> Player<'a> {
                 metadata.len()
             )))
         }
+    }
+
+    /// Query the player for metadata for a single `TrackID`.
+    ///
+    /// Note that `get_tracks_metadata` with a list is more effective if you have more than a
+    /// single `TrackID` to load.
+    ///
+    /// See
+    /// [MediaPlayer2.TrackList.GetTracksMetadata](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:GetTracksMetadata)
+    pub fn get_track_metadata(&self, track_id: &TrackID) -> Result<Metadata, DBusError> {
+        self.get_tracks_metadata(&[track_id.clone()])
+            .and_then(|mut result| {
+                result.pop().map(Ok).unwrap_or_else(|| {
+                    Err(DBusError::Miscellaneous(format!(
+                        "Player gave no Metadata for {}",
+                        track_id
+                    )))
+                })
+            })
     }
 
     /// Returns a new `ProgressTracker` for the player.
