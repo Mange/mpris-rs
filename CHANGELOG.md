@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   metadata values, or to populate for tests.
 - A full implementation of all properties and methods on the
   `org.mpris.MediaPlayer2` interface.
+- Support for the `Seeked` signal in the blocking `PlayerEvents` iterator.
 
 ### Removed
 

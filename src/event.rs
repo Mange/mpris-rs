@@ -33,6 +33,16 @@ pub enum Event {
 
     /// Player's track changed. Metadata of the new track is provided.
     TrackChanged(Metadata),
+
+    /// Player seeked (changed position in the current track).
+    ///
+    /// This will only be emitted when the player in question emits this signal. Some players do
+    /// not support this signal. If you want to accurately detect seeking, you'll have to query
+    /// the player's position yourself at some intervals.
+    Seeked {
+        /// The new position, in microseconds.
+        position_in_us: u64,
+    },
 }
 
 /// Iterator that blocks forever until the player has an event.
@@ -75,10 +85,13 @@ impl<'a> PlayerEvents<'a> {
                     self.buffer.push(Event::PlayerShutDown);
                     return Ok(());
                 }
-                MprisEvent::PlayerPropertiesChanged | MprisEvent::Seeked { .. } => {
+                MprisEvent::PlayerPropertiesChanged => {
                     if new_progress.is_none() {
                         new_progress = Some(Progress::from_player(self.player)?);
                     }
+                }
+                MprisEvent::Seeked { position_in_us } => {
+                    self.buffer.push(Event::Seeked { position_in_us })
                 }
             }
         }
