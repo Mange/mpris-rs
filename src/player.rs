@@ -274,7 +274,7 @@ impl<'a> Player<'a> {
             "org.mpris.MediaPlayer2.Player",
             "Metadata",
         ).map(Metadata::from)
-            .map_err(DBusError::from)
+        .map_err(DBusError::from)
     }
 
     /// Returns a new `ProgressTracker` for the player.
@@ -778,7 +778,7 @@ impl<'a> Player<'a> {
     /// `Volume`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Volume)
     pub fn set_volume(&self, value: f64) -> Result<(), DBusError> {
         self.connection_path()
-            .set_volume(value.min(0.0))
+            .set_volume(value.max(0.0))
             .map_err(DBusError::from)
     }
 

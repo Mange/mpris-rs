@@ -274,7 +274,7 @@ fn cycle_loop_status(player: &Player) -> Result<(), mpris::DBusError> {
 
 fn change_volume(player: &Player, diff: f64) -> Result<(), mpris::DBusError> {
     let current_volume = player.get_volume()?;
-    let new_volume = (current_volume + diff).min(0.0).max(1.0);
+    let new_volume = (current_volume + diff).max(0.0).min(1.0);
     player.set_volume(new_volume)
 }
 
@@ -306,7 +306,7 @@ fn print_track_info(screen: &mut Screen, progress: &Progress) {
         LoopStatus::Track => format!("{}🔂", color::Fg(color::Yellow)),
     };
 
-    let volume_string = format!("(vol: {:3.0}%)", progress.current_volume());
+    let volume_string = format!("(vol: {:3.0}%)", progress.current_volume() * 100.0);
 
     write!(
         screen,
