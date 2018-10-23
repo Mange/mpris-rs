@@ -278,7 +278,7 @@ impl<'a> Player<'a> {
     }
 
     /// Query the player for the current tracklist, if supported.
-    pub fn get_track_list(&self) -> Result<TrackList, DBusError> {
+    pub fn get_track_list<'b>(&self) -> Result<TrackList<'b>, DBusError> {
         use dbus::stdintf::org_freedesktop_dbus::Properties;
 
         let connection_path = self.connection_path();

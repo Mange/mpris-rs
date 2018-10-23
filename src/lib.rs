@@ -64,7 +64,7 @@ pub use event::Event;
 pub use find::{FindingError, PlayerFinder};
 pub use metadata::{Metadata, Value as MetadataValue, ValueKind as MetadataValueKind};
 pub use player::Player;
-pub use progress::{Progress, ProgressTracker};
+pub use progress::{Progress, ProgressTick, ProgressTracker};
 pub use track_list::{TrackID, TrackList};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]

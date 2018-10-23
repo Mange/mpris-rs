@@ -33,7 +33,7 @@ pub struct TrackID<'a>(pub(crate) dbus::Path<'a>);
 ///
 /// See [MediaPlayer2.TrackList
 /// interface](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html)
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct TrackList<'a> {
     ids: Vec<TrackID<'a>>,
     metadata_cache: RefCell<HashMap<String, Metadata>>,
@@ -119,6 +119,17 @@ impl<'a> TrackList<'a> {
         })
     }
 
+    /// Reloads the tracklist from the given player. This can be compared with loading a new track
+    /// list, but in this case the metadata cache can be maintained for tracks that remain on the
+    /// list.
+    ///
+    /// Cache for tracks that are no longer part of the player's tracklist will be removed.
+    pub fn reload(&mut self, player: &Player) -> Result<(), DBusError> {
+        self.ids = player.get_track_list()?.ids;
+        self.clear_extra_cache();
+        Ok(())
+    }
+
     /// Clears all cache and reloads metadata for all tracks.
     ///
     /// Cache will be replaced *after* the new metadata has been loaded, so on load errors the
@@ -159,6 +170,22 @@ impl<'a> TrackList<'a> {
             .iter()
             .filter(|id| !cache.contains_key(id.as_str()))
             .collect()
+    }
+
+    fn clear_extra_cache(&mut self) {
+        // &mut self means that no other reference to self exists, so it should always be safe to
+        // mutably borrow the cache.
+        let mut cache = self.metadata_cache.borrow_mut();
+
+        let new_cache: HashMap<String, Metadata> = self
+            .ids
+            .iter()
+            .flat_map(|id| match cache.remove(id.as_str()) {
+                Some(value) => Some((id.to_string(), value)),
+                None => None,
+            }).collect();
+
+        *cache = new_cache;
     }
 }
 

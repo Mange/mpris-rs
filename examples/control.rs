@@ -5,7 +5,9 @@ use std::borrow::Cow;
 use std::io::{stdout, Stdout, Write};
 use std::time::Duration;
 
-use mpris::{LoopStatus, PlaybackStatus, Player, PlayerFinder, Progress, ProgressTracker};
+use mpris::{
+    LoopStatus, PlaybackStatus, Player, PlayerFinder, Progress, ProgressTick, ProgressTracker,
+};
 use termion::color;
 use termion::input::TermRead;
 use termion::raw::{IntoRawMode, RawTerminal};
@@ -129,14 +131,14 @@ impl Action {
     }
 }
 
-struct App<'a> {
+struct App<'a, 'b> {
     player: &'a Player<'a>,
-    progress_tracker: ProgressTracker<'a>,
+    progress_tracker: ProgressTracker<'a, 'b>,
     stdin: termion::AsyncReader,
     screen: Screen,
 }
 
-impl<'a> App<'a> {
+impl<'a, 'b> App<'a, 'b> {
     fn main_loop(&mut self) {
         let mut should_continue = true;
 
@@ -186,14 +188,18 @@ impl<'a> App<'a> {
 
     fn tick_progress_and_refresh(&mut self, should_refresh: bool) {
         let supports_position = self.supports_position();
-        let (progress, was_changed) = self.progress_tracker.tick();
+        let ProgressTick {
+            progress,
+            progress_changed,
+            ..
+        } = self.progress_tracker.tick();
 
         // Dirty tracking to keep CPU usage lower. In case nothing happened since the last refresh,
         // only update the progress bar.
         //
         // If player doesn't support position handling, don't even try to refresh the progress bar
         // if no event took place.
-        if was_changed || should_refresh {
+        if progress_changed || should_refresh {
             clear_screen(&mut self.screen);
             print_instructions(&mut self.screen, self.player);
             print_track_info(&mut self.screen, progress);
@@ -213,7 +219,8 @@ impl<'a> App<'a> {
 
 fn print_instructions(screen: &mut Screen, player: &Player) {
     let bold = termion::style::Bold;
-    let nobold = termion::style::NoBold;
+    // Note: The NoBold variant enables double-underscore in Kitty terminal
+    let nobold = termion::style::Reset;
 
     write!(
         screen,
@@ -227,7 +234,7 @@ fn print_instructions(screen: &mut Screen, player: &Player) {
         let is_enabled = action.is_enabled(player);
 
         if is_enabled {
-            write!(screen, "{}", color::Fg(color::White)).unwrap();
+            write!(screen, "{}", color::Fg(color::Reset)).unwrap();
         } else {
             write!(screen, "{}", color::Fg(color::LightBlack)).unwrap();
         };
@@ -310,7 +317,7 @@ fn print_track_info(screen: &mut Screen, progress: &Progress) {
 
     write!(
         screen,
-        "{playback} {shuffle} {loop} {color_reset} {blue}{bold}{artist}{nobold} - {title}{color_reset} {volume}\r\n",
+        "{playback} {shuffle} {loop} {color_reset} {blue}{bold}{artist}{reset}{blue} - {title}{color_reset} {volume}\r\n",
         playback = playback_string,
         shuffle = shuffle_string,
         loop = loop_string,
@@ -318,7 +325,8 @@ fn print_track_info(screen: &mut Screen, progress: &Progress) {
         blue = color::Fg(color::Blue),
         color_reset = color::Fg(color::Reset),
         bold = termion::style::Bold,
-        nobold = termion::style::NoBold,
+        // Note: The NoBold variant enables double-underscore in Kitty terminal
+        reset = termion::style::Reset,
         artist = artist_string,
         title = title_string,
     ).unwrap();
