@@ -13,7 +13,7 @@ use extensions::DurationExtensions;
 use generated::OrgMprisMediaPlayer2;
 use generated::OrgMprisMediaPlayer2Player;
 use metadata::Metadata;
-use pooled_connection::PooledConnection;
+use pooled_connection::{MprisEvent, PooledConnection};
 use progress::ProgressTracker;
 
 pub(crate) const MPRIS2_PREFIX: &str = "org.mpris.MediaPlayer2.";
@@ -874,9 +874,15 @@ impl<'a> Player<'a> {
     /// Other player events will also be recorded, but will not cause this function to return. Note
     /// that this will block forever if player is not running. Make sure to check that the player
     /// is running before calling this method!
-    pub(crate) fn process_events_blocking_until_dirty(&self) {
-        self.connection
-            .process_events_blocking_until_dirty(&self.unique_name);
+    pub(crate) fn process_events_blocking_until_received(&self) {
+        while !self.connection.has_pending_events(&self.unique_name) {
+            self.connection.process_events_blocking_until_received();
+        }
+    }
+
+    /// Return any events that are pending (for this player) on the connection.
+    pub(crate) fn pending_events(&self) -> Vec<MprisEvent> {
+        self.connection.pending_events(&self.unique_name)
     }
 }
 

@@ -1,4 +1,5 @@
 use super::{DBusError, LoopStatus, Metadata, PlaybackStatus, Player, Progress};
+use pooled_connection::MprisEvent;
 
 /// Represents a change in Player state.
 ///
@@ -64,25 +65,34 @@ impl<'a> PlayerEvents<'a> {
     }
 
     fn read_events(&mut self) -> Result<(), DBusError> {
-        self.player.process_events_blocking_until_dirty();
+        self.player.process_events_blocking_until_received();
 
-        // NOTE: read_events will be called after first checking that the player was running, so if
-        // it isn't running anymore then it must have shut down.
-        if !self.player.is_running() {
-            self.buffer.push(Event::PlayerShutDown);
-            return Ok(());
+        let mut new_progress: Option<Progress> = None;
+
+        for event in self.player.pending_events().into_iter() {
+            match event {
+                MprisEvent::PlayerQuit => {
+                    self.buffer.push(Event::PlayerShutDown);
+                    return Ok(());
+                }
+                MprisEvent::PlayerPropertiesChanged | MprisEvent::Seeked { .. } => {
+                    if new_progress.is_none() {
+                        new_progress = Some(Progress::from_player(self.player)?);
+                    }
+                }
+            }
         }
 
-        let new_progress = Progress::from_player(self.player)?;
+        if let Some(progress) = new_progress {
+            self.detect_playback_status_events(&progress);
+            self.detect_loop_status_events(&progress);
+            self.detect_shuffle_events(&progress);
+            self.detect_volume_events(&progress);
+            self.detect_playback_rate_events(&progress);
+            self.detect_metadata_events(&progress);
+            self.last_progress = progress;
+        }
 
-        self.detect_playback_status_events(&new_progress);
-        self.detect_loop_status_events(&new_progress);
-        self.detect_shuffle_events(&new_progress);
-        self.detect_volume_events(&new_progress);
-        self.detect_playback_rate_events(&new_progress);
-        self.detect_metadata_events(&new_progress);
-
-        self.last_progress = new_progress;
         Ok(())
     }
 

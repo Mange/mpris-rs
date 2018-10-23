@@ -4,6 +4,7 @@ use super::{DBusError, LoopStatus, PlaybackStatus, TrackList};
 use extensions::DurationExtensions;
 use metadata::Metadata;
 use player::Player;
+use pooled_connection::MprisEvent;
 
 /// Struct containing information about current progress of a Player.
 ///
@@ -42,6 +43,13 @@ pub struct ProgressTracker<'a, 'b> {
 /// Return value of `ProgressTracker::tick`, which gives details about the latest refresh.
 #[derive(Debug)]
 pub struct ProgressTick<'a> {
+    /// `true` if `Player` quit. This likely means that the player is no longer running.
+    ///
+    /// If the player is no longer running, then fetching new data will not be possible,
+    /// so they will all be reused (`progress_changed` and `track_list_changed` should all be
+    /// `false`).
+    pub player_quit: bool,
+
     /// `true` if `Progress` data changed (beyond the calculated `position`)
     ///
     /// **Examples:**
@@ -163,7 +171,7 @@ impl<'a, 'b> ProgressTracker<'a, 'b> {
     /// }
     /// ```
     ///
-    /// Showing only the track list:
+    /// Showing only the track list until the player quits:
     ///
     /// ```rust,no_run
     /// # use mpris::{PlayerFinder, TrackList};
@@ -175,14 +183,18 @@ impl<'a, 'b> ProgressTracker<'a, 'b> {
     /// // Refresh every 10 seconds
     /// let mut progress_tracker = player.track_progress(10_000).unwrap();
     /// loop {
-    ///     let ProgressTick {track_list, track_list_changed, ..} = progress_tracker.tick();
-    ///     if track_list_changed {
+    ///     let ProgressTick {track_list, track_list_changed, player_quit, ..} = progress_tracker.tick();
+    ///     if player_quit {
+    ///         break;
+    ///     } else if track_list_changed {
     ///         render_track_list(track_list);
     ///     }
     /// }
     /// ```
     pub fn tick(&mut self) -> ProgressTick {
-        let mut did_refresh = false;
+        let mut player_quit = false;
+        let mut progress_changed = false;
+        let mut track_list_changed = false;
 
         // Calculate time left until we're expected to return with new data.
         let time_left = self
@@ -192,27 +204,34 @@ impl<'a, 'b> ProgressTracker<'a, 'b> {
 
         // Refresh events if we're not late.
         if time_left > Duration::from_millis(0) {
-            self.player.connection().process_events_blocking(time_left);
+            self.player
+                .connection()
+                .process_events_blocking_for(time_left);
         }
 
-        // If we got a new event since the last time we ticked, then reload fresh data.
-        if self
-            .player
-            .connection()
-            .is_bus_updated_after(self.player.unique_name(), &self.last_tick)
-        {
-            // TODO: Right now the track list and the progress are always reloaded at the same
-            // times. Processing events should separate them and tell you which ones needs to be
-            // refreshed instead.
-            did_refresh = self.refresh();
+        // Process events that are queued up for us
+        for event in self.player.pending_events().into_iter() {
+            match event {
+                MprisEvent::PlayerQuit => player_quit = true,
+                MprisEvent::PlayerPropertiesChanged | MprisEvent::Seeked { .. } => {
+                    // TODO: Right now the track list and the progress are always reloaded at the same
+                    // times. Processing events should separate them and tell you which ones needs to be
+                    // refreshed instead.
+                    if !progress_changed && !player_quit {
+                        progress_changed |= self.refresh();
+                    }
+                    track_list_changed |= progress_changed;
+                }
+            }
         }
 
         self.last_tick = Instant::now();
         ProgressTick {
             progress: &self.last_progress,
             track_list: &self.track_list,
-            progress_changed: did_refresh,
-            track_list_changed: did_refresh,
+            player_quit,
+            progress_changed,
+            track_list_changed,
         }
     }
 
