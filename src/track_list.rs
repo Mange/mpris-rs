@@ -103,6 +103,11 @@ impl<'a> From<Vec<dbus::Path<'a>>> for TrackList<'a> {
 }
 
 impl<'a> TrackList<'a> {
+    /// Returns the number of tracks on the list.
+    pub fn len(&self) -> usize {
+        self.ids.len()
+    }
+
     /// Iterates the tracks in the tracklist, returning a tuple of TrackID and Metadata for that
     /// track.
     ///
