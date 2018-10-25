@@ -3,25 +3,30 @@ use super::{DBusError, Metadata, Player};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
+use std::iter::{FromIterator, IntoIterator};
 
 /// Represents [the MPRIS `Track_Id` type][track_id].
 ///
 /// ```rust
 /// use mpris::TrackID;
-/// let no_track = TrackID::from("/org/mpris/MediaPlayer2/TrackList/NoTrack");
+/// let no_track = TrackID::new("/org/mpris/MediaPlayer2/TrackList/NoTrack").unwrap();
 /// ```
 ///
-/// **Note:** There is currently no good way to retrieve values for this through the `mpris`
-/// library. You will have to manually retrieve them through D-Bus until implemented.
+/// TrackIDs must be valid D-Bus object paths according to the spec.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Trying to construct a `TrackID` from a string that is not a valid D-Bus Path will result in a
-/// panic.
+/// Trying to construct a `TrackID` from a string that is not a valid D-Bus Path will fail.
+///
+/// ```rust
+/// # use mpris::TrackID;
+/// let result = TrackID::new("invalid track ID");
+/// assert!(result.is_err());
+/// ```
 ///
 /// [track_id]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Simple-Type:Track_Id
-#[derive(Debug, Clone, PartialEq)]
-pub struct TrackID<'a>(pub(crate) dbus::Path<'a>);
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
+pub struct TrackID(pub(crate) String);
 
 /// Represents a MediaPlayer2.TrackList.
 ///
@@ -34,34 +39,37 @@ pub struct TrackID<'a>(pub(crate) dbus::Path<'a>);
 /// See [MediaPlayer2.TrackList
 /// interface](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html)
 #[derive(Debug, Default)]
-pub struct TrackList<'a> {
-    ids: Vec<TrackID<'a>>,
-    metadata_cache: RefCell<HashMap<String, Metadata>>,
+pub struct TrackList {
+    ids: Vec<TrackID>,
+    metadata_cache: RefCell<HashMap<TrackID, Metadata>>,
 }
 
 #[derive(Debug)]
 pub struct MetadataIter {
-    order: Vec<String>,
-    metadata: HashMap<String, Metadata>,
+    order: Vec<TrackID>,
+    metadata: HashMap<TrackID, Metadata>,
     current: usize,
 }
 
-impl<'a, T> From<T> for TrackID<'a>
-where
-    T: Into<dbus::Path<'a>>,
-{
-    fn from(value: T) -> TrackID<'a> {
-        TrackID(value.into())
+impl<'a> From<dbus::Path<'a>> for TrackID {
+    fn from(path: dbus::Path<'a>) -> TrackID {
+        TrackID(path.to_string())
     }
 }
 
-impl<'a> fmt::Display for TrackID<'a> {
+impl From<TrackID> for String {
+    fn from(id: TrackID) -> String {
+        id.0
+    }
+}
+
+impl fmt::Display for TrackID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.0.fmt(f)
     }
 }
 
-impl<'a> TrackID<'a> {
+impl TrackID {
     /// Create a new `TrackID` from a string-like entity.
     ///
     /// This is not something you should normally do as the IDs are temporary and will only work if
@@ -74,18 +82,30 @@ impl<'a> TrackID<'a> {
     /// use mpris::TrackID;
     /// let id = TrackID::new("/dbus/path/id").expect("Parse error");
     /// ```
-    pub fn new<S: Into<Vec<u8>>>(s: S) -> Result<Self, String> {
-        dbus::Path::new(s).map(TrackID)
+    pub fn new<S: Into<String>>(id: S) -> Result<Self, String> {
+        let id = id.into();
+        // Validate the ID by constructing a dbus::Path.
+        if let Err(error) = dbus::Path::new(id.as_str()) {
+            Err(error)
+        } else {
+            Ok(TrackID(id))
+        }
     }
 
     /// Returns a `&str` variant of the ID.
     pub fn as_str(&self) -> &str {
         &*self.0
     }
+
+    pub(crate) fn as_path(&self) -> dbus::Path {
+        // All inputs to this class should be validated to work with dbus::Path, so unwrapping
+        // should be safe here.
+        dbus::Path::new(self.as_str()).unwrap()
+    }
 }
 
-impl<'a> From<Vec<TrackID<'a>>> for TrackList<'a> {
-    fn from(ids: Vec<TrackID<'a>>) -> Self {
+impl From<Vec<TrackID>> for TrackList {
+    fn from(ids: Vec<TrackID>) -> Self {
         TrackList {
             metadata_cache: RefCell::new(HashMap::with_capacity(ids.len())),
             ids,
@@ -93,16 +113,19 @@ impl<'a> From<Vec<TrackID<'a>>> for TrackList<'a> {
     }
 }
 
-impl<'a> From<Vec<dbus::Path<'a>>> for TrackList<'a> {
+impl<'a> From<Vec<dbus::Path<'a>>> for TrackList {
     fn from(ids: Vec<dbus::Path<'a>>) -> Self {
-        TrackList {
-            metadata_cache: RefCell::new(HashMap::with_capacity(ids.len())),
-            ids: ids.into_iter().map(TrackID::from).collect(),
-        }
+        ids.into_iter().map(TrackID::from).collect()
     }
 }
 
-impl<'a> TrackList<'a> {
+impl FromIterator<TrackID> for TrackList {
+    fn from_iter<I: IntoIterator<Item = TrackID>>(iter: I) -> Self {
+        TrackList::from(iter.into_iter().collect::<Vec<_>>())
+    }
+}
+
+impl TrackList {
     /// Returns the number of tracks on the list.
     pub fn len(&self) -> usize {
         self.ids.len()
@@ -115,7 +138,7 @@ impl<'a> TrackList<'a> {
     pub fn metadata_iter(&self, player: &Player) -> Result<MetadataIter, DBusError> {
         self.complete_cache(player)?;
         let metadata: HashMap<_, _> = self.metadata_cache.clone().into_inner();
-        let ids: Vec<_> = self.ids.iter().map(TrackID::to_string).collect();
+        let ids = self.ids.clone();
 
         Ok(MetadataIter {
             current: 0,
@@ -143,7 +166,7 @@ impl<'a> TrackList<'a> {
         let id_metadata = self
             .ids
             .iter()
-            .map(TrackID::to_string)
+            .cloned()
             .zip(player.get_tracks_metadata(&self.ids)?);
         let mut cache = self.metadata_cache.borrow_mut();
         *cache = id_metadata.collect();
@@ -163,17 +186,17 @@ impl<'a> TrackList<'a> {
             let metadata = player.get_tracks_metadata(&ids)?;
             let mut cache = self.metadata_cache.borrow_mut();
             for (metadata, id) in metadata.into_iter().zip(ids.into_iter()) {
-                cache.insert(id.to_string(), metadata);
+                cache.insert(id, metadata);
             }
         }
         Ok(())
     }
 
-    fn ids_without_cache(&self) -> Vec<&TrackID<'a>> {
+    fn ids_without_cache(&self) -> Vec<&TrackID> {
         let cache = &*self.metadata_cache.borrow();
         self.ids
             .iter()
-            .filter(|id| !cache.contains_key(id.as_str()))
+            .filter(|id| !cache.contains_key(id))
             .collect()
     }
 
@@ -182,11 +205,13 @@ impl<'a> TrackList<'a> {
         // mutably borrow the cache.
         let mut cache = self.metadata_cache.borrow_mut();
 
-        let new_cache: HashMap<String, Metadata> = self
+        // For each id in the list, move the cache out into a new HashMap, then replace the old
+        // one with the new. Only ids on the list will therefore be present on the new list.
+        let new_cache: HashMap<TrackID, Metadata> = self
             .ids
             .iter()
-            .flat_map(|id| match cache.remove(id.as_str()) {
-                Some(value) => Some((id.to_string(), value)),
+            .flat_map(|id| match cache.remove(&id) {
+                Some(value) => Some((id.clone(), value)),
                 None => None,
             }).collect();
 
@@ -210,6 +235,75 @@ impl Iterator for MetadataIter {
                 )
             }
             None => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn track_id(s: &str) -> TrackID {
+        TrackID::new(s).expect("Failed to parse a TrackID fixture")
+    }
+
+    mod track_list {
+        use super::*;
+
+        #[test]
+        fn it_inserts_after_given_id() {
+            let first = track_id("/path/1");
+            let third = track_id("/path/3");
+
+            let mut list = TrackList {
+                ids: vec![first, third],
+                metadata_cache: RefCell::new(HashMap::new()),
+            };
+
+            let metadata = Metadata::new("/path/new");
+            list.insert(&track_id("/path/1"), metadata);
+
+            assert_eq!(list.len(), 3);
+            assert_eq!(
+                &list.ids,
+                &[
+                    track_id("/path/1"),
+                    track_id("/path/new"),
+                    track_id("/path/3")
+                ]
+            );
+            assert_eq!(
+                list.ids_without_cache(),
+                vec![&track_id("/path/1"), &track_id("/path/3")],
+            );
+        }
+
+        #[test]
+        fn it_inserts_at_end_on_missing_id() {
+            let first = track_id("/path/1");
+            let third = track_id("/path/3");
+
+            let mut list = TrackList {
+                ids: vec![first, third],
+                metadata_cache: RefCell::new(HashMap::new()),
+            };
+
+            let metadata = Metadata::new("/path/new");
+            list.insert(&track_id("/path/missing"), metadata);
+
+            assert_eq!(list.len(), 3);
+            assert_eq!(
+                &list.ids,
+                &[
+                    track_id("/path/1"),
+                    track_id("/path/3"),
+                    track_id("/path/new"),
+                ]
+            );
+            assert_eq!(
+                list.ids_without_cache(),
+                vec![&track_id("/path/1"), &track_id("/path/3")],
+            );
         }
     }
 }

@@ -6,6 +6,7 @@ use dbus::{BusName, ConnPath, Connection, Message, Path};
 
 use extensions::DurationExtensions;
 use player::MPRIS2_PATH;
+use track_list::TrackID;
 
 #[derive(Debug)]
 pub(crate) struct PooledConnection {

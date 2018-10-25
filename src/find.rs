@@ -61,7 +61,7 @@ impl PlayerFinder {
     }
 
     /// Find all available `Player`s in the connection.
-    pub fn find_all<'a>(&self) -> Result<Vec<Player<'a>>, FindingError> {
+    pub fn find_all<'b>(&self) -> Result<Vec<Player<'b>>, FindingError> {
         self.all_player_buses()
             .map_err(FindingError::from)?
             .into_iter()
@@ -84,7 +84,7 @@ impl PlayerFinder {
     ///
     /// **NOTE:** Currently this method is very naive and just returns the first player. This
     /// behavior can change later without a major version change, so don't rely on that behavior.
-    pub fn find_active<'a>(&self) -> Result<Player<'a>, FindingError> {
+    pub fn find_active<'b>(&self) -> Result<Player<'b>, FindingError> {
         if let Some(bus_name) = self.active_player_bus()? {
             Player::for_pooled_connection(
                 Rc::clone(&self.connection),

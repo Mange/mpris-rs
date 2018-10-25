@@ -177,7 +177,7 @@ mod tests {
     #[test]
     fn it_creates_new_metadata() {
         let metadata = Metadata::new("/foo");
-        assert_eq!(metadata.track_id(), Some(TrackID::from("/foo")));
+        assert_eq!(metadata.track_id(), Some(TrackID::new("/foo").unwrap()));
     }
 
     #[test]

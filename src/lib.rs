@@ -191,21 +191,3 @@ impl From<InvalidLoopStatus> for DBusError {
         DBusError::EnumParseError(error.to_string())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    mod track_id {
-        use super::*;
-
-        #[test]
-        fn it_creates_track_ids() {
-            let _: TrackID = "/org/mpris/MediaPlayer2/TrackList/NoTrack".into();
-            let _: TrackID = TrackID::from("/org/mpris/MediaPlayer2/TrackList/NoTrack");
-
-            let _: TrackID =
-                TrackID::from(String::from("/org/mpris/MediaPlayer2/TrackList/NoTrack"));
-        }
-    }
-}

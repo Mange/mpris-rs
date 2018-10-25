@@ -32,9 +32,9 @@ pub struct Progress {
 ///
 /// Call the `tick` method to get the most current `Progress` data.
 #[derive(Debug)]
-pub struct ProgressTracker<'a, 'b> {
+pub struct ProgressTracker<'a> {
     player: &'a Player<'a>,
-    track_list: TrackList<'b>,
+    track_list: TrackList,
     interval: Duration,
     last_tick: Instant,
     last_progress: Progress,
@@ -74,10 +74,10 @@ pub struct ProgressTick<'a> {
 
     /// The current `TrackList` from the `ProgressTracker`. `track_list_changed` tells you if this was
     /// changed since the last tick.
-    pub track_list: &'a TrackList<'a>,
+    pub track_list: &'a TrackList,
 }
 
-impl<'a, 'b> ProgressTracker<'a, 'b> {
+impl<'a> ProgressTracker<'a> {
     /// Construct a new `ProgressTracker` for the provided `Player`.
     ///
     /// The `interval_ms` value is the desired time between ticks when calling the `tick` method.

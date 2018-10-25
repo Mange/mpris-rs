@@ -132,14 +132,14 @@ impl Action {
     }
 }
 
-struct App<'a, 'b> {
+struct App<'a> {
     player: &'a Player<'a>,
-    progress_tracker: ProgressTracker<'a, 'b>,
+    progress_tracker: ProgressTracker<'a>,
     stdin: termion::AsyncReader,
     screen: Screen,
 }
 
-impl<'a, 'b> App<'a, 'b> {
+impl<'a> App<'a> {
     fn main_loop(&mut self) {
         let mut should_continue = true;
 

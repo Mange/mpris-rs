@@ -184,10 +184,7 @@ impl<'a> Player<'a> {
     /// `mpris` library. You will have to manually retrieve it through D-Bus until implemented.
     ///
     /// See: [MPRIS2 specification about `SetPosition`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:SetPosition)
-    pub fn set_position<'id, ID>(&self, track_id: ID, position: &Duration) -> Result<(), DBusError>
-    where
-        ID: Into<TrackID<'id>>,
-    {
+    pub fn set_position(&self, track_id: TrackID, position: &Duration) -> Result<(), DBusError> {
         self.set_position_in_microseconds(track_id, DurationExtensions::as_micros(position))
     }
 
@@ -200,16 +197,13 @@ impl<'a> Player<'a> {
     /// `mpris` library. You will have to manually retrieve it through D-Bus until implemented.
     ///
     /// See: [MPRIS2 specification about `SetPosition`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:SetPosition)
-    pub fn set_position_in_microseconds<'id, ID>(
+    pub fn set_position_in_microseconds(
         &self,
-        track_id: ID,
+        track_id: TrackID,
         position_in_us: u64,
-    ) -> Result<(), DBusError>
-    where
-        ID: Into<TrackID<'id>>,
-    {
+    ) -> Result<(), DBusError> {
         self.connection_path()
-            .set_position(track_id.into().0, position_in_us as i64)
+            .set_position(track_id.as_path(), position_in_us as i64)
             .map_err(|e| e.into())
     }
 
@@ -278,7 +272,7 @@ impl<'a> Player<'a> {
     }
 
     /// Query the player for the current tracklist, if supported.
-    pub fn get_track_list<'b>(&self) -> Result<TrackList<'b>, DBusError> {
+    pub fn get_track_list(&self) -> Result<TrackList, DBusError> {
         use dbus::stdintf::org_freedesktop_dbus::Properties;
 
         let connection_path = self.connection_path();
@@ -306,7 +300,7 @@ impl<'a> Player<'a> {
             &"GetTracksMetadata".into(),
             |msg| {
                 let mut i = IterAppend::new(msg);
-                i.append(track_ids.iter().map(|id| id.0.clone()).collect::<Vec<_>>());
+                i.append(track_ids.iter().map(|id| id.as_path()).collect::<Vec<_>>());
             },
         )?;
         method.as_result()?;
