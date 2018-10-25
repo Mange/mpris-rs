@@ -222,6 +222,19 @@ impl<'a> ProgressTracker<'a> {
                     }
                     track_list_changed |= progress_changed;
                 }
+                MprisEvent::TrackListReplaced { ids } => {
+                    self.track_list = TrackList::from(ids);
+                    track_list_changed = true;
+                }
+                MprisEvent::TrackAdded { after_id, metadata } => {
+                    self.track_list.insert(&after_id, metadata);
+                }
+                MprisEvent::TrackRemoved { id } => {
+                    self.track_list.remove(&id);
+                }
+                MprisEvent::TrackMetadataChanged { id, metadata } => {
+                    self.track_list.update_metadata(&id, metadata);
+                }
             }
         }
 

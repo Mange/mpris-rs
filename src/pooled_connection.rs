@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 use dbus::{BusName, ConnPath, Connection, Message, Path};
 
 use extensions::DurationExtensions;
+use metadata::{Metadata, Value};
 use player::MPRIS2_PATH;
 use track_list::TrackID;
 
@@ -184,6 +185,54 @@ impl PooledConnection {
                     .or_default()
                     .push(MprisEvent::Seeked { position_in_us });
             }
+            MprisMessage::TrackListReplaced {
+                unique_name,
+                ids,
+                current_id: _,
+            } => {
+                let mut events = self.events.borrow_mut();
+                events
+                    .entry(unique_name)
+                    .or_default()
+                    .push(MprisEvent::TrackListReplaced {
+                        ids: ids.into_iter().map(TrackID::from).collect(),
+                    });
+            }
+            MprisMessage::TrackAdded {
+                unique_name,
+                after_id,
+                metadata,
+            } => {
+                let mut events = self.events.borrow_mut();
+                events
+                    .entry(unique_name)
+                    .or_default()
+                    .push(MprisEvent::TrackAdded {
+                        after_id: after_id.into(),
+                        metadata: Metadata::from(metadata),
+                    });
+            }
+            MprisMessage::TrackRemoved { unique_name, id } => {
+                let mut events = self.events.borrow_mut();
+                events
+                    .entry(unique_name)
+                    .or_default()
+                    .push(MprisEvent::TrackRemoved { id: id.into() });
+            }
+            MprisMessage::TrackMetadataChanged {
+                unique_name,
+                id,
+                metadata,
+            } => {
+                let mut events = self.events.borrow_mut();
+                events
+                    .entry(unique_name)
+                    .or_default()
+                    .push(MprisEvent::TrackMetadataChanged {
+                        id: id.into(),
+                        metadata: Metadata::from(metadata),
+                    });
+            }
         }
     }
 
@@ -220,7 +269,23 @@ impl From<Connection> for PooledConnection {
 pub(crate) enum MprisEvent {
     PlayerQuit,
     PlayerPropertiesChanged,
-    Seeked { position_in_us: u64 },
+    Seeked {
+        position_in_us: u64,
+    },
+    TrackListReplaced {
+        ids: Vec<TrackID>,
+    },
+    TrackAdded {
+        after_id: TrackID,
+        metadata: Metadata,
+    },
+    TrackRemoved {
+        id: TrackID,
+    },
+    TrackMetadataChanged {
+        id: TrackID,
+        metadata: Metadata,
+    },
 }
 
 /// Easier to use representation of supported D-Bus messages.
@@ -237,6 +302,25 @@ pub(crate) enum MprisMessage {
         unique_name: String,
         position_in_us: u64,
     },
+    TrackListReplaced {
+        unique_name: String,
+        ids: Vec<TrackID>,
+        current_id: TrackID,
+    },
+    TrackAdded {
+        unique_name: String,
+        after_id: TrackID,
+        metadata: HashMap<String, Value>,
+    },
+    TrackRemoved {
+        unique_name: String,
+        id: TrackID,
+    },
+    TrackMetadataChanged {
+        unique_name: String,
+        id: TrackID,
+        metadata: HashMap<String, Value>,
+    },
 }
 
 impl MprisMessage {
@@ -244,8 +328,7 @@ impl MprisMessage {
     /// message was not supported.
     fn try_parse(message: Message) -> Option<Self> {
         MprisMessage::try_parse_name_owner_changed(&message)
-            .or_else(|| MprisMessage::try_parse_player_properties_changed(&message))
-            .or_else(|| MprisMessage::try_parse_seeked(&message))
+            .or_else(|| MprisMessage::try_parse_mpris_signal(&message))
     }
 
     /// Return a MprisMessage::NameOwnerChanged if the provided D-Bus message is a
@@ -272,40 +355,90 @@ impl MprisMessage {
         }
     }
 
-    /// Return a MprisMessage::PlayerPropertiesChanged if the provided D-Bus message is a
-    /// PropertiesChanged signal on the MPRIS2 path.
-    fn try_parse_player_properties_changed(message: &Message) -> Option<Self> {
-        match (message.path(), message.member()) {
-            (Some(ref path), Some(ref member))
-                if &**path == MPRIS2_PATH && &**member == "PropertiesChanged" =>
-            {
-                message
-                    .sender()
-                    .map(|unique_name| MprisMessage::PlayerPropertiesChanged {
-                        unique_name: unique_name.to_string(),
-                    })
+    fn try_parse_mpris_signal(message: &Message) -> Option<Self> {
+        if let Some(ref path) = message.path() {
+            if &**path == MPRIS2_PATH {
+                let member = message
+                    .member()
+                    .map(|member| member.to_string())
+                    .unwrap_or_else(String::default);
+                return match member.as_ref() {
+                    "PropertiesChanged" => try_parse_player_properties_changed(message),
+                    "Seeked" => try_parse_seeked(message),
+                    "TrackListReplaced" => try_parse_tracklist_replaced(message),
+                    "TrackAdded" => try_parse_track_added(message),
+                    "TrackRemoved" => try_parse_track_removed(message),
+                    "TrackMetadataChanged" => try_parse_track_metadata_changed(message),
+                    _ => None,
+                };
             }
-            _ => None,
         }
+        None
     }
+}
 
-    /// Return a MprisMessage::Seeked if the provided D-Bus message is a Seeked signal on the
-    /// MPRIS2 path.
-    fn try_parse_seeked(message: &Message) -> Option<Self> {
-        match (message.sender(), message.member()) {
-            (Some(ref path), Some(ref member))
-                if &**path == MPRIS2_PATH && &**member == "Seeked" =>
-            {
-                let unique_name = message.sender().map(|bus_name| bus_name.to_string())?;
-                let mut iter = message.iter_init();
-                let position_in_us: u64 = iter.read().ok()?;
+fn try_parse_player_properties_changed(message: &Message) -> Option<MprisMessage> {
+    let unique_name = message.sender().map(|bus_name| bus_name.to_string())?;
+    Some(MprisMessage::PlayerPropertiesChanged { unique_name })
+}
 
-                Some(MprisMessage::Seeked {
-                    unique_name,
-                    position_in_us,
-                })
-            }
-            _ => None,
-        }
-    }
+fn try_parse_seeked(message: &Message) -> Option<MprisMessage> {
+    let unique_name = message.sender().map(|bus_name| bus_name.to_string())?;
+    let mut iter = message.iter_init();
+    let position_in_us: u64 = iter.read().ok()?;
+
+    Some(MprisMessage::Seeked {
+        unique_name,
+        position_in_us,
+    })
+}
+
+fn try_parse_tracklist_replaced(message: &Message) -> Option<MprisMessage> {
+    let unique_name = message.sender().map(|bus_name| bus_name.to_string())?;
+    let mut iter = message.iter_init();
+    let ids: Vec<Path> = iter.read().ok()?;
+    let current_id: Path = iter.read().ok()?;
+
+    Some(MprisMessage::TrackListReplaced {
+        unique_name,
+        ids: ids.into_iter().map(TrackID::from).collect(),
+        current_id: TrackID::from(current_id),
+    })
+}
+
+fn try_parse_track_added(message: &Message) -> Option<MprisMessage> {
+    let unique_name = message.sender().map(|bus_name| bus_name.to_string())?;
+    let mut iter = message.iter_init();
+    let metadata: HashMap<String, Value> = iter.read().ok()?;
+    let after_id: Path = iter.read().ok()?;
+
+    Some(MprisMessage::TrackAdded {
+        unique_name,
+        metadata,
+        after_id: TrackID::from(after_id),
+    })
+}
+
+fn try_parse_track_removed(message: &Message) -> Option<MprisMessage> {
+    let unique_name = message.sender().map(|bus_name| bus_name.to_string())?;
+    let mut iter = message.iter_init();
+    let id: Path = iter.read().ok()?;
+
+    Some(MprisMessage::TrackRemoved {
+        unique_name,
+        id: TrackID::from(id),
+    })
+}
+
+fn try_parse_track_metadata_changed(message: &Message) -> Option<MprisMessage> {
+    let unique_name = message.sender().map(|bus_name| bus_name.to_string())?;
+    let mut iter = message.iter_init();
+    let id: Path = iter.read().ok()?;
+    let metadata: HashMap<String, Value> = iter.read().ok()?;
+
+    Some(MprisMessage::TrackMetadataChanged {
+        unique_name,
+        id: TrackID::from(id),
+        metadata,
+    })
 }

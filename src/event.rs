@@ -1,4 +1,6 @@
-use super::{DBusError, LoopStatus, Metadata, PlaybackStatus, Player, Progress};
+use super::{
+    DBusError, LoopStatus, Metadata, PlaybackStatus, Player, Progress, TrackID, TrackList,
+};
 use pooled_connection::MprisEvent;
 
 /// Represents a change in Player state.
@@ -43,6 +45,18 @@ pub enum Event {
         /// The new position, in microseconds.
         position_in_us: u64,
     },
+
+    /// A new track was added to the TrackList.
+    TrackAdded(TrackID),
+
+    /// A track was removed from the TrackList.
+    TrackRemoved(TrackID),
+
+    /// A track on the TrackList had its metadata changed.
+    TrackMetadataChanged(TrackID),
+
+    /// The track list was replaced.
+    TrackListReplaced,
 }
 
 /// Iterator that blocks forever until the player has an event.
@@ -62,6 +76,9 @@ pub struct PlayerEvents<'a> {
 
     /// Used to diff older state to find events.
     last_progress: Progress,
+
+    /// Current tracklist of the player. Will be kept up to date.
+    track_list: TrackList,
 }
 
 impl<'a> PlayerEvents<'a> {
@@ -71,7 +88,12 @@ impl<'a> PlayerEvents<'a> {
             player,
             buffer: Vec::new(),
             last_progress: progress,
+            track_list: player.get_track_list()?,
         })
+    }
+
+    pub fn track_list(&self) -> &TrackList {
+        &self.track_list
     }
 
     fn read_events(&mut self) -> Result<(), DBusError> {
@@ -92,6 +114,24 @@ impl<'a> PlayerEvents<'a> {
                 }
                 MprisEvent::Seeked { position_in_us } => {
                     self.buffer.push(Event::Seeked { position_in_us })
+                }
+                MprisEvent::TrackListReplaced { ids } => {
+                    self.track_list = ids.into_iter().map(TrackID::from).collect();
+                    self.buffer.push(Event::TrackListReplaced);
+                }
+                MprisEvent::TrackAdded { after_id, metadata } => {
+                    if let Some(id) = metadata.track_id() {
+                        self.track_list.insert(&after_id, metadata);
+                        self.buffer.push(Event::TrackAdded(id));
+                    }
+                }
+                MprisEvent::TrackRemoved { id } => {
+                    self.track_list.remove(&id);
+                    self.buffer.push(Event::TrackRemoved(id));
+                }
+                MprisEvent::TrackMetadataChanged { id, metadata } => {
+                    self.track_list.update_metadata(&id, metadata);
+                    self.buffer.push(Event::TrackMetadataChanged(id));
                 }
             }
         }

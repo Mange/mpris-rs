@@ -131,6 +131,57 @@ impl TrackList {
         self.ids.len()
     }
 
+    /// Insert a new track after another one. If the provided ID cannot be found on the list, it
+    /// will be inserted at the end.
+    pub fn insert(&mut self, after: &TrackID, metadata: Metadata) {
+        let new_id = match metadata.track_id() {
+            Some(val) => val,
+            // Cannot insert ID if there is no ID in the metadata.
+            None => return,
+        };
+
+        let index = self
+            .ids
+            .iter()
+            .enumerate()
+            .find(|(_, id)| *id == after)
+            .map(|(index, _)| index)
+            .unwrap_or_else(|| self.ids.len());
+
+        // Vec::insert inserts BEFORE the given index, but we need to insert *after* the index.
+        if index >= self.ids.len() {
+            self.ids.push(new_id.clone());
+        } else {
+            self.ids.insert(index + 1, new_id.clone());
+        }
+
+        // borrow_mut should be safe as we have a &mut self, so no one else may have borrowed this
+        // cache.
+        self.metadata_cache.borrow_mut().insert(new_id, metadata);
+    }
+
+    /// Removes a track from the list and metadata cache.
+    pub fn remove(&mut self, id: &TrackID) {
+        self.ids.retain(|existing_id| existing_id != id);
+
+        // borrow_mut should be safe as we have a &mut self, so no one else may have borrowed this
+        // cache.
+        self.metadata_cache.borrow_mut().remove(id);
+    }
+
+    /// Updates the metadata cache for the given `TrackID`.
+    ///
+    /// The metadata will be added to the cache even if the `TrackID` isn't part of the list, but
+    /// will be cleaned out again after the next cache cleanup unless the track in question have
+    /// been added to the list before then.
+    pub fn update_metadata(&mut self, id: &TrackID, metadata: Metadata) {
+        // borrow_mut should be safe as we have a &mut self, so no one else may have borrowed this
+        // cache.
+        self.metadata_cache
+            .borrow_mut()
+            .insert(id.to_owned(), metadata);
+    }
+
     /// Iterates the tracks in the tracklist, returning a tuple of TrackID and Metadata for that
     /// track.
     ///
