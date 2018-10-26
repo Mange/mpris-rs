@@ -151,6 +151,15 @@ impl PooledConnection {
     /// Takes a message and processes it appropriately. Returns the affected bus name, and a borrow
     /// to the generated MprisEvent, if applicable.
     fn process_message(&self, message: MprisMessage) {
+        let mut events = match self.events.try_borrow_mut() {
+            Ok(mut val) => val,
+            Err(_) => {
+                // Drop the message. This is a better evil than triggering a panic inside a library
+                // like this.
+                return;
+            }
+        };
+
         match message {
             MprisMessage::NameOwnerChanged {
                 new_owner,
@@ -162,14 +171,9 @@ impl PooledConnection {
                     // queue.
                     let mut events = self.events.borrow_mut();
                     events.insert(old_owner, vec![MprisEvent::PlayerQuit]);
-                } else {
-                    // Just changed names for some reason. Migrate events that exist on the queue.
-                    self.migrate_events(old_owner, new_owner);
-                    // TODO: Make the player change it's unique name to the new name too.
                 }
             }
             MprisMessage::PlayerPropertiesChanged { unique_name } => {
-                let mut events = self.events.borrow_mut();
                 events
                     .entry(unique_name)
                     .or_default()
@@ -179,14 +183,12 @@ impl PooledConnection {
                 unique_name,
                 position_in_us,
             } => {
-                let mut events = self.events.borrow_mut();
                 events
                     .entry(unique_name)
                     .or_default()
                     .push(MprisEvent::Seeked { position_in_us });
             }
             MprisMessage::TrackListPropertiesChanged { unique_name } => {
-                let mut events = self.events.borrow_mut();
                 events
                     .entry(unique_name)
                     .or_default()
@@ -197,7 +199,6 @@ impl PooledConnection {
                 ids,
                 current_id: _,
             } => {
-                let mut events = self.events.borrow_mut();
                 events
                     .entry(unique_name)
                     .or_default()
@@ -210,7 +211,6 @@ impl PooledConnection {
                 after_id,
                 metadata,
             } => {
-                let mut events = self.events.borrow_mut();
                 events
                     .entry(unique_name)
                     .or_default()
@@ -220,7 +220,6 @@ impl PooledConnection {
                     });
             }
             MprisMessage::TrackRemoved { unique_name, id } => {
-                let mut events = self.events.borrow_mut();
                 events
                     .entry(unique_name)
                     .or_default()
@@ -231,7 +230,6 @@ impl PooledConnection {
                 id,
                 metadata,
             } => {
-                let mut events = self.events.borrow_mut();
                 events
                     .entry(unique_name)
                     .or_default()
@@ -239,25 +237,6 @@ impl PooledConnection {
                         id: id.into(),
                         metadata: Metadata::from(metadata),
                     });
-            }
-        }
-    }
-
-    fn migrate_events(&self, old_name: String, new_name: String) {
-        let mut events = match self.events.try_borrow_mut() {
-            Ok(val) => val,
-            Err(_) => return,
-        };
-
-        if let Some(mut old_events) = events.remove(&old_name) {
-            if events.contains_key(&new_name) {
-                // Append the new events to the end of the old events and place them in the new
-                // queue.
-                old_events.append(&mut events.remove(&new_name).unwrap());
-                events.insert(new_name, old_events);
-            } else {
-                // Move the queue over.
-                events.insert(new_name, old_events);
             }
         }
     }
