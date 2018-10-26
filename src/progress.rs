@@ -207,6 +207,7 @@ impl<'a> ProgressTracker<'a> {
         let mut player_quit = false;
         let mut progress_changed = false;
         let mut track_list_changed = false;
+        let old_shuffle = self.last_progress.shuffle;
 
         // Calculate time left until we're expected to return with new data.
         let time_left = self
@@ -230,14 +231,11 @@ impl<'a> ProgressTracker<'a> {
                 }
                 MprisEvent::PlayerPropertiesChanged | MprisEvent::Seeked { .. } => {
                     if !progress_changed {
-                        progress_changed |= self.refresh();
+                        progress_changed |= self.refresh_player();
                     }
                 }
                 MprisEvent::TrackListPropertiesChanged => {
-                    if !track_list_changed {
-                        let _ = self.track_list.reload(self.player);
-                        track_list_changed = true;
-                    }
+                    track_list_changed |= self.refresh_track_list();
                 }
                 MprisEvent::TrackListReplaced { ids } => {
                     self.track_list.replace(ids.into_iter().collect());
@@ -245,14 +243,24 @@ impl<'a> ProgressTracker<'a> {
                 }
                 MprisEvent::TrackAdded { after_id, metadata } => {
                     self.track_list.insert(&after_id, metadata);
+                    track_list_changed = true;
                 }
                 MprisEvent::TrackRemoved { id } => {
                     self.track_list.remove(&id);
+                    track_list_changed = true;
                 }
                 MprisEvent::TrackMetadataChanged { id, metadata } => {
                     self.track_list.update_metadata(&id, metadata);
+                    track_list_changed = true;
                 }
             }
+        }
+
+        if old_shuffle != self.last_progress.shuffle {
+            // Shuffle changed, which means that the tracklist is likely to have been changed too.
+            // Do a reload, even if track_list_changed was true so the correct order is loaded even
+            // if only a in-place change took place before.
+            track_list_changed |= self.refresh_track_list();
         }
 
         self.last_tick = Instant::now();
@@ -279,12 +287,19 @@ impl<'a> ProgressTracker<'a> {
         Ok(())
     }
 
-    fn refresh(&mut self) -> bool {
+    fn refresh_player(&mut self) -> bool {
         if let Ok(progress) = Progress::from_player(self.player) {
             self.last_progress = progress;
             return true;
         }
         false
+    }
+
+    fn refresh_track_list(&mut self) -> bool {
+        match self.track_list.reload(&self.player) {
+            Ok(_) => true,
+            Err(_) => false,
+        }
     }
 }
 
