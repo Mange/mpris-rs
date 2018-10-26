@@ -44,6 +44,23 @@ pub struct TrackList {
     metadata_cache: RefCell<HashMap<TrackID, Metadata>>,
 }
 
+/// TrackList-related errors.
+///
+/// This is mostly `DBusError` with the extra possibility of borrow errors of the internal metadata
+/// cache.
+#[derive(Debug, Fail)]
+pub enum TrackListError {
+    /// Something went wrong with the D-Bus communication. See the `DBusError` type.
+    #[fail(display = "D-Bus communication failed")]
+    DBusError(#[cause] DBusError),
+
+    /// Something went wrong with the borrowing logic for the internal cache. Perhaps you have
+    /// multiple borrowed references to the cache live at the same time, for example because of
+    /// multiple iterations?
+    #[fail(display = "Could not borrow cache: {}", _0)]
+    BorrowError(String),
+}
+
 #[derive(Debug)]
 pub struct MetadataIter {
     order: Vec<TrackID>,
@@ -186,7 +203,7 @@ impl TrackList {
     /// track.
     ///
     /// If metadata loading fails, then a DBusError will be returned instead.
-    pub fn metadata_iter(&self, player: &Player) -> Result<MetadataIter, DBusError> {
+    pub fn metadata_iter(&self, player: &Player) -> Result<MetadataIter, TrackListError> {
         self.complete_cache(player)?;
         let metadata: HashMap<_, _> = self.metadata_cache.clone().into_inner();
         let ids = self.ids.clone();
@@ -203,7 +220,7 @@ impl TrackList {
     /// list.
     ///
     /// Cache for tracks that are no longer part of the player's tracklist will be removed.
-    pub fn reload(&mut self, player: &Player) -> Result<(), DBusError> {
+    pub fn reload(&mut self, player: &Player) -> Result<(), TrackListError> {
         self.ids = player.get_track_list()?.ids;
         self.clear_extra_cache();
         Ok(())
@@ -213,7 +230,7 @@ impl TrackList {
     ///
     /// Cache will be replaced *after* the new metadata has been loaded, so on load errors the
     /// cache will still be maintained.
-    pub fn reload_cache(&self, player: &Player) -> Result<(), DBusError> {
+    pub fn reload_cache(&self, player: &Player) -> Result<(), TrackListError> {
         let id_metadata = self
             .ids
             .iter()
@@ -227,7 +244,7 @@ impl TrackList {
     /// Fill in any holes in the cache so that each track on the list has a cached Metadata entry.
     ///
     /// If all tracks already have a cache entry, then this will do nothing.
-    pub fn complete_cache(&self, player: &Player) -> Result<(), DBusError> {
+    pub fn complete_cache(&self, player: &Player) -> Result<(), TrackListError> {
         let ids: Vec<_> = self
             .ids_without_cache()
             .into_iter()
@@ -235,9 +252,15 @@ impl TrackList {
             .collect();
         if !ids.is_empty() {
             let metadata = player.get_tracks_metadata(&ids)?;
-            let mut cache = self.metadata_cache.borrow_mut();
-            for (metadata, id) in metadata.into_iter().zip(ids.into_iter()) {
-                cache.insert(id, metadata);
+
+            let mut cache = self.metadata_cache.try_borrow_mut()?;
+            for info in metadata.into_iter() {
+                match info.track_id() {
+                    Some(id) => {
+                        cache.insert(id, info);
+                    }
+                    None => {}
+                }
             }
         }
         Ok(())
@@ -287,6 +310,18 @@ impl Iterator for MetadataIter {
             }
             None => None,
         }
+    }
+}
+
+impl From<DBusError> for TrackListError {
+    fn from(error: DBusError) -> TrackListError {
+        TrackListError::DBusError(error)
+    }
+}
+
+impl From<::std::cell::BorrowMutError> for TrackListError {
+    fn from(error: ::std::cell::BorrowMutError) -> TrackListError {
+        TrackListError::BorrowError(format!("Could not borrow mutably: {}", error))
     }
 }
 

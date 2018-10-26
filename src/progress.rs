@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use super::{DBusError, LoopStatus, PlaybackStatus, TrackList};
+use super::{DBusError, LoopStatus, PlaybackStatus, TrackList, TrackListError};
 use extensions::DurationExtensions;
 use metadata::Metadata;
 use player::Player;
@@ -75,6 +75,18 @@ pub struct ProgressTick<'a> {
     /// The current `TrackList` from the `ProgressTracker`. `track_list_changed` tells you if this was
     /// changed since the last tick.
     pub track_list: &'a TrackList,
+}
+
+/// Errors that can occur while refreshing progress.
+#[derive(Debug, Fail)]
+pub enum ProgressError {
+    /// Something went wrong with the D-Bus communication. See the `DBusError` type.
+    #[fail(display = "D-Bus communication failed")]
+    DBusError(#[cause] DBusError),
+
+    /// Something went wrong with the track list. See the `TrackListError` type.
+    #[fail(display = "TrackList could not be refreshed")]
+    TrackListError(#[cause] TrackListError),
 }
 
 impl<'a> ProgressTracker<'a> {
@@ -256,7 +268,7 @@ impl<'a> ProgressTracker<'a> {
     /// # Errors
     ///
     /// Returns an error if the refresh failed.
-    pub fn force_refresh(&mut self) -> Result<(), DBusError> {
+    pub fn force_refresh(&mut self) -> Result<(), ProgressError> {
         self.last_progress = Progress::from_player(self.player)?;
         self.track_list.reload(&self.player)?;
         Ok(())
@@ -368,6 +380,18 @@ impl Progress {
             _ => 0.0,
         };
         Duration::from_millis(elapsed_ms as u64)
+    }
+}
+
+impl From<TrackListError> for ProgressError {
+    fn from(error: TrackListError) -> ProgressError {
+        ProgressError::TrackListError(error)
+    }
+}
+
+impl From<DBusError> for ProgressError {
+    fn from(error: DBusError) -> ProgressError {
+        ProgressError::DBusError(error)
     }
 }
 

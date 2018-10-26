@@ -8,12 +8,10 @@ fn main() {
     match print_metadata() {
         Ok(_) => {}
         Err(error) => {
-            for (i, cause) in error.iter_chain().enumerate() {
-                if i == 0 {
-                    println!("Error: {}", cause);
-                } else {
-                    println!("Caused by: {}", cause);
-                }
+            println!("Error: {}", error);
+            for (i, cause) in error.iter_causes().enumerate() {
+                print!("{}", "  ".repeat(i + 1));
+                println!("Caused by: {}", cause);
             }
             std::process::exit(1);
         }
