@@ -28,13 +28,13 @@ pub struct Progress {
     current_volume: f64,
 }
 
-/// Controller for calculating `Progress` and maintaining a `TrackList` for a given `Player`.
+/// Controller for calculating `Progress` and maintaining a `TrackList` (if supported) for a given `Player`.
 ///
 /// Call the `tick` method to get the most current `Progress` data.
 #[derive(Debug)]
 pub struct ProgressTracker<'a> {
     player: &'a Player<'a>,
-    track_list: TrackList,
+    track_list: Option<TrackList>,
     interval: Duration,
     last_tick: Instant,
     last_progress: Progress,
@@ -59,7 +59,8 @@ pub struct ProgressTick<'a> {
     /// * Volume was decreased
     pub progress_changed: bool,
 
-    /// `true` if `TrackList` data changed.
+    /// `true` if `TrackList` data changed. This will always be `false` if player does not support
+    /// track lists.
     ///
     /// **Examples:**
     ///
@@ -74,7 +75,7 @@ pub struct ProgressTick<'a> {
 
     /// The current `TrackList` from the `ProgressTracker`. `track_list_changed` tells you if this was
     /// changed since the last tick.
-    pub track_list: &'a TrackList,
+    pub track_list: Option<&'a TrackList>,
 }
 
 /// Errors that can occur while refreshing progress.
@@ -106,7 +107,7 @@ impl<'a> ProgressTracker<'a> {
             interval: Duration::from_millis(u64::from(interval_ms)),
             last_tick: Instant::now(),
             last_progress: Progress::from_player(player)?,
-            track_list: player.get_track_list()?,
+            track_list: player.checked_get_track_list()?,
         })
     }
 
@@ -189,6 +190,7 @@ impl<'a> ProgressTracker<'a> {
     /// # use mpris::{PlayerFinder, TrackList};
     /// use mpris::ProgressTick;
     /// # fn render_track_list(_: &TrackList) { }
+    /// # fn render_track_list_unavailable() { }
     /// #
     /// # let player = PlayerFinder::new().unwrap().find_active().unwrap();
     /// #
@@ -199,7 +201,11 @@ impl<'a> ProgressTracker<'a> {
     ///     if player_quit {
     ///         break;
     ///     } else if track_list_changed {
-    ///         render_track_list(track_list);
+    ///         if let Some(list) = track_list {
+    ///             render_track_list(list);
+    ///         } else {
+    ///             render_track_list_unavailable();
+    ///         }
     ///     }
     /// }
     /// ```
@@ -238,19 +244,27 @@ impl<'a> ProgressTracker<'a> {
                     track_list_changed |= self.refresh_track_list();
                 }
                 MprisEvent::TrackListReplaced { ids } => {
-                    self.track_list.replace(ids.into_iter().collect());
+                    if let Some(ref mut list) = self.track_list {
+                        list.replace(ids.into_iter().collect());
+                    }
                     track_list_changed = true;
                 }
                 MprisEvent::TrackAdded { after_id, metadata } => {
-                    self.track_list.insert(&after_id, metadata);
+                    if let Some(ref mut list) = self.track_list {
+                        list.insert(&after_id, metadata);
+                    }
                     track_list_changed = true;
                 }
                 MprisEvent::TrackRemoved { id } => {
-                    self.track_list.remove(&id);
+                    if let Some(ref mut list) = self.track_list {
+                        list.remove(&id);
+                    }
                     track_list_changed = true;
                 }
                 MprisEvent::TrackMetadataChanged { id, metadata } => {
-                    self.track_list.update_metadata(&id, metadata);
+                    if let Some(ref mut list) = self.track_list {
+                        list.update_metadata(&id, metadata);
+                    }
                     track_list_changed = true;
                 }
             }
@@ -266,7 +280,7 @@ impl<'a> ProgressTracker<'a> {
         self.last_tick = Instant::now();
         ProgressTick {
             progress: &self.last_progress,
-            track_list: &self.track_list,
+            track_list: self.track_list.as_ref(),
             player_quit,
             progress_changed,
             track_list_changed,
@@ -283,7 +297,9 @@ impl<'a> ProgressTracker<'a> {
     /// Returns an error if the refresh failed.
     pub fn force_refresh(&mut self) -> Result<(), ProgressError> {
         self.last_progress = Progress::from_player(self.player)?;
-        self.track_list.reload(&self.player)?;
+        if let Some(ref mut list) = self.track_list {
+            list.reload(&self.player)?;
+        }
         Ok(())
     }
 
@@ -296,9 +312,12 @@ impl<'a> ProgressTracker<'a> {
     }
 
     fn refresh_track_list(&mut self) -> bool {
-        match self.track_list.reload(&self.player) {
-            Ok(_) => true,
-            Err(_) => false,
+        match self.track_list {
+            Some(ref mut list) => match list.reload(&self.player) {
+                Ok(_) => true,
+                Err(_) => false,
+            },
+            None => false,
         }
     }
 }

@@ -91,7 +91,7 @@ pub struct PlayerEvents<'a> {
     last_progress: Progress,
 
     /// Current tracklist of the player. Will be kept up to date.
-    track_list: TrackList,
+    track_list: Option<TrackList>,
 }
 
 impl<'a> PlayerEvents<'a> {
@@ -101,12 +101,12 @@ impl<'a> PlayerEvents<'a> {
             player,
             buffer: Vec::new(),
             last_progress: progress,
-            track_list: player.get_track_list()?,
+            track_list: player.checked_get_track_list()?,
         })
     }
 
-    pub fn track_list(&self) -> &TrackList {
-        &self.track_list
+    pub fn track_list(&self) -> Option<&TrackList> {
+        self.track_list.as_ref()
     }
 
     fn read_events(&mut self) -> Result<(), EventError> {
@@ -133,22 +133,29 @@ impl<'a> PlayerEvents<'a> {
                     reload_track_list = true;
                 }
                 MprisEvent::TrackListReplaced { ids } => {
-                    self.track_list
-                        .replace(ids.into_iter().map(TrackID::from).collect());
+                    if let Some(ref mut list) = self.track_list {
+                        list.replace(ids.into_iter().map(TrackID::from).collect());
+                    }
                     self.buffer.push(Event::TrackListReplaced);
                 }
                 MprisEvent::TrackAdded { after_id, metadata } => {
                     if let Some(id) = metadata.track_id() {
-                        self.track_list.insert(&after_id, metadata);
+                        if let Some(ref mut list) = self.track_list {
+                            list.insert(&after_id, metadata);
+                        }
                         self.buffer.push(Event::TrackAdded(id));
                     }
                 }
                 MprisEvent::TrackRemoved { id } => {
-                    self.track_list.remove(&id);
+                    if let Some(ref mut list) = self.track_list {
+                        list.remove(&id);
+                    }
                     self.buffer.push(Event::TrackRemoved(id));
                 }
                 MprisEvent::TrackMetadataChanged { id, metadata } => {
-                    self.track_list.update_metadata(&id, metadata);
+                    if let Some(ref mut list) = self.track_list {
+                        list.update_metadata(&id, metadata);
+                    }
                     self.buffer.push(Event::TrackMetadataChanged(id));
                 }
             }
@@ -164,11 +171,16 @@ impl<'a> PlayerEvents<'a> {
             self.last_progress = progress;
         }
 
-        if reload_track_list {
-            let new_tracks = self.player.get_track_list()?;
-            if self.track_list != new_tracks {
-                self.track_list.replace(new_tracks);
-                self.buffer.push(Event::TrackListReplaced);
+        if reload_track_list && self.track_list.is_some() {
+            match self.player.checked_get_track_list()? {
+                Some(new_tracks) => {
+                    match self.track_list {
+                        Some(ref mut list) => list.replace(new_tracks),
+                        None => self.track_list = Some(new_tracks),
+                    }
+                    self.buffer.push(Event::TrackListReplaced);
+                }
+                _ => {}
             }
         }
 

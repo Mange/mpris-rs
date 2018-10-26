@@ -271,7 +271,9 @@ impl<'a> Player<'a> {
         .map_err(DBusError::from)
     }
 
-    /// Query the player for the current tracklist, if supported.
+    /// Query the player for the current tracklist.
+    ///
+    /// See `checked_get_track_list` to automatically detect players not supporting track lists.
     pub fn get_track_list(&self) -> Result<TrackList, DBusError> {
         use dbus::stdintf::org_freedesktop_dbus::Properties;
 
@@ -283,6 +285,18 @@ impl<'a> Player<'a> {
             "Tracks",
         ).map(TrackList::from)
         .map_err(DBusError::from)
+    }
+
+    /// Query the player for the current tracklist.
+    ///
+    /// See `get_track_list` and `has_track_list` if you want to manualy handle compatibility
+    /// checks.
+    pub fn checked_get_track_list(&self) -> Result<Option<TrackList>, DBusError> {
+        match self.has_track_list() {
+            Ok(true) => self.get_track_list().map(Some),
+            Ok(false) => Ok(None),
+            Err(err) => Err(err),
+        }
     }
 
     /// Query the player for metadata for the given `TrackID`s.
@@ -606,6 +620,17 @@ impl<'a> Player<'a> {
         } else {
             Ok(false)
         }
+    }
+
+    /// Queries the player to see if it has a TrackList or not.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `HasTracklist`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:HasTrackList)
+    /// and the `get_track_list` method.
+    pub fn has_track_list(&self) -> Result<bool, DBusError> {
+        self.connection_path()
+            .get_has_track_list()
+            .map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can be raised or not.

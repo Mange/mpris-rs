@@ -32,8 +32,16 @@ fn print_track_list() -> Result<(), Error> {
     );
 
     let track_list = player
-        .get_track_list()
+        .checked_get_track_list()
         .context("Could not get track list for player")?;
+
+    let track_list = match track_list {
+        Some(tracks) => tracks,
+        None => {
+            println!("Player does not support the TrackList interface.");
+            return Ok(());
+        }
+    };
 
     println!("Track list:\n");
     let iter = track_list

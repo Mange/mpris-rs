@@ -204,11 +204,13 @@ impl<'a> App<'a> {
         // if no event took place.
         if progress_changed || track_list_changed || should_refresh {
             let current_track_id = progress.metadata().track_id();
-            let next_track = find_next_track(current_track_id, track_list, &self.player);
             clear_screen(&mut self.screen);
             print_instructions(&mut self.screen, self.player);
             print_playback_info(&mut self.screen, progress);
-            print_track_list(&mut self.screen, track_list, next_track);
+            if let Some(tracks) = track_list {
+                let next_track = find_next_track(current_track_id, tracks, &self.player);
+                print_track_list(&mut self.screen, tracks, next_track);
+            }
             print_progress_bar(&mut self.screen, progress, supports_position);
         } else if supports_position {
             clear_progress_bar(&mut self.screen);
