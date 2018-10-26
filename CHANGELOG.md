@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - A full implementation of all properties and methods on the
   `org.mpris.MediaPlayer2` interface.
 - Support for the `Seeked` signal in the blocking `PlayerEvents` iterator.
+- Support for getting the player's TrackList.
+- Support for TrackList signals in `PlayerEvents` iterator and `ProgressTracker`.
+- Support for loading `Metadata` for a specific `TrackID`.
 
 ### Removed
 
