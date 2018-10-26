@@ -213,7 +213,7 @@ impl<'a> PlayerEvents<'a> {
 }
 
 fn is_different_float(a: f64, b: f64) -> bool {
-    (a - b).abs() < ::std::f64::EPSILON
+    (a - b).abs() >= ::std::f64::EPSILON
 }
 
 impl<'a> Iterator for PlayerEvents<'a> {

@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Compilation warnings caused by newer Rust versions (up to 1.28) have been
   fixed.
 - `Player::set_volume` is fixed (always set to 0 previously)
+- Detection of volume and playback rate changes using `PlayerEvents` iterator now works.
 
 ### Added
 
