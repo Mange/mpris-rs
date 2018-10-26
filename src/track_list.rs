@@ -322,6 +322,12 @@ impl TrackList {
     }
 }
 
+impl PartialEq<TrackList> for TrackList {
+    fn eq(&self, other: &TrackList) -> bool {
+        self.ids.eq(&other.ids)
+    }
+}
+
 impl Iterator for MetadataIter {
     type Item = Metadata;
 

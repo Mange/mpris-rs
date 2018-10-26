@@ -113,6 +113,7 @@ impl<'a> PlayerEvents<'a> {
         self.player.process_events_blocking_until_received();
 
         let mut new_progress: Option<Progress> = None;
+        let mut reload_track_list = false;
 
         for event in self.player.pending_events().into_iter() {
             match event {
@@ -129,8 +130,7 @@ impl<'a> PlayerEvents<'a> {
                     self.buffer.push(Event::Seeked { position_in_us })
                 }
                 MprisEvent::TrackListPropertiesChanged => {
-                    self.track_list.reload(&self.player)?;
-                    self.buffer.push(Event::TrackListReplaced);
+                    reload_track_list = true;
                 }
                 MprisEvent::TrackListReplaced { ids } => {
                     self.track_list
@@ -157,11 +157,19 @@ impl<'a> PlayerEvents<'a> {
         if let Some(progress) = new_progress {
             self.detect_playback_status_events(&progress);
             self.detect_loop_status_events(&progress);
-            self.detect_shuffle_events(&progress);
+            reload_track_list |= self.detect_shuffle_events(&progress);
             self.detect_volume_events(&progress);
             self.detect_playback_rate_events(&progress);
             self.detect_metadata_events(&progress);
             self.last_progress = progress;
+        }
+
+        if reload_track_list {
+            let new_tracks = self.player.get_track_list()?;
+            if self.track_list != new_tracks {
+                self.track_list.replace(new_tracks);
+                self.buffer.push(Event::TrackListReplaced);
+            }
         }
 
         Ok(())
@@ -183,10 +191,13 @@ impl<'a> PlayerEvents<'a> {
         }
     }
 
-    fn detect_shuffle_events(&mut self, new_progress: &Progress) {
+    fn detect_shuffle_events(&mut self, new_progress: &Progress) -> bool {
         let status = new_progress.shuffle();
         if self.last_progress.shuffle() != status {
             self.buffer.push(Event::ShuffleToggled(status));
+            true
+        } else {
+            false
         }
     }
 
