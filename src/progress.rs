@@ -224,18 +224,23 @@ impl<'a> ProgressTracker<'a> {
         // Process events that are queued up for us
         for event in self.player.pending_events().into_iter() {
             match event {
-                MprisEvent::PlayerQuit => player_quit = true,
+                MprisEvent::PlayerQuit => {
+                    player_quit = true;
+                    break;
+                }
                 MprisEvent::PlayerPropertiesChanged | MprisEvent::Seeked { .. } => {
-                    // TODO: Right now the track list and the progress are always reloaded at the same
-                    // times. Processing events should separate them and tell you which ones needs to be
-                    // refreshed instead.
-                    if !progress_changed && !player_quit {
+                    if !progress_changed {
                         progress_changed |= self.refresh();
                     }
-                    track_list_changed |= progress_changed;
+                }
+                MprisEvent::TrackListPropertiesChanged => {
+                    if !track_list_changed {
+                        let _ = self.track_list.reload(self.player);
+                        track_list_changed = true;
+                    }
                 }
                 MprisEvent::TrackListReplaced { ids } => {
-                    self.track_list = TrackList::from(ids);
+                    self.track_list.replace(ids.into_iter().collect());
                     track_list_changed = true;
                 }
                 MprisEvent::TrackAdded { after_id, metadata } => {

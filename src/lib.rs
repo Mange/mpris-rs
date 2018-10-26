@@ -60,7 +60,7 @@ mod pooled_connection;
 mod progress;
 mod track_list;
 
-pub use event::Event;
+pub use event::{Event, EventError};
 pub use find::{FindingError, PlayerFinder};
 pub use metadata::{Metadata, Value as MetadataValue, ValueKind as MetadataValueKind};
 pub use player::Player;

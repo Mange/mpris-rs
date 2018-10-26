@@ -185,6 +185,13 @@ impl PooledConnection {
                     .or_default()
                     .push(MprisEvent::Seeked { position_in_us });
             }
+            MprisMessage::TrackListPropertiesChanged { unique_name } => {
+                let mut events = self.events.borrow_mut();
+                events
+                    .entry(unique_name)
+                    .or_default()
+                    .push(MprisEvent::TrackListPropertiesChanged);
+            }
             MprisMessage::TrackListReplaced {
                 unique_name,
                 ids,
@@ -272,6 +279,7 @@ pub(crate) enum MprisEvent {
     Seeked {
         position_in_us: u64,
     },
+    TrackListPropertiesChanged,
     TrackListReplaced {
         ids: Vec<TrackID>,
     },
@@ -301,6 +309,9 @@ pub(crate) enum MprisMessage {
     Seeked {
         unique_name: String,
         position_in_us: u64,
+    },
+    TrackListPropertiesChanged {
+        unique_name: String,
     },
     TrackListReplaced {
         unique_name: String,
@@ -363,7 +374,7 @@ impl MprisMessage {
                     .map(|member| member.to_string())
                     .unwrap_or_else(String::default);
                 return match member.as_ref() {
-                    "PropertiesChanged" => try_parse_player_properties_changed(message),
+                    "PropertiesChanged" => try_parse_properties_changed(message),
                     "Seeked" => try_parse_seeked(message),
                     "TrackListReplaced" => try_parse_tracklist_replaced(message),
                     "TrackAdded" => try_parse_track_added(message),
@@ -377,9 +388,19 @@ impl MprisMessage {
     }
 }
 
-fn try_parse_player_properties_changed(message: &Message) -> Option<MprisMessage> {
+fn try_parse_properties_changed(message: &Message) -> Option<MprisMessage> {
     let unique_name = message.sender().map(|bus_name| bus_name.to_string())?;
-    Some(MprisMessage::PlayerPropertiesChanged { unique_name })
+    let mut iter = message.iter_init();
+    let interface_name: String = iter.read().ok()?;
+    match interface_name.as_ref() {
+        "org.mpris.MediaPlayer2.Player" => {
+            Some(MprisMessage::PlayerPropertiesChanged { unique_name })
+        }
+        "org.mpris.MediaPlayer2.TrackList" => {
+            Some(MprisMessage::TrackListPropertiesChanged { unique_name })
+        }
+        _ => None,
+    }
 }
 
 fn try_parse_seeked(message: &Message) -> Option<MprisMessage> {

@@ -1,5 +1,6 @@
 use super::{
     DBusError, LoopStatus, Metadata, PlaybackStatus, Player, Progress, TrackID, TrackList,
+    TrackListError,
 };
 use pooled_connection::MprisEvent;
 
@@ -59,6 +60,18 @@ pub enum Event {
     TrackListReplaced,
 }
 
+/// Errors that can occur while processing event streams.
+#[derive(Debug, Fail)]
+pub enum EventError {
+    /// Something went wrong with the D-Bus communication. See the `DBusError` type.
+    #[fail(display = "D-Bus communication failed")]
+    DBusError(#[cause] DBusError),
+
+    /// Something went wrong with the track list. See the `TrackListError` type.
+    #[fail(display = "TrackList could not be refreshed")]
+    TrackListError(#[cause] TrackListError),
+}
+
 /// Iterator that blocks forever until the player has an event.
 ///
 /// Iteration will stop if player stops running. If the player was running before this iterator
@@ -96,7 +109,7 @@ impl<'a> PlayerEvents<'a> {
         &self.track_list
     }
 
-    fn read_events(&mut self) -> Result<(), DBusError> {
+    fn read_events(&mut self) -> Result<(), EventError> {
         self.player.process_events_blocking_until_received();
 
         let mut new_progress: Option<Progress> = None;
@@ -115,8 +128,13 @@ impl<'a> PlayerEvents<'a> {
                 MprisEvent::Seeked { position_in_us } => {
                     self.buffer.push(Event::Seeked { position_in_us })
                 }
+                MprisEvent::TrackListPropertiesChanged => {
+                    self.track_list.reload(&self.player)?;
+                    self.buffer.push(Event::TrackListReplaced);
+                }
                 MprisEvent::TrackListReplaced { ids } => {
-                    self.track_list = ids.into_iter().map(TrackID::from).collect();
+                    self.track_list
+                        .replace(ids.into_iter().map(TrackID::from).collect());
                     self.buffer.push(Event::TrackListReplaced);
                 }
                 MprisEvent::TrackAdded { after_id, metadata } => {
@@ -199,7 +217,7 @@ fn is_different_float(a: f64, b: f64) -> bool {
 }
 
 impl<'a> Iterator for PlayerEvents<'a> {
-    type Item = Result<Event, DBusError>;
+    type Item = Result<Event, EventError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         while self.buffer.is_empty() {
@@ -216,5 +234,17 @@ impl<'a> Iterator for PlayerEvents<'a> {
 
         let event = self.buffer.remove(0);
         Some(Ok(event))
+    }
+}
+
+impl From<TrackListError> for EventError {
+    fn from(error: TrackListError) -> EventError {
+        EventError::TrackListError(error)
+    }
+}
+
+impl From<DBusError> for EventError {
+    fn from(error: DBusError) -> EventError {
+        EventError::DBusError(error)
     }
 }

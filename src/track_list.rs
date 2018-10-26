@@ -74,6 +74,12 @@ impl<'a> From<dbus::Path<'a>> for TrackID {
     }
 }
 
+impl<'a> From<&'a TrackID> for TrackID {
+    fn from(id: &'a TrackID) -> Self {
+        TrackID(id.0.clone())
+    }
+}
+
 impl From<TrackID> for String {
     fn from(id: TrackID) -> String {
         id.0
@@ -123,10 +129,7 @@ impl TrackID {
 
 impl From<Vec<TrackID>> for TrackList {
     fn from(ids: Vec<TrackID>) -> Self {
-        TrackList {
-            metadata_cache: RefCell::new(HashMap::with_capacity(ids.len())),
-            ids,
-        }
+        TrackList::new(ids)
     }
 }
 
@@ -138,11 +141,24 @@ impl<'a> From<Vec<dbus::Path<'a>>> for TrackList {
 
 impl FromIterator<TrackID> for TrackList {
     fn from_iter<I: IntoIterator<Item = TrackID>>(iter: I) -> Self {
-        TrackList::from(iter.into_iter().collect::<Vec<_>>())
+        TrackList::new(iter.into_iter().collect())
     }
 }
 
 impl TrackList {
+    /// Construct a new TrackList without any existing cache.
+    pub fn new(ids: Vec<TrackID>) -> TrackList {
+        TrackList {
+            metadata_cache: RefCell::new(HashMap::with_capacity(ids.len())),
+            ids,
+        }
+    }
+
+    /// Get a list of TrackIDs that are part of this TrackList. The order matters.
+    pub fn ids(&self) -> Vec<&TrackID> {
+        self.ids.iter().collect()
+    }
+
     /// Returns the number of tracks on the list.
     pub fn len(&self) -> usize {
         self.ids.len()
@@ -184,6 +200,19 @@ impl TrackList {
         // borrow_mut should be safe as we have a &mut self, so no one else may have borrowed this
         // cache.
         self.metadata_cache.borrow_mut().remove(id);
+    }
+
+    /// Replace the contents with the contents of the provided list. Cache will be reused when
+    /// possible.
+    pub fn replace(&mut self, other: TrackList) {
+        self.ids = other.ids;
+
+        // borrow_mut should be safe as we have a &mut self and a owned value, so no one else may have borrowed this
+        // cache.
+        let mut self_cache = self.metadata_cache.borrow_mut();
+        let other_cache = other.metadata_cache.into_inner();
+        // Will overwrite existing keys = cache in "other_cache" will win on conflict.
+        self_cache.extend(other_cache.into_iter());
     }
 
     /// Updates the metadata cache for the given `TrackID`.
