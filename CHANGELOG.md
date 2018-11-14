@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - This library now only supports "latest stable" version of Rust. Hopefully
   this can be changed the day it is possible to mark minimum version in the
   crate manifest.
+- Some methods have a different error type to add more context to the errors
+  that can happen. See `TrackListError` and `ProgressError`.
+- `ProgressTracker::tick` now returns a `ProgressTick` instead of a `bool`.
+  - `ProgressTick` contains information about tracklist (if player supports
+    it), and what parts have changed.
 
 ### Fixed
 
@@ -28,9 +33,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - A full implementation of all properties and methods on the
   `org.mpris.MediaPlayer2` interface.
 - Support for the `Seeked` signal in the blocking `PlayerEvents` iterator.
-- Support for getting the player's TrackList.
-- Support for TrackList signals in `PlayerEvents` iterator and `ProgressTracker`.
+- Support for TrackList signals in `PlayerEvents` iterator.
+- A new `TrackList` struct, which keeps track of `Metadata` for tracks.
+  - `Progress` provides an up-to-date `TrackList` if the player supports it.
+  - You can manually maintain this for your `PlayerEvents` iterator if you wish.
 - Support for loading `Metadata` for a specific `TrackID`.
+- `TrackListError` is an error type for problems with tracklists.
+- `ProgressError` is an error type for problems with progress tracking.
 
 ### Removed
 
