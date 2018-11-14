@@ -355,12 +355,29 @@ impl<'a> Player<'a> {
     ///
     /// Use this if you want to monitor a player in order to show close-to-realtime information
     /// about it.
+    ///
+    /// It is built like a blocking "frame limiter" where it returns at an approximately fixed
+    /// interval with the most up-to-date information. It's mostly appropriate when trying to
+    /// render something like a progress bar, or information about the current track.
+    ///
+    /// See `Player::events` for an alternative approach.
     pub fn track_progress(&self, interval_ms: u32) -> Result<ProgressTracker, DBusError> {
         ProgressTracker::new(self, interval_ms)
     }
 
     /// Returns a `PlayerEvents` iterator, or an `DBusError` if there was a problem with the D-Bus
     /// connection to the player.
+    ///
+    /// This iterator will block until an event for the current player is emitted. This is a lot
+    /// more bare-bones than `Player::track_progress`, but it's also something that makes it easier
+    /// for you to translate events into your own application's domain events and only deal with
+    /// actual changes.
+    ///
+    /// You could implement your own progress tracker on top of this, but it's probably not
+    /// appropriate to render a live progress bar using this iterator as the progress bar will
+    /// remain frozen until the next event is emitted and the iterator returns.
+    ///
+    /// See `Player::track_progress` for an alternative approach.
     pub fn events(&self) -> Result<PlayerEvents, DBusError> {
         PlayerEvents::new(self)
     }
