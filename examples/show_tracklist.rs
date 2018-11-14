@@ -5,7 +5,7 @@ use failure::{Error, ResultExt};
 use mpris::PlayerFinder;
 
 fn main() {
-    match print_metadata() {
+    match print_track_list() {
         Ok(_) => {}
         Err(error) => {
             println!("Error: {}", error);
@@ -18,7 +18,7 @@ fn main() {
     }
 }
 
-fn print_metadata() -> Result<(), Error> {
+fn print_track_list() -> Result<(), Error> {
     let player_finder = PlayerFinder::new().context("Could not connect to D-Bus")?;
 
     let player = player_finder
@@ -31,11 +31,26 @@ fn print_metadata() -> Result<(), Error> {
         identity = player.identity(),
     );
 
-    let metadata = player
-        .get_metadata()
-        .context("Could not get metadata for player")?;
+    let track_list = player
+        .checked_get_track_list()
+        .context("Could not get track list for player")?;
 
-    println!("Metadata:\n{:#?}\n", metadata);
+    let track_list = match track_list {
+        Some(tracks) => tracks,
+        None => {
+            println!("Player does not support the TrackList interface.");
+            return Ok(());
+        }
+    };
+
+    println!("Track list:\n");
+    let iter = track_list
+        .metadata_iter(&player)
+        .context("Could not load metadata for tracks")?;
+
+    for metadata in iter {
+        println!("{:#?}", metadata);
+    }
 
     Ok(())
 }

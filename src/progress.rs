@@ -1,9 +1,10 @@
 use std::time::{Duration, Instant};
 
-use super::{DBusError, LoopStatus, PlaybackStatus};
+use super::{DBusError, LoopStatus, PlaybackStatus, TrackList, TrackListError};
 use extensions::DurationExtensions;
 use metadata::Metadata;
 use player::Player;
+use pooled_connection::MprisEvent;
 
 /// Struct containing information about current progress of a Player.
 ///
@@ -27,19 +28,70 @@ pub struct Progress {
     current_volume: f64,
 }
 
-/// Controller for calculating Progress for a given Player.
+/// Controller for calculating `Progress` and maintaining a `TrackList` (if supported) for a given `Player`.
 ///
-/// Call the `tick` method to get the most current Progress data.
+/// Call the `tick` method to get the most current `Progress` data.
 #[derive(Debug)]
 pub struct ProgressTracker<'a> {
     player: &'a Player<'a>,
+    track_list: Option<TrackList>,
     interval: Duration,
     last_tick: Instant,
     last_progress: Progress,
 }
 
+/// Return value of `ProgressTracker::tick`, which gives details about the latest refresh.
+#[derive(Debug)]
+pub struct ProgressTick<'a> {
+    /// `true` if `Player` quit. This likely means that the player is no longer running.
+    ///
+    /// If the player is no longer running, then fetching new data will not be possible,
+    /// so they will all be reused (`progress_changed` and `track_list_changed` should all be
+    /// `false`).
+    pub player_quit: bool,
+
+    /// `true` if `Progress` data changed (beyond the calculated `position`)
+    ///
+    /// **Examples:**
+    ///
+    /// * Playback status changed
+    /// * Metadata changed for the track
+    /// * Volume was decreased
+    pub progress_changed: bool,
+
+    /// `true` if `TrackList` data changed. This will always be `false` if player does not support
+    /// track lists.
+    ///
+    /// **Examples:**
+    ///
+    /// * Track was added
+    /// * Track was removed
+    /// * Metadata changed for a track
+    pub track_list_changed: bool,
+
+    /// The current `Progress` from the `ProgressTracker`. `progress_changed` tells you if this was
+    /// reused from the last tick or if it's a new one.
+    pub progress: &'a Progress,
+
+    /// The current `TrackList` from the `ProgressTracker`. `track_list_changed` tells you if this was
+    /// changed since the last tick.
+    pub track_list: Option<&'a TrackList>,
+}
+
+/// Errors that can occur while refreshing progress.
+#[derive(Debug, Fail)]
+pub enum ProgressError {
+    /// Something went wrong with the D-Bus communication. See the `DBusError` type.
+    #[fail(display = "D-Bus communication failed")]
+    DBusError(#[cause] DBusError),
+
+    /// Something went wrong with the track list. See the `TrackListError` type.
+    #[fail(display = "TrackList could not be refreshed")]
+    TrackListError(#[cause] TrackListError),
+}
+
 impl<'a> ProgressTracker<'a> {
-    /// Construct a new ProgressTracker for the provided Player.
+    /// Construct a new `ProgressTracker` for the provided `Player`.
     ///
     /// The `interval_ms` value is the desired time between ticks when calling the `tick` method.
     /// See `tick` for more information about that.
@@ -55,54 +107,63 @@ impl<'a> ProgressTracker<'a> {
             interval: Duration::from_millis(u64::from(interval_ms)),
             last_tick: Instant::now(),
             last_progress: Progress::from_player(player)?,
+            track_list: player.checked_get_track_list()?,
         })
     }
 
-    /// Returns a (`Progress`, `bool`) pair at each interval, or as close to each interval as
-    /// possible.
+    /// Returns a `ProgressTick` at each interval, or as close to each interval as possible.
     ///
-    /// The `bool` is `true` if the `Progress` was refreshed, or `false` if the old `Progress` was
-    /// reused.
+    /// The returned struct contains borrows of the current data along with booleans telling you if
+    /// the underlying data changed or not. See `ProgressTick` for more information about that.
     ///
     /// If there is time left until the next interval window, then the tracker will process DBus
-    /// events to determine if something changed (and potentially perform a full refresh). If there
-    /// is no time left, then the previous `Progress` will be returned again.
+    /// events to determine if something changed (and potentially perform a full refresh of the
+    /// data). If there is no time left, then the previous data will be reused.
     ///
-    /// If refreshing failed for some reason the old `Progress` will be returned.
+    /// If refreshing failed for some reason the old data will be reused.
     ///
     /// It is recommended to call this inside a loop to maintain your progress display.
     ///
-    /// ## On reusing `Progress` instances
+    /// ## On reusing data
     ///
     /// `Progress` can be reused until something about the player changes, like track or playback
     /// status. As long as nothing changes, `Progress` can accurately determine playback position
     /// from timing data.
     ///
-    /// You can use the returned `bool` in order to perform similar optimizations yourself, as a
-    /// `false` value means that nothing (except potentially `position`) changed.
+    /// In addition, `TrackList` will maintain a cache of track metadata so as long as the list
+    /// remains static if should be cheap to read from it.
+    ///
+    /// You can use the `bool`s in the `ProgressTick` to perform optimizations as they tell you if
+    /// any data has changed. If all of them are `false` you don't have to treat any of the data as
+    /// dirty.
+    ///
+    /// The calculated `Progress::position` might still change depending on the player state, so if
+    /// you want to show the track position you might still want to refresh that part.
     ///
     /// # Examples
     ///
-    /// Simple progress tracker:
+    /// Simple progress bar of track position:
     ///
     /// ```rust,no_run
     /// # use mpris::{PlayerFinder, Metadata, PlaybackStatus, Progress};
+    /// use mpris::ProgressTick;
     /// # use std::time::Duration;
     /// # fn update_progress_bar(_: Duration) { }
     /// # let player = PlayerFinder::new().unwrap().find_active().unwrap();
     /// #
-    /// // Refresh every 100ms
+    /// // Re-render progress bar every 100ms
     /// let mut progress_tracker = player.track_progress(100).unwrap();
     /// loop {
-    ///     let (progress, _) = progress_tracker.tick();
+    ///     let ProgressTick {progress, ..} = progress_tracker.tick();
     ///     update_progress_bar(progress.position());
     /// }
     /// ```
     ///
-    /// Using the `was_refreshed` `bool`:
+    /// Using the `progress_changed` `bool`:
     ///
     /// ```rust,no_run
     /// # use mpris::PlayerFinder;
+    /// use mpris::ProgressTick;
     /// # use std::time::Duration;
     /// # fn update_progress_bar(_: Duration) { }
     /// # fn reset_progress_bar(_: Duration, _: Option<Duration>) { }
@@ -113,8 +174,8 @@ impl<'a> ProgressTracker<'a> {
     /// // Refresh every 100ms
     /// let mut progress_tracker = player.track_progress(100).unwrap();
     /// loop {
-    ///     let (progress, was_changed) = progress_tracker.tick();
-    ///     if was_changed {
+    ///     let ProgressTick {progress, progress_changed, ..} = progress_tracker.tick();
+    ///     if progress_changed {
     ///         update_track_title(progress.metadata().title());
     ///         reset_progress_bar(progress.position(), progress.length());
     ///     } else {
@@ -122,8 +183,37 @@ impl<'a> ProgressTracker<'a> {
     ///     }
     /// }
     /// ```
-    pub fn tick(&mut self) -> (&Progress, bool) {
-        let mut did_refresh = false;
+    ///
+    /// Showing only the track list until the player quits:
+    ///
+    /// ```rust,no_run
+    /// # use mpris::{PlayerFinder, TrackList};
+    /// use mpris::ProgressTick;
+    /// # fn render_track_list(_: &TrackList) { }
+    /// # fn render_track_list_unavailable() { }
+    /// #
+    /// # let player = PlayerFinder::new().unwrap().find_active().unwrap();
+    /// #
+    /// // Refresh every 10 seconds
+    /// let mut progress_tracker = player.track_progress(10_000).unwrap();
+    /// loop {
+    ///     let ProgressTick {track_list, track_list_changed, player_quit, ..} = progress_tracker.tick();
+    ///     if player_quit {
+    ///         break;
+    ///     } else if track_list_changed {
+    ///         if let Some(list) = track_list {
+    ///             render_track_list(list);
+    ///         } else {
+    ///             render_track_list_unavailable();
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    pub fn tick(&mut self) -> ProgressTick {
+        let mut player_quit = false;
+        let mut progress_changed = false;
+        let mut track_list_changed = false;
+        let old_shuffle = self.last_progress.shuffle;
 
         // Calculate time left until we're expected to return with new data.
         let time_left = self
@@ -133,46 +223,102 @@ impl<'a> ProgressTracker<'a> {
 
         // Refresh events if we're not late.
         if time_left > Duration::from_millis(0) {
-            self.player.connection().process_events_blocking(time_left);
+            self.player
+                .connection()
+                .process_events_blocking_for(time_left);
         }
 
-        // If we got a new event since the last time we ticked, then reload fresh data.
-        if self
-            .player
-            .connection()
-            .is_bus_updated_after(self.player.unique_name(), &self.last_tick)
-        {
-            did_refresh = self.refresh();
+        // Process events that are queued up for us
+        for event in self.player.pending_events().into_iter() {
+            match event {
+                MprisEvent::PlayerQuit => {
+                    player_quit = true;
+                    break;
+                }
+                MprisEvent::PlayerPropertiesChanged | MprisEvent::Seeked { .. } => {
+                    if !progress_changed {
+                        progress_changed |= self.refresh_player();
+                    }
+                }
+                MprisEvent::TrackListPropertiesChanged => {
+                    track_list_changed |= self.refresh_track_list();
+                }
+                MprisEvent::TrackListReplaced { ids } => {
+                    if let Some(ref mut list) = self.track_list {
+                        list.replace(ids.into_iter().collect());
+                    }
+                    track_list_changed = true;
+                }
+                MprisEvent::TrackAdded { after_id, metadata } => {
+                    if let Some(ref mut list) = self.track_list {
+                        list.insert(&after_id, metadata);
+                    }
+                    track_list_changed = true;
+                }
+                MprisEvent::TrackRemoved { id } => {
+                    if let Some(ref mut list) = self.track_list {
+                        list.remove(&id);
+                    }
+                    track_list_changed = true;
+                }
+                MprisEvent::TrackMetadataChanged { old_id, metadata } => {
+                    if let Some(ref mut list) = self.track_list {
+                        list.replace_track_metadata(&old_id, metadata);
+                    }
+                    track_list_changed = true;
+                }
+            }
         }
 
-        (self.progress(), did_refresh)
+        if old_shuffle != self.last_progress.shuffle {
+            // Shuffle changed, which means that the tracklist is likely to have been changed too.
+            // Do a reload, even if track_list_changed was true so the correct order is loaded even
+            // if only a in-place change took place before.
+            track_list_changed |= self.refresh_track_list();
+        }
+
+        self.last_tick = Instant::now();
+        ProgressTick {
+            progress: &self.last_progress,
+            track_list: self.track_list.as_ref(),
+            player_quit,
+            progress_changed,
+            track_list_changed,
+        }
     }
 
     /// Force a refresh right now.
     ///
-    /// This will ignore the interval and perform a refresh anyway, storing the result as the last
-    /// `Progress` value.
+    /// This will ignore the interval and perform a refresh anyway. The new `Progress` will be
+    /// saved, and the `TrackList` will be refreshed.
     ///
     /// # Errors
     ///
     /// Returns an error if the refresh failed.
-    pub fn force_refresh(&mut self) -> Result<(), DBusError> {
-        Progress::from_player(self.player).map(|progress| {
-            self.last_progress = progress;
-        })
+    pub fn force_refresh(&mut self) -> Result<(), ProgressError> {
+        self.last_progress = Progress::from_player(self.player)?;
+        if let Some(ref mut list) = self.track_list {
+            list.reload(&self.player)?;
+        }
+        Ok(())
     }
 
-    fn progress(&mut self) -> &Progress {
-        self.last_tick = Instant::now();
-        &self.last_progress
-    }
-
-    fn refresh(&mut self) -> bool {
+    fn refresh_player(&mut self) -> bool {
         if let Ok(progress) = Progress::from_player(self.player) {
             self.last_progress = progress;
             return true;
         }
         false
+    }
+
+    fn refresh_track_list(&mut self) -> bool {
+        match self.track_list {
+            Some(ref mut list) => match list.reload(&self.player) {
+                Ok(_) => true,
+                Err(_) => false,
+            },
+            None => false,
+        }
     }
 }
 
@@ -273,6 +419,18 @@ impl Progress {
             _ => 0.0,
         };
         Duration::from_millis(elapsed_ms as u64)
+    }
+}
+
+impl From<TrackListError> for ProgressError {
+    fn from(error: TrackListError) -> ProgressError {
+        ProgressError::TrackListError(error)
+    }
+}
+
+impl From<DBusError> for ProgressError {
+    fn from(error: DBusError) -> ProgressError {
+        ProgressError::DBusError(error)
     }
 }
 

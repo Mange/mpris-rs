@@ -7,13 +7,13 @@ use std::time::Duration;
 
 use dbus::{BusName, ConnPath, Connection, Path};
 
-use super::{DBusError, LoopStatus, MetadataValue, PlaybackStatus, TrackID};
+use super::{DBusError, LoopStatus, MetadataValue, PlaybackStatus, TrackID, TrackList};
 use event::PlayerEvents;
 use extensions::DurationExtensions;
 use generated::OrgMprisMediaPlayer2;
 use generated::OrgMprisMediaPlayer2Player;
 use metadata::Metadata;
-use pooled_connection::PooledConnection;
+use pooled_connection::{MprisEvent, PooledConnection};
 use progress::ProgressTracker;
 
 pub(crate) const MPRIS2_PREFIX: &str = "org.mpris.MediaPlayer2.";
@@ -36,6 +36,7 @@ pub struct Player<'a> {
     identity: String,
     path: Path<'a>,
     timeout_ms: i32,
+    has_tracklist_interface: bool,
 }
 
 impl<'a> Player<'a> {
@@ -80,6 +81,12 @@ impl<'a> Player<'a> {
                 ))
             })?;
 
+        let has_tracklist_interface = {
+            let connection_path =
+                pooled_connection.with_path(bus_name.clone(), path.clone(), timeout_ms);
+            has_tracklist_interface(connection_path).unwrap_or(false)
+        };
+
         Ok(Player {
             connection: pooled_connection,
             bus_name,
@@ -87,6 +94,7 @@ impl<'a> Player<'a> {
             identity,
             path,
             timeout_ms,
+            has_tracklist_interface,
         })
     }
 
@@ -120,6 +128,11 @@ impl<'a> Player<'a> {
     /// This is usually the application's name, like `Spotify`.
     pub fn identity(&self) -> &str {
         &self.identity
+    }
+
+    /// Checks if the Player implements the `org.mpris.MediaPlayer2.TrackList` interface.
+    pub fn supports_track_lists(&self) -> bool {
+        self.has_tracklist_interface
     }
 
     /// Returns the player's `DesktopEntry` property, if supported.
@@ -184,10 +197,7 @@ impl<'a> Player<'a> {
     /// `mpris` library. You will have to manually retrieve it through D-Bus until implemented.
     ///
     /// See: [MPRIS2 specification about `SetPosition`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:SetPosition)
-    pub fn set_position<'id, ID>(&self, track_id: ID, position: &Duration) -> Result<(), DBusError>
-    where
-        ID: Into<TrackID<'id>>,
-    {
+    pub fn set_position(&self, track_id: TrackID, position: &Duration) -> Result<(), DBusError> {
         self.set_position_in_microseconds(track_id, DurationExtensions::as_micros(position))
     }
 
@@ -200,16 +210,13 @@ impl<'a> Player<'a> {
     /// `mpris` library. You will have to manually retrieve it through D-Bus until implemented.
     ///
     /// See: [MPRIS2 specification about `SetPosition`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:SetPosition)
-    pub fn set_position_in_microseconds<'id, ID>(
+    pub fn set_position_in_microseconds(
         &self,
-        track_id: ID,
+        track_id: TrackID,
         position_in_us: u64,
-    ) -> Result<(), DBusError>
-    where
-        ID: Into<TrackID<'id>>,
-    {
+    ) -> Result<(), DBusError> {
         self.connection_path()
-            .set_position(track_id.into().0, position_in_us as i64)
+            .set_position(track_id.as_path(), position_in_us as i64)
             .map_err(|e| e.into())
     }
 
@@ -277,16 +284,156 @@ impl<'a> Player<'a> {
         .map_err(DBusError::from)
     }
 
+    /// Query the player for the current tracklist.
+    ///
+    /// **Note:** It's more expensive to rebuild this each time rather than trying to keep the same
+    /// `TrackList` updated. See `TrackList::reload`.
+    ///
+    /// See `checked_get_track_list` to automatically detect players not supporting track lists.
+    pub fn get_track_list(&self) -> Result<TrackList, DBusError> {
+        use dbus::stdintf::org_freedesktop_dbus::Properties;
+
+        let connection_path = self.connection_path();
+
+        Properties::get::<Vec<Path>>(
+            &connection_path,
+            "org.mpris.MediaPlayer2.TrackList",
+            "Tracks",
+        ).map(TrackList::from)
+        .map_err(DBusError::from)
+    }
+
+    /// Query the player for the current tracklist.
+    ///
+    /// **Note:** It's more expensive to rebuild this each time rather than trying to keep the same
+    /// `TrackList` updated. See `TrackList::reload`.
+    ///
+    /// See `get_track_list` and `supports_track_lists` if you want to manually handle compatibility
+    /// checks.
+    pub fn checked_get_track_list(&self) -> Result<Option<TrackList>, DBusError> {
+        if self.supports_track_lists() {
+            self.get_track_list().map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Query the player to see if it allows changes to its TrackList.
+    ///
+    /// Will return `Err` if Player isn't supporting the `TrackList` interface.
+    ///
+    /// See `checked_can_edit_tracks` to automatically detect players not supporting track lists.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `CanEditTracks`](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Property:CanEditTracks).
+    pub fn can_edit_tracks(&self) -> Result<bool, DBusError> {
+        use dbus::stdintf::org_freedesktop_dbus::Properties;
+
+        let connection_path = self.connection_path();
+
+        Properties::get::<bool>(
+            &connection_path,
+            "org.mpris.MediaPlayer2.TrackList",
+            "CanEditTracks",
+        ).map_err(DBusError::from)
+    }
+
+    /// Query the player to see if it allows changes to its TrackList.
+    ///
+    /// Will return `false` if Player isn't supporting the `TrackList` interface.
+    ///
+    /// See `can_edit_tracks` and `supports_track_lists` if you want to manually handle
+    /// compatibility checks.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `CanEditTracks`](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Property:CanEditTracks).
+    pub fn checked_can_edit_tracks(&self) -> bool {
+        if self.supports_track_lists() {
+            self.can_edit_tracks().unwrap_or(false)
+        } else {
+            false
+        }
+    }
+
+    /// Query the player for metadata for the given `TrackID`s.
+    ///
+    /// This is used by the `TrackList` type to iterator metadata for the tracks in the track list.
+    ///
+    /// See
+    /// [MediaPlayer2.TrackList.GetTracksMetadata](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:GetTracksMetadata)
+    pub fn get_tracks_metadata(&self, track_ids: &[TrackID]) -> Result<Vec<Metadata>, DBusError> {
+        use dbus::arg::IterAppend;
+        let connection_path = self.connection_path();
+
+        let mut method = connection_path.method_call_with_args(
+            &"org.mpris.MediaPlayer2.TrackList".into(),
+            &"GetTracksMetadata".into(),
+            |msg| {
+                let mut i = IterAppend::new(msg);
+                i.append(track_ids.iter().map(|id| id.as_path()).collect::<Vec<_>>());
+            },
+        )?;
+        method.as_result()?;
+        let mut i = method.iter_init();
+        let metadata: Vec<::std::collections::HashMap<String, MetadataValue>> = i.read()?;
+
+        if metadata.len() == track_ids.len() {
+            Ok(metadata.into_iter().map(Metadata::from).collect())
+        } else {
+            Err(DBusError::Miscellaneous(format!(
+                "Expected {} tracks, but got {} tracks returned.",
+                track_ids.len(),
+                metadata.len()
+            )))
+        }
+    }
+
+    /// Query the player for metadata for a single `TrackID`.
+    ///
+    /// Note that `get_tracks_metadata` with a list is more effective if you have more than a
+    /// single `TrackID` to load.
+    ///
+    /// See
+    /// [MediaPlayer2.TrackList.GetTracksMetadata](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:GetTracksMetadata)
+    pub fn get_track_metadata(&self, track_id: &TrackID) -> Result<Metadata, DBusError> {
+        self.get_tracks_metadata(&[track_id.clone()])
+            .and_then(|mut result| {
+                result.pop().map(Ok).unwrap_or_else(|| {
+                    Err(DBusError::Miscellaneous(format!(
+                        "Player gave no Metadata for {}",
+                        track_id
+                    )))
+                })
+            })
+    }
+
     /// Returns a new `ProgressTracker` for the player.
     ///
     /// Use this if you want to monitor a player in order to show close-to-realtime information
     /// about it.
+    ///
+    /// It is built like a blocking "frame limiter" where it returns at an approximately fixed
+    /// interval with the most up-to-date information. It's mostly appropriate when trying to
+    /// render something like a progress bar, or information about the current track.
+    ///
+    /// See `Player::events` for an alternative approach.
     pub fn track_progress(&self, interval_ms: u32) -> Result<ProgressTracker, DBusError> {
         ProgressTracker::new(self, interval_ms)
     }
 
     /// Returns a `PlayerEvents` iterator, or an `DBusError` if there was a problem with the D-Bus
     /// connection to the player.
+    ///
+    /// This iterator will block until an event for the current player is emitted. This is a lot
+    /// more bare-bones than `Player::track_progress`, but it's also something that makes it easier
+    /// for you to translate events into your own application's domain events and only deal with
+    /// actual changes.
+    ///
+    /// You could implement your own progress tracker on top of this, but it's probably not
+    /// appropriate to render a live progress bar using this iterator as the progress bar will
+    /// remain frozen until the next event is emitted and the iterator returns.
+    ///
+    /// See `Player::track_progress` for an alternative approach.
     pub fn events(&self) -> Result<PlayerEvents, DBusError> {
         PlayerEvents::new(self)
     }
@@ -808,9 +955,15 @@ impl<'a> Player<'a> {
     /// Other player events will also be recorded, but will not cause this function to return. Note
     /// that this will block forever if player is not running. Make sure to check that the player
     /// is running before calling this method!
-    pub(crate) fn process_events_blocking_until_dirty(&self) {
-        self.connection
-            .process_events_blocking_until_dirty(&self.unique_name);
+    pub(crate) fn process_events_blocking_until_received(&self) {
+        while !self.connection.has_pending_events(&self.unique_name) {
+            self.connection.process_events_blocking_until_received();
+        }
+    }
+
+    /// Return any events that are pending (for this player) on the connection.
+    pub(crate) fn pending_events(&self) -> Vec<MprisEvent> {
+        self.connection.pending_events(&self.unique_name)
     }
 }
 
@@ -825,5 +978,18 @@ fn handle_optional_property<T>(result: Result<T, dbus::Error>) -> Result<Option<
         }
     }
 
-    result.map(|v| Some(v)).map_err(|e| e.into())
+    result.map(Some).map_err(|e| e.into())
+}
+
+/// Checks if the Player implements the `org.mpris.MediaPlayer2.TrackList` interface.
+fn has_tracklist_interface(connection: ConnPath<&Connection>) -> Result<bool, DBusError> {
+    // Get the introspection XML and look for the substring instead of parsing the XML. Yeah,
+    // pretty dirty, but it's also a lot faster and doesn't require a huge XML library as a
+    // dependency either.
+    //
+    // It's probably accurate enough.
+
+    use dbus::stdintf::OrgFreedesktopDBusIntrospectable;
+    let xml: String = connection.introspect()?;
+    Ok(xml.contains("org.mpris.MediaPlayer2.TrackList"))
 }

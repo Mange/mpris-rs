@@ -2,16 +2,17 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use dbus::{BusName, ConnPath, Connection, Member, Message, Path};
+use dbus::{BusName, ConnPath, Connection, Message, Path};
 
 use extensions::DurationExtensions;
+use metadata::{Metadata, Value};
 use player::MPRIS2_PATH;
+use track_list::TrackID;
 
 #[derive(Debug)]
 pub(crate) struct PooledConnection {
     connection: Connection,
-    last_tick: Instant,
-    last_event: RefCell<HashMap<String, Instant>>,
+    events: RefCell<HashMap<String, Vec<MprisEvent>>>,
 }
 
 const GET_NAME_OWNER_TIMEOUT: i32 = 100; // ms
@@ -19,8 +20,7 @@ const NAME_HAS_OWNER_TIMEOUT: i32 = 100; // ms
 
 impl PooledConnection {
     pub(crate) fn new(connection: Connection) -> Self {
-        // Subscribe to events that relate to players. See `is_watched_message` below for more
-        // details.
+        // Subscribe to events that relate to players. See `MprisMessage` below for details.
         let _ = connection.add_match(
             "interface='org.freedesktop.DBus.Properties',member='PropertiesChanged',path='/org/mpris/MediaPlayer2'",
         );
@@ -28,12 +28,14 @@ impl PooledConnection {
             "interface='org.mpris.MediaPlayer2.Player',member='Seeked',path='/org/mpris/MediaPlayer2'",
         );
         let _ = connection.add_match(
+            "interface='org.mpris.MediaPlayer2.TrackList',path='/org/mpris/MediaPlayer2'",
+        );
+        let _ = connection.add_match(
             "type='signal',sender='org.freedesktop.DBus',interface='org.freedesktop.DBus',member='NameOwnerChanged'",
         );
         PooledConnection {
             connection,
-            last_tick: Instant::now(),
-            last_event: RefCell::new(HashMap::new()),
+            events: RefCell::new(HashMap::new()),
         }
     }
 
@@ -57,7 +59,7 @@ impl PooledConnection {
             "org.freedesktop.DBus",
             "GetNameOwner",
         ).unwrap()
-            .append1(bus_name.into());
+        .append1(bus_name.into());
 
         self.connection
             .send_with_reply_and_block(get_name_owner, GET_NAME_OWNER_TIMEOUT)
@@ -72,7 +74,7 @@ impl PooledConnection {
             "org.freedesktop.DBus",
             "NameHasOwner",
         ).unwrap()
-            .append1(bus_name.into());
+        .append1(bus_name.into());
 
         self.connection
             .send_with_reply_and_block(name_has_owner, NAME_HAS_OWNER_TIMEOUT)
@@ -80,22 +82,31 @@ impl PooledConnection {
             .and_then(|reply| reply.get1())
     }
 
-    /// Returns `true` is an event has been recorded for the given bus name, after the given
-    /// instant.
+    /// Returns `true` if the given bus name has any pending events waiting to be processed.
     ///
-    /// If no event have been seen at all for the given bus name, or the last event was on or
-    /// before the provided instant then `false` will be returned.
-    pub(crate) fn is_bus_updated_after(&self, bus_name: &str, after: &Instant) -> bool {
-        self.last_event
-            .borrow()
-            .get(bus_name)
-            .map(|updated_at| updated_at > after)
+    /// If you want to actually act on the messages, use `pending_events`.
+    pub(crate) fn has_pending_events(&self, bus_name: &str) -> bool {
+        self.events
+            .try_borrow()
+            .ok()
+            .map(|map| map.contains_key(bus_name))
             .unwrap_or(false)
     }
 
-    pub(crate) fn process_events_blocking(&self, duration: Duration) {
-        // Try to read messages util time is up. Keep going with smaller and smaller windows until
-        // our time is up.
+    /// Removes all pending events from a bus' queue and returns them.
+    ///
+    /// If you want to non-destructively check if a bus has anything queued, use
+    /// `has_pending_events`.
+    pub(crate) fn pending_events(&self, bus_name: &str) -> Vec<MprisEvent> {
+        self.events
+            .try_borrow_mut()
+            .ok()
+            .and_then(|mut events| events.remove(bus_name))
+            .unwrap_or_default()
+    }
+
+    /// Process events in a blocking fashion until the deadline/timebox `Duration` runs out.
+    pub(crate) fn process_events_blocking_for(&self, duration: Duration) {
         let start = Instant::now();
 
         while start.elapsed() < duration {
@@ -103,98 +114,130 @@ impl PooledConnection {
                 .checked_sub(start.elapsed())
                 .map(|d| DurationExtensions::as_millis(&d))
                 .unwrap_or(0);
+
             // Don't bother if we have very little time left
             if ms_left < 2 {
                 break;
             }
+
             if let Some(message) = self
                 .connection
                 .incoming(ms_left as u32)
-                .find(PooledConnection::is_watched_message)
+                .flat_map(MprisMessage::try_parse)
+                .next()
             {
-                self.process_message(&message);
+                self.process_message(message);
             }
         }
     }
 
-    /// Block until a MPRIS2 event for the given unique bus name is detected, or the bus disappears
-    /// (the program exits).
-    ///
-    /// Events for other buses will also be recorded, but the method will not return until a
-    /// matching one has been found or the bus disappears.
-    pub(crate) fn process_events_blocking_until_dirty(&self, unique_name: &str) {
-        // mpris2 library must have a timeout, but since this function calls it in a loop it
-        // doesn't really matter what limit we set.
-        const LOOP_INTERVAL_MS: u32 = 1000;
-        let start = Instant::now();
-
+    /// Process events in a blocking fashion until any new event is found.
+    pub(crate) fn process_events_blocking_until_received(&self) {
+        // Loop will repeat every <internal> milliseconds, just waiting for new events to appear.
+        let loop_interval = 5000; // ms
         loop {
-            for message in self
+            if let Some(message) = self
                 .connection
-                .incoming(LOOP_INTERVAL_MS)
-                .filter(PooledConnection::is_watched_message)
+                .incoming(loop_interval)
+                .flat_map(MprisMessage::try_parse)
+                .next()
             {
-                self.process_message(&message);
-                if self.is_bus_updated_after(unique_name, &start) {
-                    return;
+                self.process_message(message);
+                return;
+            }
+        }
+    }
+
+    /// Takes a message and processes it appropriately. Returns the affected bus name, and a borrow
+    /// to the generated MprisEvent, if applicable.
+    fn process_message(&self, message: MprisMessage) {
+        let mut events = match self.events.try_borrow_mut() {
+            Ok(mut val) => val,
+            Err(_) => {
+                // Drop the message. This is a better evil than triggering a panic inside a library
+                // like this.
+                return;
+            }
+        };
+
+        match message {
+            MprisMessage::NameOwnerChanged {
+                new_owner,
+                old_owner,
+            } => {
+                // If `new_owner` is empty, then the client has quit.
+                if new_owner.is_empty() {
+                    // Clear out existing events, if any. Then add a "PlayerQuit" event on the
+                    // queue.
+                    events.insert(old_owner, vec![MprisEvent::PlayerQuit]);
                 }
             }
-        }
-    }
-
-    /// Returns true if a given D-Bus Message is a signal that is interesting for this library.
-    ///   1. MPRIS2 "Seeked" signal.
-    ///   2. D-Bus "PropertiesChanged" signal on a MPRIS2 path.
-    ///   3. D-Bus "NameOwnerChanged" signal, to detect when players disappear.
-    ///
-    /// Since the connection given to the PooledConnection could already have subscriptions that
-    /// are not listed in this file, it is important that messages are manually filtered before
-    /// acting on them.
-    fn is_watched_message(message: &Message) -> bool {
-        if message.sender() == Some(BusName::from("org.freedesktop.DBus")) {
-            message.member() == Some(Member::from("NameOwnerChanged"))
-        } else if message.path() == Some(Path::from(MPRIS2_PATH)) {
-            message.member() == Some(Member::from("PropertiesChanged"))
-                || message.member() == Some(Member::from("Seeked"))
-        } else {
-            false
-        }
-    }
-
-    /// Takes a message and updates the latest update time of the sender bus.
-    fn process_message(&self, message: &Message) {
-        if message.member() == Some(Member::from("NameOwnerChanged")) {
-            self.process_name_owner_changed_event(message).ok();
-        } else if let Some(unique_name) = message.sender() {
-            self.mark_bus_as_updated((*unique_name).to_owned());
-        }
-    }
-
-    fn process_name_owner_changed_event(
-        &self,
-        message: &Message,
-    ) -> Result<(), ::dbus::arg::TypeMismatchError> {
-        let mut iter = message.iter_init();
-        let name: String = iter.read()?;
-
-        if name.starts_with("org.mpris.") {
-            let old_name: String = iter.read()?;
-            let new_name: String = iter.read()?;
-
-            // If "new_name" is empty, then the bus disappeared. "Wake" any potentially waiting
-            // loop up.
-            if new_name.is_empty() {
-                self.mark_bus_as_updated(old_name);
+            MprisMessage::PlayerPropertiesChanged { unique_name } => {
+                events
+                    .entry(unique_name)
+                    .or_default()
+                    .push(MprisEvent::PlayerPropertiesChanged);
+            }
+            MprisMessage::Seeked {
+                unique_name,
+                position_in_us,
+            } => {
+                events
+                    .entry(unique_name)
+                    .or_default()
+                    .push(MprisEvent::Seeked { position_in_us });
+            }
+            MprisMessage::TrackListPropertiesChanged { unique_name } => {
+                events
+                    .entry(unique_name)
+                    .or_default()
+                    .push(MprisEvent::TrackListPropertiesChanged);
+            }
+            MprisMessage::TrackListReplaced {
+                unique_name,
+                ids,
+                current_id: _,
+            } => {
+                events
+                    .entry(unique_name)
+                    .or_default()
+                    .push(MprisEvent::TrackListReplaced {
+                        ids: ids.into_iter().map(TrackID::from).collect(),
+                    });
+            }
+            MprisMessage::TrackAdded {
+                unique_name,
+                after_id,
+                metadata,
+            } => {
+                events
+                    .entry(unique_name)
+                    .or_default()
+                    .push(MprisEvent::TrackAdded {
+                        after_id: after_id.into(),
+                        metadata: Metadata::from(metadata),
+                    });
+            }
+            MprisMessage::TrackRemoved { unique_name, id } => {
+                events
+                    .entry(unique_name)
+                    .or_default()
+                    .push(MprisEvent::TrackRemoved { id: id.into() });
+            }
+            MprisMessage::TrackMetadataChanged {
+                unique_name,
+                old_id,
+                metadata,
+            } => {
+                events
+                    .entry(unique_name)
+                    .or_default()
+                    .push(MprisEvent::TrackMetadataChanged {
+                        old_id: old_id.into(),
+                        metadata: Metadata::from(metadata),
+                    });
             }
         }
-
-        Ok(())
-    }
-
-    fn mark_bus_as_updated<S: Into<String>>(&self, bus_name: S) {
-        self.last_event
-            .borrow_mut()
-            .insert(bus_name.into(), Instant::now());
     }
 }
 
@@ -202,4 +245,199 @@ impl From<Connection> for PooledConnection {
     fn from(connection: Connection) -> Self {
         PooledConnection::new(connection)
     }
+}
+
+/// Event that a Player / ProgressTracker / Event iterator should react on. These are read via the
+/// bus and placed on queues for each player. When a component asks for pending events of a player
+/// they will be returned in the same order as they were emitted in.
+#[derive(Debug)]
+pub(crate) enum MprisEvent {
+    PlayerQuit,
+    PlayerPropertiesChanged,
+    Seeked {
+        position_in_us: u64,
+    },
+    TrackListPropertiesChanged,
+    TrackListReplaced {
+        ids: Vec<TrackID>,
+    },
+    TrackAdded {
+        after_id: TrackID,
+        metadata: Metadata,
+    },
+    TrackRemoved {
+        id: TrackID,
+    },
+    TrackMetadataChanged {
+        old_id: TrackID,
+        metadata: Metadata,
+    },
+}
+
+/// Easier to use representation of supported D-Bus messages.
+#[derive(Debug)]
+pub(crate) enum MprisMessage {
+    NameOwnerChanged {
+        new_owner: String,
+        old_owner: String,
+    },
+    PlayerPropertiesChanged {
+        unique_name: String,
+    },
+    Seeked {
+        unique_name: String,
+        position_in_us: u64,
+    },
+    TrackListPropertiesChanged {
+        unique_name: String,
+    },
+    TrackListReplaced {
+        unique_name: String,
+        ids: Vec<TrackID>,
+        current_id: TrackID,
+    },
+    TrackAdded {
+        unique_name: String,
+        after_id: TrackID,
+        metadata: HashMap<String, Value>,
+    },
+    TrackRemoved {
+        unique_name: String,
+        id: TrackID,
+    },
+    TrackMetadataChanged {
+        unique_name: String,
+        old_id: TrackID,
+        metadata: HashMap<String, Value>,
+    },
+}
+
+impl MprisMessage {
+    /// Tries to convert the provided D-Bus message into a MprisMessage; returns None if the
+    /// message was not supported.
+    fn try_parse(message: Message) -> Option<Self> {
+        MprisMessage::try_parse_name_owner_changed(&message)
+            .or_else(|| MprisMessage::try_parse_mpris_signal(&message))
+    }
+
+    /// Return a MprisMessage::NameOwnerChanged if the provided D-Bus message is a
+    /// org.freedesktop.DBus NameOwnerChanged message.
+    fn try_parse_name_owner_changed(message: &Message) -> Option<Self> {
+        match (message.sender(), message.member()) {
+            (Some(ref sender), Some(ref member))
+                if &**sender == "org.freedesktop.DBus" && &**member == "NameOwnerChanged" =>
+            {
+                let mut iter = message.iter_init();
+                let name: String = iter.read().ok()?;
+
+                if !name.starts_with("org.mpris.") {
+                    return None;
+                }
+                let old_owner: String = iter.read().ok()?;
+                let new_owner: String = iter.read().ok()?;
+                Some(MprisMessage::NameOwnerChanged {
+                    new_owner,
+                    old_owner,
+                })
+            }
+            _ => None,
+        }
+    }
+
+    fn try_parse_mpris_signal(message: &Message) -> Option<Self> {
+        if let Some(ref path) = message.path() {
+            if &**path == MPRIS2_PATH {
+                let member = message
+                    .member()
+                    .map(|member| member.to_string())
+                    .unwrap_or_else(String::default);
+                return match member.as_ref() {
+                    "PropertiesChanged" => try_parse_properties_changed(message),
+                    "Seeked" => try_parse_seeked(message),
+                    "TrackListReplaced" => try_parse_tracklist_replaced(message),
+                    "TrackAdded" => try_parse_track_added(message),
+                    "TrackRemoved" => try_parse_track_removed(message),
+                    "TrackMetadataChanged" => try_parse_track_metadata_changed(message),
+                    _ => None,
+                };
+            }
+        }
+        None
+    }
+}
+
+fn try_parse_properties_changed(message: &Message) -> Option<MprisMessage> {
+    let unique_name = message.sender().map(|bus_name| bus_name.to_string())?;
+    let mut iter = message.iter_init();
+    let interface_name: String = iter.read().ok()?;
+    match interface_name.as_ref() {
+        "org.mpris.MediaPlayer2.Player" => {
+            Some(MprisMessage::PlayerPropertiesChanged { unique_name })
+        }
+        "org.mpris.MediaPlayer2.TrackList" => {
+            Some(MprisMessage::TrackListPropertiesChanged { unique_name })
+        }
+        _ => None,
+    }
+}
+
+fn try_parse_seeked(message: &Message) -> Option<MprisMessage> {
+    let unique_name = message.sender().map(|bus_name| bus_name.to_string())?;
+    let mut iter = message.iter_init();
+    let position_in_us: u64 = iter.read().ok()?;
+
+    Some(MprisMessage::Seeked {
+        unique_name,
+        position_in_us,
+    })
+}
+
+fn try_parse_tracklist_replaced(message: &Message) -> Option<MprisMessage> {
+    let unique_name = message.sender().map(|bus_name| bus_name.to_string())?;
+    let mut iter = message.iter_init();
+    let ids: Vec<Path> = iter.read().ok()?;
+    let current_id: Path = iter.read().ok()?;
+
+    Some(MprisMessage::TrackListReplaced {
+        unique_name,
+        ids: ids.into_iter().map(TrackID::from).collect(),
+        current_id: TrackID::from(current_id),
+    })
+}
+
+fn try_parse_track_added(message: &Message) -> Option<MprisMessage> {
+    let unique_name = message.sender().map(|bus_name| bus_name.to_string())?;
+    let mut iter = message.iter_init();
+    let metadata: HashMap<String, Value> = iter.read().ok()?;
+    let after_id: Path = iter.read().ok()?;
+
+    Some(MprisMessage::TrackAdded {
+        unique_name,
+        metadata,
+        after_id: TrackID::from(after_id),
+    })
+}
+
+fn try_parse_track_removed(message: &Message) -> Option<MprisMessage> {
+    let unique_name = message.sender().map(|bus_name| bus_name.to_string())?;
+    let mut iter = message.iter_init();
+    let id: Path = iter.read().ok()?;
+
+    Some(MprisMessage::TrackRemoved {
+        unique_name,
+        id: TrackID::from(id),
+    })
+}
+
+fn try_parse_track_metadata_changed(message: &Message) -> Option<MprisMessage> {
+    let unique_name = message.sender().map(|bus_name| bus_name.to_string())?;
+    let mut iter = message.iter_init();
+    let old_id: Path = iter.read().ok()?;
+    let metadata: HashMap<String, Value> = iter.read().ok()?;
+
+    Some(MprisMessage::TrackMetadataChanged {
+        unique_name,
+        old_id: TrackID::from(old_id),
+        metadata,
+    })
 }

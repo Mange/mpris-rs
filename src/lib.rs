@@ -1,7 +1,12 @@
 #![warn(missing_docs)]
 #![deny(
-    missing_debug_implementations, missing_copy_implementations, trivial_casts,
-    trivial_numeric_casts, unsafe_code, unstable_features, unused_import_braces,
+    missing_debug_implementations,
+    missing_copy_implementations,
+    trivial_casts,
+    trivial_numeric_casts,
+    unsafe_code,
+    unstable_features,
+    unused_import_braces,
     unused_qualifications
 )]
 
@@ -53,12 +58,14 @@ mod metadata;
 mod player;
 mod pooled_connection;
 mod progress;
+mod track_list;
 
-pub use event::Event;
+pub use event::{Event, EventError};
 pub use find::{FindingError, PlayerFinder};
 pub use metadata::{Metadata, Value as MetadataValue, ValueKind as MetadataValueKind};
 pub use player::Player;
-pub use progress::{Progress, ProgressTracker};
+pub use progress::{Progress, ProgressError, ProgressTick, ProgressTracker};
+pub use track_list::{TrackID, TrackList, TrackListError};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 #[allow(missing_docs)]
@@ -86,7 +93,10 @@ pub enum LoopStatus {
 
 /// `PlaybackStatus` had an invalid string value.
 #[derive(Fail, Debug)]
-#[fail(display = "PlaybackStatus must be one of Playing, Paused, Stopped, but was {}", _0)]
+#[fail(
+    display = "PlaybackStatus must be one of Playing, Paused, Stopped, but was {}",
+    _0
+)]
 pub struct InvalidPlaybackStatus(String);
 
 impl ::std::str::FromStr for PlaybackStatus {
@@ -106,7 +116,10 @@ impl ::std::str::FromStr for PlaybackStatus {
 
 /// `LoopStatus` had an invalid string value.
 #[derive(Fail, Debug)]
-#[fail(display = "LoopStatus must be one of None, Track, Playlist, but was {}", _0)]
+#[fail(
+    display = "LoopStatus must be one of None, Track, Playlist, but was {}",
+    _0
+)]
 pub struct InvalidLoopStatus(String);
 
 impl ::std::str::FromStr for LoopStatus {
@@ -129,34 +142,6 @@ impl LoopStatus {
             LoopStatus::Track => "Track",
             LoopStatus::Playlist => "Playlist",
         })
-    }
-}
-
-/// Represents [the MPRIS `Track_Id` type][track_id].
-///
-/// ```rust
-/// use mpris::TrackID;
-/// let no_track = TrackID::from("/org/mpris/MediaPlayer2/TrackList/NoTrack");
-/// ```
-///
-/// **Note:** There is currently no good way to retrieve values for this through the `mpris`
-/// library. You will have to manually retrieve them through D-Bus until implemented.
-///
-/// # Panics
-///
-/// Trying to construct a `TrackID` from a string that is not a valid D-Bus Path will result in a
-/// panic.
-///
-/// [track_id]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Simple-Type:Track_Id
-#[derive(Debug, Clone)]
-pub struct TrackID<'a>(pub(crate) dbus::Path<'a>);
-
-impl<'a, T> From<T> for TrackID<'a>
-where
-    T: Into<dbus::Path<'a>>,
-{
-    fn from(value: T) -> TrackID<'a> {
-        TrackID(value.into())
     }
 }
 
@@ -204,23 +189,5 @@ impl From<InvalidPlaybackStatus> for DBusError {
 impl From<InvalidLoopStatus> for DBusError {
     fn from(error: InvalidLoopStatus) -> Self {
         DBusError::EnumParseError(error.to_string())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    mod track_id {
-        use super::*;
-
-        #[test]
-        fn it_creates_track_ids() {
-            let _: TrackID = "/org/mpris/MediaPlayer2/TrackList/NoTrack".into();
-            let _: TrackID = TrackID::from("/org/mpris/MediaPlayer2/TrackList/NoTrack");
-
-            let _: TrackID =
-                TrackID::from(String::from("/org/mpris/MediaPlayer2/TrackList/NoTrack"));
-        }
     }
 }

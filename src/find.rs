@@ -5,7 +5,7 @@ use std::rc::Rc;
 use dbus::{arg, BusType, Connection, Message};
 
 use super::DBusError;
-use player::{MPRIS2_PATH, MPRIS2_PREFIX, Player, DEFAULT_TIMEOUT_MS};
+use player::{Player, DEFAULT_TIMEOUT_MS, MPRIS2_PATH, MPRIS2_PREFIX};
 use pooled_connection::PooledConnection;
 
 const LIST_NAMES_TIMEOUT_MS: i32 = 500;
@@ -61,7 +61,7 @@ impl PlayerFinder {
     }
 
     /// Find all available `Player`s in the connection.
-    pub fn find_all<'a>(&self) -> Result<Vec<Player<'a>>, FindingError> {
+    pub fn find_all<'b>(&self) -> Result<Vec<Player<'b>>, FindingError> {
         self.all_player_buses()
             .map_err(FindingError::from)?
             .into_iter()
@@ -72,8 +72,7 @@ impl PlayerFinder {
                     MPRIS2_PATH.into(),
                     DEFAULT_TIMEOUT_MS,
                 ).map_err(FindingError::from)
-            })
-            .collect()
+            }).collect()
     }
 
     /// Try to find the "active" player in the connection.
@@ -85,7 +84,7 @@ impl PlayerFinder {
     ///
     /// **NOTE:** Currently this method is very naive and just returns the first player. This
     /// behavior can change later without a major version change, so don't rely on that behavior.
-    pub fn find_active<'a>(&self) -> Result<Player<'a>, FindingError> {
+    pub fn find_active<'b>(&self) -> Result<Player<'b>, FindingError> {
         if let Some(bus_name) = self.active_player_bus()? {
             Player::for_pooled_connection(
                 Rc::clone(&self.connection),
@@ -120,7 +119,6 @@ impl PlayerFinder {
         let names: arg::Array<&str, _> = reply.read1().map_err(DBusError::from)?;
 
         Ok(names
-            .into_iter()
             .filter(|name| name.starts_with(MPRIS2_PREFIX))
             .map(|str_ref| str_ref.to_owned())
             .collect())

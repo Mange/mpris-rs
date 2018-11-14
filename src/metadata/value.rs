@@ -375,11 +375,10 @@ impl<'a> dbus::arg::Get<'a> for Value {
             ArgType::UInt64 => i.get::<u64>().map(Value::U64),
             ArgType::Variant => i.recurse(ArgType::Variant).and_then(|mut iter| iter.get()),
             ArgType::Invalid => unreachable!("Early return at the top of the method"),
-            ArgType::DictEntry
-            | ArgType::UnixFd
-            | ArgType::Signature
-            | ArgType::ObjectPath
-            | ArgType::Struct => Some(Value::Unsupported),
+            ArgType::ObjectPath => i.get::<dbus::Path>().map(|p| Value::String(p.to_string())),
+            ArgType::DictEntry | ArgType::UnixFd | ArgType::Signature | ArgType::Struct => {
+                Some(Value::Unsupported)
+            }
         }
     }
 }
@@ -435,6 +434,15 @@ mod tests {
         let string: Value = message.get1().unwrap();
         assert!(string.is_string());
         assert_eq!(string.as_str(), Some("Hello world!"));
+    }
+
+    #[test]
+    fn it_supports_object_paths_as_strings() {
+        let message = send_value_over_dbus(dbus::Path::from("/hello/world"));
+
+        let string: Value = message.get1().unwrap();
+        assert!(string.is_string());
+        assert_eq!(string.as_str(), Some("/hello/world"));
     }
 
     #[test]

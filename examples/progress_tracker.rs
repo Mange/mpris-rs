@@ -3,7 +3,7 @@ extern crate mpris;
 use std::io::{stdout, Write};
 use std::time::Duration;
 
-use mpris::{LoopStatus, Metadata, PlaybackStatus, PlayerFinder, Progress};
+use mpris::{LoopStatus, Metadata, PlaybackStatus, PlayerFinder, Progress, ProgressTick};
 
 fn reset_line() {
     print!("\r\x1b[K");
@@ -73,7 +73,7 @@ fn main() {
 
     let mut progress_tracker = player.track_progress(100).unwrap();
     loop {
-        let (progress, _did_refresh) = progress_tracker.tick();
+        let ProgressTick { progress, .. } = progress_tracker.tick();
 
         reset_line();
         print_playback_status(progress);

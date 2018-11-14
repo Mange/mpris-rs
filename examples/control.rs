@@ -5,7 +5,10 @@ use std::borrow::Cow;
 use std::io::{stdout, Stdout, Write};
 use std::time::Duration;
 
-use mpris::{LoopStatus, PlaybackStatus, Player, PlayerFinder, Progress, ProgressTracker};
+use mpris::{
+    LoopStatus, Metadata, PlaybackStatus, Player, PlayerFinder, Progress, ProgressTick,
+    ProgressTracker, TrackID, TrackList,
+};
 use termion::color;
 use termion::input::TermRead;
 use termion::raw::{IntoRawMode, RawTerminal};
@@ -83,7 +86,7 @@ impl Action {
 
     fn description(&self) -> &'static str {
         match *self {
-            Action::Quit => "Quit",
+            Action::Quit => "Quit example",
             Action::PlayPause => "Toggle play/pause",
             Action::Stop => "Stop",
             Action::Next => "Next media",
@@ -186,17 +189,28 @@ impl<'a> App<'a> {
 
     fn tick_progress_and_refresh(&mut self, should_refresh: bool) {
         let supports_position = self.supports_position();
-        let (progress, was_changed) = self.progress_tracker.tick();
+        let ProgressTick {
+            progress,
+            progress_changed,
+            track_list,
+            track_list_changed,
+            ..
+        } = self.progress_tracker.tick();
 
         // Dirty tracking to keep CPU usage lower. In case nothing happened since the last refresh,
         // only update the progress bar.
         //
         // If player doesn't support position handling, don't even try to refresh the progress bar
         // if no event took place.
-        if was_changed || should_refresh {
+        if progress_changed || track_list_changed || should_refresh {
+            let current_track_id = progress.metadata().track_id();
             clear_screen(&mut self.screen);
             print_instructions(&mut self.screen, self.player);
-            print_track_info(&mut self.screen, progress);
+            print_playback_info(&mut self.screen, progress);
+            if let Some(tracks) = track_list {
+                let next_track = find_next_track(current_track_id, tracks, &self.player);
+                print_track_list(&mut self.screen, tracks, next_track);
+            }
             print_progress_bar(&mut self.screen, progress, supports_position);
         } else if supports_position {
             clear_progress_bar(&mut self.screen);
@@ -213,7 +227,8 @@ impl<'a> App<'a> {
 
 fn print_instructions(screen: &mut Screen, player: &Player) {
     let bold = termion::style::Bold;
-    let nobold = termion::style::NoBold;
+    // Note: The NoBold variant enables double-underscore in Kitty terminal
+    let nobold = termion::style::Reset;
 
     write!(
         screen,
@@ -227,7 +242,7 @@ fn print_instructions(screen: &mut Screen, player: &Player) {
         let is_enabled = action.is_enabled(player);
 
         if is_enabled {
-            write!(screen, "{}", color::Fg(color::White)).unwrap();
+            write!(screen, "{}", color::Fg(color::Reset)).unwrap();
         } else {
             write!(screen, "{}", color::Fg(color::LightBlack)).unwrap();
         };
@@ -278,16 +293,7 @@ fn change_volume(player: &Player, diff: f64) -> Result<(), mpris::DBusError> {
     player.set_volume(new_volume)
 }
 
-fn print_track_info(screen: &mut Screen, progress: &Progress) {
-    let metadata = progress.metadata();
-
-    let artist_string: Cow<str> = metadata
-        .artists()
-        .map(|artists| Cow::Owned(artists.join(" + ")))
-        .unwrap_or_else(|| Cow::Borrowed("Unknown artist"));
-
-    let title_string = metadata.title().unwrap_or("Unkown title");
-
+fn print_playback_info(screen: &mut Screen, progress: &Progress) {
     let playback_string = match progress.playback_status() {
         PlaybackStatus::Playing => format!("{}▶", color::Fg(color::Green)),
         PlaybackStatus::Paused => format!("{}▮▮", color::Fg(color::LightBlack)),
@@ -295,13 +301,13 @@ fn print_track_info(screen: &mut Screen, progress: &Progress) {
     };
 
     let shuffle_string = if progress.shuffle() {
-        format!("{}🔀", color::Fg(color::Green))
+        format!("{}⮭⮯", color::Fg(color::Green))
     } else {
-        format!("{}🔀", color::Fg(color::LightBlack))
+        format!("{}🠯🠯", color::Fg(color::LightBlack))
     };
 
     let loop_string = match progress.loop_status() {
-        LoopStatus::None => format!("{}🔁", color::Fg(color::LightBlack)),
+        LoopStatus::None => format!("{}🠮", color::Fg(color::LightBlack)),
         LoopStatus::Playlist => format!("{}🔁", color::Fg(color::Green)),
         LoopStatus::Track => format!("{}🔂", color::Fg(color::Yellow)),
     };
@@ -310,18 +316,75 @@ fn print_track_info(screen: &mut Screen, progress: &Progress) {
 
     write!(
         screen,
-        "{playback} {shuffle} {loop} {color_reset} {blue}{bold}{artist}{nobold} - {title}{color_reset} {volume}\r\n",
+        "{playback} {shuffle} {loop} {color_reset} ",
         playback = playback_string,
         shuffle = shuffle_string,
         loop = loop_string,
-        volume = volume_string,
+        color_reset = color::Fg(color::Reset),
+    ).unwrap();
+    print_track_info(screen, progress.metadata());
+    write!(screen, " {volume}\r\n", volume = volume_string).unwrap();
+}
+
+fn print_track_info(screen: &mut Screen, track: &Metadata) {
+    let artist_string: Cow<str> = track
+        .artists()
+        .map(|artists| Cow::Owned(artists.join(" + ")))
+        .unwrap_or_else(|| Cow::Borrowed("Unknown artist"));
+
+    let title_string = track.title().unwrap_or("Unkown title");
+
+    write!(
+        screen,
+        "{blue}{bold}{artist}{reset}{blue} - {title}{color_reset}",
         blue = color::Fg(color::Blue),
         color_reset = color::Fg(color::Reset),
         bold = termion::style::Bold,
-        nobold = termion::style::NoBold,
+        // Note: The NoBold variant enables double-underscore in Kitty terminal
+        reset = termion::style::Reset,
         artist = artist_string,
         title = title_string,
     ).unwrap();
+}
+
+fn print_track_list(screen: &mut Screen, track_list: &TrackList, next_track: Option<Metadata>) {
+    if let Some(track) = next_track {
+        write!(
+            screen,
+            "{bold}Next:{reset} ",
+            bold = termion::style::Bold,
+            reset = termion::style::Reset,
+        ).unwrap();
+        print_track_info(screen, &track);
+        write!(screen, ", ").unwrap();
+    }
+    write!(
+        screen,
+        "{bold}{count}{reset} track(s) on list.\r\n",
+        count = track_list.len(),
+        bold = termion::style::Bold,
+        reset = termion::style::Reset,
+    ).unwrap();
+}
+
+fn find_next_track(
+    current_track_id: Option<TrackID>,
+    track_list: &TrackList,
+    player: &Player,
+) -> Option<Metadata> {
+    if let Some(current_id) = current_track_id {
+        track_list
+            .metadata_iter(player)
+            .ok()?
+            .skip_while(|track| match track.track_id() {
+                // Stops on current track
+                Some(id) => id != current_id,
+                None => false,
+            }).skip(1) // Skip one more to get the next one
+            .next()
+    } else {
+        None
+    }
 }
 
 fn print_progress_bar(screen: &mut Screen, progress: &Progress, supports_position: bool) {
