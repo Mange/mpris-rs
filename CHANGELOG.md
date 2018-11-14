@@ -40,6 +40,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Support for loading `Metadata` for a specific `TrackID`.
 - `TrackListError` is an error type for problems with tracklists.
 - `ProgressError` is an error type for problems with progress tracking.
+- `Player::can_edit_tracks`.
+- `Player::checked_can_edit_tracks`.
+- `Player::supports_track_lists`.
+- A new example called "Capabilities" that shows capabilities of running
+  players.
 
 ### Removed
 

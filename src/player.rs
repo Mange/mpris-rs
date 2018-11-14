@@ -36,6 +36,7 @@ pub struct Player<'a> {
     identity: String,
     path: Path<'a>,
     timeout_ms: i32,
+    has_tracklist_interface: bool,
 }
 
 impl<'a> Player<'a> {
@@ -80,6 +81,12 @@ impl<'a> Player<'a> {
                 ))
             })?;
 
+        let has_tracklist_interface = {
+            let connection_path =
+                pooled_connection.with_path(bus_name.clone(), path.clone(), timeout_ms);
+            has_tracklist_interface(connection_path).unwrap_or(false)
+        };
+
         Ok(Player {
             connection: pooled_connection,
             bus_name,
@@ -87,6 +94,7 @@ impl<'a> Player<'a> {
             identity,
             path,
             timeout_ms,
+            has_tracklist_interface,
         })
     }
 
@@ -120,6 +128,11 @@ impl<'a> Player<'a> {
     /// This is usually the application's name, like `Spotify`.
     pub fn identity(&self) -> &str {
         &self.identity
+    }
+
+    /// Checks if the Player implements the `org.mpris.MediaPlayer2.TrackList` interface.
+    pub fn supports_track_lists(&self) -> bool {
+        self.has_tracklist_interface
     }
 
     /// Returns the player's `DesktopEntry` property, if supported.
@@ -295,13 +308,50 @@ impl<'a> Player<'a> {
     /// **Note:** It's more expensive to rebuild this each time rather than trying to keep the same
     /// `TrackList` updated. See `TrackList::reload`.
     ///
-    /// See `get_track_list` and `has_track_list` if you want to manualy handle compatibility
+    /// See `get_track_list` and `supports_track_lists` if you want to manually handle compatibility
     /// checks.
     pub fn checked_get_track_list(&self) -> Result<Option<TrackList>, DBusError> {
-        match self.has_track_list() {
-            Ok(true) => self.get_track_list().map(Some),
-            Ok(false) => Ok(None),
-            Err(err) => Err(err),
+        if self.supports_track_lists() {
+            self.get_track_list().map(Some)
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Query the player to see if it allows changes to its TrackList.
+    ///
+    /// Will return `Err` if Player isn't supporting the `TrackList` interface.
+    ///
+    /// See `checked_can_edit_tracks` to automatically detect players not supporting track lists.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `CanEditTracks`](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Property:CanEditTracks).
+    pub fn can_edit_tracks(&self) -> Result<bool, DBusError> {
+        use dbus::stdintf::org_freedesktop_dbus::Properties;
+
+        let connection_path = self.connection_path();
+
+        Properties::get::<bool>(
+            &connection_path,
+            "org.mpris.MediaPlayer2.TrackList",
+            "CanEditTracks",
+        ).map_err(DBusError::from)
+    }
+
+    /// Query the player to see if it allows changes to its TrackList.
+    ///
+    /// Will return `false` if Player isn't supporting the `TrackList` interface.
+    ///
+    /// See `can_edit_tracks` and `supports_track_lists` if you want to manually handle
+    /// compatibility checks.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `CanEditTracks`](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Property:CanEditTracks).
+    pub fn checked_can_edit_tracks(&self) -> bool {
+        if self.supports_track_lists() {
+            self.can_edit_tracks().unwrap_or(false)
+        } else {
+            false
         }
     }
 
@@ -645,17 +695,6 @@ impl<'a> Player<'a> {
         }
     }
 
-    /// Queries the player to see if it has a TrackList or not.
-    ///
-    /// See: [MPRIS2 specification about
-    /// `HasTracklist`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:HasTrackList)
-    /// and the `get_track_list` method.
-    pub fn has_track_list(&self) -> Result<bool, DBusError> {
-        self.connection_path()
-            .get_has_track_list()
-            .map_err(|e| e.into())
-    }
-
     /// Queries the player to see if it can be raised or not.
     ///
     /// See: [MPRIS2 specification about
@@ -940,4 +979,17 @@ fn handle_optional_property<T>(result: Result<T, dbus::Error>) -> Result<Option<
     }
 
     result.map(Some).map_err(|e| e.into())
+}
+
+/// Checks if the Player implements the `org.mpris.MediaPlayer2.TrackList` interface.
+fn has_tracklist_interface(connection: ConnPath<&Connection>) -> Result<bool, DBusError> {
+    // Get the introspection XML and look for the substring instead of parsing the XML. Yeah,
+    // pretty dirty, but it's also a lot faster and doesn't require a huge XML library as a
+    // dependency either.
+    //
+    // It's probably accurate enough.
+
+    use dbus::stdintf::OrgFreedesktopDBusIntrospectable;
+    let xml: String = connection.introspect()?;
+    Ok(xml.contains("org.mpris.MediaPlayer2.TrackList"))
 }
