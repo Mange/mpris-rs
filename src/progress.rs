@@ -261,9 +261,9 @@ impl<'a> ProgressTracker<'a> {
                     }
                     track_list_changed = true;
                 }
-                MprisEvent::TrackMetadataChanged { id, metadata } => {
+                MprisEvent::TrackMetadataChanged { old_id, metadata } => {
                     if let Some(ref mut list) = self.track_list {
-                        list.update_metadata(&id, metadata);
+                        list.replace_track_metadata(&old_id, metadata);
                     }
                     track_list_changed = true;
                 }

@@ -226,14 +226,14 @@ impl PooledConnection {
             }
             MprisMessage::TrackMetadataChanged {
                 unique_name,
-                id,
+                old_id,
                 metadata,
             } => {
                 events
                     .entry(unique_name)
                     .or_default()
                     .push(MprisEvent::TrackMetadataChanged {
-                        id: id.into(),
+                        old_id: old_id.into(),
                         metadata: Metadata::from(metadata),
                     });
             }
@@ -269,7 +269,7 @@ pub(crate) enum MprisEvent {
         id: TrackID,
     },
     TrackMetadataChanged {
-        id: TrackID,
+        old_id: TrackID,
         metadata: Metadata,
     },
 }
@@ -307,7 +307,7 @@ pub(crate) enum MprisMessage {
     },
     TrackMetadataChanged {
         unique_name: String,
-        id: TrackID,
+        old_id: TrackID,
         metadata: HashMap<String, Value>,
     },
 }
@@ -432,12 +432,12 @@ fn try_parse_track_removed(message: &Message) -> Option<MprisMessage> {
 fn try_parse_track_metadata_changed(message: &Message) -> Option<MprisMessage> {
     let unique_name = message.sender().map(|bus_name| bus_name.to_string())?;
     let mut iter = message.iter_init();
-    let id: Path = iter.read().ok()?;
+    let old_id: Path = iter.read().ok()?;
     let metadata: HashMap<String, Value> = iter.read().ok()?;
 
     Some(MprisMessage::TrackMetadataChanged {
         unique_name,
-        id: TrackID::from(id),
+        old_id: TrackID::from(old_id),
         metadata,
     })
 }

@@ -215,17 +215,43 @@ impl TrackList {
         self_cache.extend(other_cache.into_iter());
     }
 
-    /// Updates the metadata cache for the given `TrackID`.
+    /// Adds/updates the metadata cache for a track (as identified by `Metadata::track_id`).
     ///
     /// The metadata will be added to the cache even if the `TrackID` isn't part of the list, but
     /// will be cleaned out again after the next cache cleanup unless the track in question have
     /// been added to the list before then.
-    pub fn update_metadata(&mut self, id: &TrackID, metadata: Metadata) {
-        // borrow_mut should be safe as we have a &mut self, so no one else may have borrowed this
-        // cache.
-        self.metadata_cache
-            .borrow_mut()
-            .insert(id.to_owned(), metadata);
+    ///
+    /// If provided metadata does not contain a `TrackID`, the metadata will be discarded.
+    pub fn add_metadata(&mut self, metadata: Metadata) {
+        if let Some(id) = metadata.track_id() {
+            self.change_metadata(|cache| cache.insert(id.to_owned(), metadata));
+        }
+    }
+
+    /// Replaces a track on the list with a new entry. The new metadata could contain a new track
+    /// ID, and will in that case replace the old ID on the tracklist.
+    ///
+    /// The new ID (which *might* be identical to the old ID) will be returned by this method.
+    ///
+    /// If the old ID cannot be found, the metadata will be discarded and `None` will be returned.
+    ///
+    /// If provided metadata does not contain a `TrackID`, the metadata will be discarded and
+    /// `None` will be returned.
+    pub fn replace_track_metadata(
+        &mut self,
+        old_id: &TrackID,
+        new_metadata: Metadata,
+    ) -> Option<TrackID> {
+        if let Some(new_id) = new_metadata.track_id() {
+            if let Some(index) = self.index_of_id(old_id) {
+                self.ids[index] = new_id.to_owned();
+                self.change_metadata(|cache| cache.insert(new_id.to_owned(), new_metadata));
+
+                return Some(new_id.to_owned());
+            }
+        }
+
+        None
     }
 
     /// Iterates the tracks in the tracklist, returning a tuple of TrackID and Metadata for that
@@ -295,6 +321,15 @@ impl TrackList {
         Ok(())
     }
 
+    /// Change metadata cache. As this requires a `&mut self`, the borrow is guaranteed to work.
+    fn change_metadata<T, F>(&mut self, f: F) -> T
+    where
+        F: FnOnce(&mut HashMap<TrackID, Metadata>) -> T,
+    {
+        let mut cache = self.metadata_cache.borrow_mut(); // Safe. &mut self reference.
+        f(&mut *cache)
+    }
+
     fn ids_without_cache(&self) -> Vec<&TrackID> {
         let cache = &*self.metadata_cache.borrow();
         self.ids
@@ -319,6 +354,14 @@ impl TrackList {
             }).collect();
 
         *cache = new_cache;
+    }
+
+    fn index_of_id(&self, id: &TrackID) -> Option<usize> {
+        self.ids
+            .iter()
+            .enumerate()
+            .find(|(_, item_id)| *item_id == id)
+            .map(|(index, _)| index)
     }
 }
 

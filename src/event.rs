@@ -54,7 +54,25 @@ pub enum Event {
     TrackRemoved(TrackID),
 
     /// A track on the TrackList had its metadata changed.
-    TrackMetadataChanged(TrackID),
+    ///
+    /// This could also mean that a entry on the playlist completely changed; including the ID.
+    TrackMetadataChanged {
+        /// The id of the track *before* the change.
+        ///
+        /// Only use this ID if you are keeping track of track IDs somewhere. The ID might no
+        /// longer be valid for the player, so loading metadata for it might fail.
+        ///
+        /// **Note:** This can be the same as the `new_id`.
+        old_id: TrackID,
+
+        /// The id of the track *after* the change.
+        ///
+        /// Use this ID if you intend to read metadata or anything else as the `old_id` may no
+        /// longer be valid.
+        ///
+        /// **Note:** This can be the same as the `old_id`.
+        new_id: TrackID,
+    },
 
     /// The track list was replaced.
     TrackListReplaced,
@@ -152,11 +170,13 @@ impl<'a> PlayerEvents<'a> {
                     }
                     self.buffer.push(Event::TrackRemoved(id));
                 }
-                MprisEvent::TrackMetadataChanged { id, metadata } => {
+                MprisEvent::TrackMetadataChanged { old_id, metadata } => {
                     if let Some(ref mut list) = self.track_list {
-                        list.update_metadata(&id, metadata);
+                        if let Some(new_id) = list.replace_track_metadata(&old_id, metadata) {
+                            self.buffer
+                                .push(Event::TrackMetadataChanged { old_id, new_id });
+                        }
                     }
-                    self.buffer.push(Event::TrackMetadataChanged(id));
                 }
             }
         }
