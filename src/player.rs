@@ -273,6 +273,9 @@ impl<'a> Player<'a> {
 
     /// Query the player for the current tracklist.
     ///
+    /// **Note:** It's more expensive to rebuild this each time rather than trying to keep the same
+    /// `TrackList` updated. See `TrackList::reload`.
+    ///
     /// See `checked_get_track_list` to automatically detect players not supporting track lists.
     pub fn get_track_list(&self) -> Result<TrackList, DBusError> {
         use dbus::stdintf::org_freedesktop_dbus::Properties;
@@ -288,6 +291,9 @@ impl<'a> Player<'a> {
     }
 
     /// Query the player for the current tracklist.
+    ///
+    /// **Note:** It's more expensive to rebuild this each time rather than trying to keep the same
+    /// `TrackList` updated. See `TrackList::reload`.
     ///
     /// See `get_track_list` and `has_track_list` if you want to manualy handle compatibility
     /// checks.
