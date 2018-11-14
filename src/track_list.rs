@@ -155,8 +155,8 @@ impl TrackList {
     }
 
     /// Get a list of TrackIDs that are part of this TrackList. The order matters.
-    pub fn ids(&self) -> Vec<&TrackID> {
-        self.ids.iter().collect()
+    pub fn ids(&self) -> &[TrackID] {
+        self.ids.as_ref()
     }
 
     /// Returns the number of tracks on the list.
@@ -164,8 +164,12 @@ impl TrackList {
         self.ids.len()
     }
 
-    /// Insert a new track after another one. If the provided ID cannot be found on the list, it
-    /// will be inserted at the end.
+    /// Insert a new track (via its metadata) after another one. If the provided ID cannot be found
+    /// on the list, it will be inserted at the end.
+    ///
+    /// **NOTE:** This is *not* something that will affect a player's actual tracklist; this is
+    /// strictly for client-side representation. Use this if you want to maintain your own instance
+    /// of `TrackList` or to feed your code with test fixtures.
     pub fn insert(&mut self, after: &TrackID, metadata: Metadata) {
         let new_id = match metadata.track_id() {
             Some(val) => val,
@@ -173,13 +177,7 @@ impl TrackList {
             None => return,
         };
 
-        let index = self
-            .ids
-            .iter()
-            .enumerate()
-            .find(|(_, id)| *id == after)
-            .map(|(index, _)| index)
-            .unwrap_or_else(|| self.ids.len());
+        let index = self.index_of_id(after).unwrap_or_else(|| self.ids.len());
 
         // Vec::insert inserts BEFORE the given index, but we need to insert *after* the index.
         if index >= self.ids.len() {
@@ -188,31 +186,34 @@ impl TrackList {
             self.ids.insert(index + 1, new_id.clone());
         }
 
-        // borrow_mut should be safe as we have a &mut self, so no one else may have borrowed this
-        // cache.
-        self.metadata_cache.borrow_mut().insert(new_id, metadata);
+        self.change_metadata(|cache| cache.insert(new_id, metadata));
     }
 
     /// Removes a track from the list and metadata cache.
+    ///
+    /// **Note:** If the same id is present multiple times, all of them will be removed.
     pub fn remove(&mut self, id: &TrackID) {
         self.ids.retain(|existing_id| existing_id != id);
 
-        // borrow_mut should be safe as we have a &mut self, so no one else may have borrowed this
-        // cache.
-        self.metadata_cache.borrow_mut().remove(id);
+        self.change_metadata(|cache| cache.remove(id));
+    }
+
+    /// Clears the entire list and cache.
+    pub fn clear(&mut self) {
+        self.ids.clear();
+        self.change_metadata(|cache| cache.clear());
     }
 
     /// Replace the contents with the contents of the provided list. Cache will be reused when
     /// possible.
     pub fn replace(&mut self, other: TrackList) {
         self.ids = other.ids;
-
-        // borrow_mut should be safe as we have a &mut self and a owned value, so no one else may have borrowed this
-        // cache.
-        let mut self_cache = self.metadata_cache.borrow_mut();
         let other_cache = other.metadata_cache.into_inner();
-        // Will overwrite existing keys = cache in "other_cache" will win on conflict.
-        self_cache.extend(other_cache.into_iter());
+
+        self.change_metadata(|self_cache| {
+            // Will overwrite existing keys on conflicts; e.g. the newer cache wins.
+            self_cache.extend(other_cache.into_iter());
+        });
     }
 
     /// Adds/updates the metadata cache for a track (as identified by `Metadata::track_id`).
@@ -257,7 +258,8 @@ impl TrackList {
     /// Iterates the tracks in the tracklist, returning a tuple of TrackID and Metadata for that
     /// track.
     ///
-    /// If metadata loading fails, then a DBusError will be returned instead.
+    /// Metadata will be loaded from the provided player when not present in the metadata cache.
+    /// If metadata loading fails, then a DBusError will be returned instead of the iterator.
     pub fn metadata_iter(&self, player: &Player) -> Result<MetadataIter, TrackListError> {
         self.complete_cache(player)?;
         let metadata: HashMap<_, _> = self.metadata_cache.clone().into_inner();
@@ -291,8 +293,11 @@ impl TrackList {
             .iter()
             .cloned()
             .zip(player.get_tracks_metadata(&self.ids)?);
-        let mut cache = self.metadata_cache.borrow_mut();
+
+        // We only have a &self reference, so fail if we cannot borrow.
+        let mut cache = self.metadata_cache.try_borrow_mut()?;
         *cache = id_metadata.collect();
+
         Ok(())
     }
 
@@ -308,7 +313,9 @@ impl TrackList {
         if !ids.is_empty() {
             let metadata = player.get_tracks_metadata(&ids)?;
 
+            // We only have a &self reference, so fail if we cannot borrow.
             let mut cache = self.metadata_cache.try_borrow_mut()?;
+
             for info in metadata.into_iter() {
                 match info.track_id() {
                     Some(id) => {
@@ -339,21 +346,20 @@ impl TrackList {
     }
 
     fn clear_extra_cache(&mut self) {
-        // &mut self means that no other reference to self exists, so it should always be safe to
-        // mutably borrow the cache.
-        let mut cache = self.metadata_cache.borrow_mut();
+        let ids: Vec<TrackID> = self.ids().into_iter().map(TrackID::from).collect();
 
-        // For each id in the list, move the cache out into a new HashMap, then replace the old
-        // one with the new. Only ids on the list will therefore be present on the new list.
-        let new_cache: HashMap<TrackID, Metadata> = self
-            .ids
-            .iter()
-            .flat_map(|id| match cache.remove(&id) {
-                Some(value) => Some((id.clone(), value)),
-                None => None,
-            }).collect();
+        self.change_metadata(|cache| {
+            // For each id in the list, move the cache out into a new HashMap, then replace the old
+            // one with the new. Only ids on the list will therefore be present on the new list.
+            let new_cache: HashMap<TrackID, Metadata> = ids
+                .iter()
+                .flat_map(|id| match cache.remove(id) {
+                    Some(value) => Some((id.to_owned(), value)),
+                    None => None,
+                }).collect();
 
-        *cache = new_cache;
+            *cache = new_cache;
+        });
     }
 
     fn index_of_id(&self, id: &TrackID) -> Option<usize> {
@@ -468,6 +474,18 @@ mod tests {
                 list.ids_without_cache(),
                 vec![&track_id("/path/1"), &track_id("/path/3")],
             );
+        }
+
+        #[test]
+        fn it_inserts_at_end_on_empty() {
+            let mut list = TrackList::default();
+
+            let metadata = Metadata::new("/path/new");
+            list.insert(&track_id("/path/missing"), metadata);
+
+            assert_eq!(list.len(), 1);
+            assert_eq!(&list.ids, &[track_id("/path/new")]);
+            assert!(list.ids_without_cache().is_empty());
         }
     }
 }
