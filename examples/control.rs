@@ -86,7 +86,7 @@ impl Action {
 
     fn description(&self) -> &'static str {
         match *self {
-            Action::Quit => "Quit",
+            Action::Quit => "Quit example",
             Action::PlayPause => "Toggle play/pause",
             Action::Stop => "Stop",
             Action::Next => "Next media",
