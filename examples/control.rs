@@ -301,13 +301,13 @@ fn print_playback_info(screen: &mut Screen, progress: &Progress) {
     };
 
     let shuffle_string = if progress.shuffle() {
-        format!("{}🔀", color::Fg(color::Green))
+        format!("{}⮭⮯", color::Fg(color::Green))
     } else {
-        format!("{}🔀", color::Fg(color::LightBlack))
+        format!("{}🠯🠯", color::Fg(color::LightBlack))
     };
 
     let loop_string = match progress.loop_status() {
-        LoopStatus::None => format!("{}🔁", color::Fg(color::LightBlack)),
+        LoopStatus::None => format!("{}🠮", color::Fg(color::LightBlack)),
         LoopStatus::Playlist => format!("{}🔁", color::Fg(color::Green)),
         LoopStatus::Track => format!("{}🔂", color::Fg(color::Yellow)),
     };
@@ -376,7 +376,8 @@ fn find_next_track(
         track_list
             .metadata_iter(player)
             .ok()?
-            .skip_while(|track| match track.track_id() { // Stops on current track
+            .skip_while(|track| match track.track_id() {
+                // Stops on current track
                 Some(id) => id != current_id,
                 None => false,
             }).skip(1) // Skip one more to get the next one
