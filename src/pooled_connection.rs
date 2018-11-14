@@ -169,7 +169,6 @@ impl PooledConnection {
                 if new_owner.is_empty() {
                     // Clear out existing events, if any. Then add a "PlayerQuit" event on the
                     // queue.
-                    let mut events = self.events.borrow_mut();
                     events.insert(old_owner, vec![MprisEvent::PlayerQuit]);
                 }
             }
