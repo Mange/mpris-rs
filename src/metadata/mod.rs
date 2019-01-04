@@ -276,7 +276,11 @@ impl MetadataBuilder {
         for (key, value) in metadata {
             match key.as_ref() {
                 "mpris:trackid" => builder.track_id = cast_string(&value),
-                "mpris:length" => builder.length_in_microseconds = cast(&value.0).cloned(),
+                "mpris:length" => {
+                    builder.length_in_microseconds = cast(&value.0)
+                        .cloned()
+                        .or_else(|| cast::<i64>(&value.0).cloned().map(|v| v as u64))
+                }
                 "mpris:artUrl" => builder.art_url = cast_string(&value),
                 "xesam:title" => builder.title = cast_string(&value),
                 "xesam:albumArtist" => builder.album_artists = cast_string_vec(&value),
