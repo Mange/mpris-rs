@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   fixed.
 - `Player::set_volume` is fixed (always set to 0 previously)
 - Detection of volume and playback rate changes using `PlayerEvents` iterator now works.
+- Loading of length of a track now works in more clients. #40
 
 ### Added
 
