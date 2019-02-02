@@ -32,7 +32,7 @@ pub trait OrgMprisMediaPlayer2Player {
     fn set_rate(&self, value: f64) -> Result<(), Self::Err>;
     fn get_shuffle(&self) -> Result<bool, Self::Err>;
     fn set_shuffle(&self, value: bool) -> Result<(), Self::Err>;
-    fn get_metadata(&self) -> Result<::std::collections::HashMap<String, arg::Variant<Box<arg::RefArg>>>, Self::Err>;
+    fn get_metadata(&self) -> Result<::std::collections::HashMap<String, arg::Variant<Box<arg::RefArg + 'static>>>, Self::Err>;
     fn get_volume(&self) -> Result<f64, Self::Err>;
     fn set_volume(&self, value: f64) -> Result<(), Self::Err>;
     fn get_position(&self) -> Result<i64, Self::Err>;
@@ -50,72 +50,72 @@ impl<'a, C: ::std::ops::Deref<Target=dbus::Connection>> OrgMprisMediaPlayer2Play
     type Err = dbus::Error;
 
     fn next(&self) -> Result<(), Self::Err> {
-        let mut m = try!(self.method_call_with_args(&"org.mpris.MediaPlayer2.Player".into(), &"Next".into(), |_| {
-        }));
-        try!(m.as_result());
+        let mut m = self.method_call_with_args(&"org.mpris.MediaPlayer2.Player".into(), &"Next".into(), |_| {
+        })?;
+        m.as_result()?;
         Ok(())
     }
 
     fn previous(&self) -> Result<(), Self::Err> {
-        let mut m = try!(self.method_call_with_args(&"org.mpris.MediaPlayer2.Player".into(), &"Previous".into(), |_| {
-        }));
-        try!(m.as_result());
+        let mut m = self.method_call_with_args(&"org.mpris.MediaPlayer2.Player".into(), &"Previous".into(), |_| {
+        })?;
+        m.as_result()?;
         Ok(())
     }
 
     fn pause(&self) -> Result<(), Self::Err> {
-        let mut m = try!(self.method_call_with_args(&"org.mpris.MediaPlayer2.Player".into(), &"Pause".into(), |_| {
-        }));
-        try!(m.as_result());
+        let mut m = self.method_call_with_args(&"org.mpris.MediaPlayer2.Player".into(), &"Pause".into(), |_| {
+        })?;
+        m.as_result()?;
         Ok(())
     }
 
     fn play_pause(&self) -> Result<(), Self::Err> {
-        let mut m = try!(self.method_call_with_args(&"org.mpris.MediaPlayer2.Player".into(), &"PlayPause".into(), |_| {
-        }));
-        try!(m.as_result());
+        let mut m = self.method_call_with_args(&"org.mpris.MediaPlayer2.Player".into(), &"PlayPause".into(), |_| {
+        })?;
+        m.as_result()?;
         Ok(())
     }
 
     fn stop(&self) -> Result<(), Self::Err> {
-        let mut m = try!(self.method_call_with_args(&"org.mpris.MediaPlayer2.Player".into(), &"Stop".into(), |_| {
-        }));
-        try!(m.as_result());
+        let mut m = self.method_call_with_args(&"org.mpris.MediaPlayer2.Player".into(), &"Stop".into(), |_| {
+        })?;
+        m.as_result()?;
         Ok(())
     }
 
     fn play(&self) -> Result<(), Self::Err> {
-        let mut m = try!(self.method_call_with_args(&"org.mpris.MediaPlayer2.Player".into(), &"Play".into(), |_| {
-        }));
-        try!(m.as_result());
+        let mut m = self.method_call_with_args(&"org.mpris.MediaPlayer2.Player".into(), &"Play".into(), |_| {
+        })?;
+        m.as_result()?;
         Ok(())
     }
 
     fn seek(&self, offset: i64) -> Result<(), Self::Err> {
-        let mut m = try!(self.method_call_with_args(&"org.mpris.MediaPlayer2.Player".into(), &"Seek".into(), |msg| {
+        let mut m = self.method_call_with_args(&"org.mpris.MediaPlayer2.Player".into(), &"Seek".into(), |msg| {
             let mut i = arg::IterAppend::new(msg);
             i.append(offset);
-        }));
-        try!(m.as_result());
+        })?;
+        m.as_result()?;
         Ok(())
     }
 
     fn set_position(&self, track_id: dbus::Path, position: i64) -> Result<(), Self::Err> {
-        let mut m = try!(self.method_call_with_args(&"org.mpris.MediaPlayer2.Player".into(), &"SetPosition".into(), |msg| {
+        let mut m = self.method_call_with_args(&"org.mpris.MediaPlayer2.Player".into(), &"SetPosition".into(), |msg| {
             let mut i = arg::IterAppend::new(msg);
             i.append(track_id);
             i.append(position);
-        }));
-        try!(m.as_result());
+        })?;
+        m.as_result()?;
         Ok(())
     }
 
     fn open_uri(&self, uri: &str) -> Result<(), Self::Err> {
-        let mut m = try!(self.method_call_with_args(&"org.mpris.MediaPlayer2.Player".into(), &"OpenUri".into(), |msg| {
+        let mut m = self.method_call_with_args(&"org.mpris.MediaPlayer2.Player".into(), &"OpenUri".into(), |msg| {
             let mut i = arg::IterAppend::new(msg);
             i.append(uri);
-        }));
-        try!(m.as_result());
+        })?;
+        m.as_result()?;
         Ok(())
     }
 
@@ -135,7 +135,7 @@ impl<'a, C: ::std::ops::Deref<Target=dbus::Connection>> OrgMprisMediaPlayer2Play
         <Self as dbus::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.mpris.MediaPlayer2.Player", "Shuffle")
     }
 
-    fn get_metadata(&self) -> Result<::std::collections::HashMap<String, arg::Variant<Box<arg::RefArg>>>, Self::Err> {
+    fn get_metadata(&self) -> Result<::std::collections::HashMap<String, arg::Variant<Box<arg::RefArg + 'static>>>, Self::Err> {
         <Self as dbus::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.mpris.MediaPlayer2.Player", "Metadata")
     }
 
@@ -205,10 +205,10 @@ impl dbus::SignalArgs for OrgMprisMediaPlayer2PlayerSeeked {
     const NAME: &'static str = "Seeked";
     const INTERFACE: &'static str = "org.mpris.MediaPlayer2.Player";
     fn append(&self, i: &mut arg::IterAppend) {
-        (&self.position as &arg::RefArg).append(i);
+        arg::RefArg::append(&self.position, i);
     }
     fn get(&mut self, i: &mut arg::Iter) -> Result<(), arg::TypeMismatchError> {
-        self.position = try!(i.read());
+        self.position = i.read()?;
         Ok(())
     }
 }

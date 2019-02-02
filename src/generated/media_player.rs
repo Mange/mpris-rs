@@ -34,16 +34,16 @@ impl<'a, C: ::std::ops::Deref<Target=dbus::Connection>> OrgMprisMediaPlayer2 for
     type Err = dbus::Error;
 
     fn raise(&self) -> Result<(), Self::Err> {
-        let mut m = try!(self.method_call_with_args(&"org.mpris.MediaPlayer2".into(), &"Raise".into(), |_| {
-        }));
-        try!(m.as_result());
+        let mut m = self.method_call_with_args(&"org.mpris.MediaPlayer2".into(), &"Raise".into(), |_| {
+        })?;
+        m.as_result()?;
         Ok(())
     }
 
     fn quit(&self) -> Result<(), Self::Err> {
-        let mut m = try!(self.method_call_with_args(&"org.mpris.MediaPlayer2".into(), &"Quit".into(), |_| {
-        }));
-        try!(m.as_result());
+        let mut m = self.method_call_with_args(&"org.mpris.MediaPlayer2".into(), &"Quit".into(), |_| {
+        })?;
+        m.as_result()?;
         Ok(())
     }
 
