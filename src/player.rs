@@ -594,6 +594,56 @@ impl<'a> Player<'a> {
             .map_err(DBusError::from)
     }
 
+    /// Add a URI to the TrackList and optionally set it as current.
+    ///
+    /// It is placed after the specified TrackID, if supported by the player.
+    ///
+    /// Requires the player to implement the `TrackList` interface.
+    ///
+    /// See: [MPRIS2 specification about `AddTrack`](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:AddTrack)
+    pub fn add_track(
+        &self,
+        uri: &str,
+        after: &TrackID,
+        set_as_current: bool,
+    ) -> Result<(), DBusError> {
+        use generated::OrgMprisMediaPlayer2TrackList;
+
+        self.connection_path()
+            .add_track(uri, after.into(), set_as_current)
+            .map_err(DBusError::from)
+    }
+
+    /// Add a URI to the start of the TrackList and optionally set it as current.
+    ///
+    /// Requires the player to implement the `TrackList` interface.
+    ///
+    /// See: [MPRIS2 specification about `AddTrack`](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:AddTrack)
+    pub fn add_track_at_start(
+        &self,
+        uri: &str,
+        set_as_current: bool,
+    ) -> Result<(), DBusError> {
+        use generated::OrgMprisMediaPlayer2TrackList;
+
+        self.connection_path()
+            .add_track(uri, crate::track_list::NO_TRACK.into(), set_as_current)
+            .map_err(DBusError::from)
+    }
+
+    /// Remove an item from the TrackList.
+    ///
+    /// Requires the player to implement the `TrackList` interface.
+    ///
+    /// See: [MPRIS2 specification about `RemoveTrack`](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:RemoveTrack)
+    pub fn remove_track(&self, track_id: &TrackID) -> Result<(), DBusError> {
+        use generated::OrgMprisMediaPlayer2TrackList;
+
+        self.connection_path()
+            .remove_track(track_id.into())
+            .map_err(DBusError::from)
+    }
+
     /// Sends a `PlayPause` signal to the player, if the player indicates that it can pause.
     ///
     /// Returns a boolean to show if the signal was sent or not.

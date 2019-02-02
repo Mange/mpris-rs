@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use std::fmt;
 use std::iter::{FromIterator, IntoIterator};
 
+pub(crate) const NO_TRACK: &str = "/org/mpris/MediaPlayer2/TrackList/NoTrack";
+
 /// Represents [the MPRIS `Track_Id` type][track_id].
 ///
 /// ```rust
@@ -119,6 +121,20 @@ impl TrackID {
         } else {
             Ok(TrackID(id))
         }
+    }
+
+    /// Return a new TrackID that matches the MPRIS standard for the "No track" sentinel value.
+    ///
+    /// Some APIs takes this in order to signal a missing value for a track, for example by saying
+    /// that no specific track is playing, or that a track should be added at the start of the
+    /// list instead of after a specific track.
+    ///
+    /// The actual path is "/org/mpris/MediaPlayer2/TrackList/NoTrack".
+    ///
+    /// This value is only valid in some cases. Make sure to read the MPRIS specification before
+    /// you use this manually.
+    pub fn no_track() -> Self {
+        TrackID(NO_TRACK.into())
     }
 
     /// Returns a `&str` variant of the ID.

@@ -2,7 +2,7 @@ extern crate failure;
 extern crate mpris;
 
 use failure::{format_err, Error, ResultExt};
-use mpris::{Player, PlayerFinder};
+use mpris::{Player, PlayerFinder, TrackID};
 
 fn main() {
     match run() {
@@ -18,9 +18,17 @@ fn main() {
     }
 }
 
-fn run() -> Result<(), Error> {
+fn prompt_string(message: &str) -> Result<String, Error> {
     use std::io::stdin;
+    let mut answer = String::new();
 
+    println!("{}", message);
+    stdin().read_line(&mut answer)?;
+
+    Ok(String::from(answer.trim()))
+}
+
+fn run() -> Result<(), Error> {
     let player_finder = PlayerFinder::new().context("Could not connect to D-Bus")?;
 
     let player = player_finder
@@ -38,16 +46,14 @@ fn run() -> Result<(), Error> {
         return Ok(());
     }
 
-    let mut answer = String::new();
-
     loop {
-        println!("What to do? [q]uit, [g]oto, [l]ist >");
-        answer.clear();
-        stdin().read_line(&mut answer)?;
-        match answer.trim() {
+        let answer = prompt_string("What to do? [q]uit, [g]oto, [l]ist, [a]dd, [r]emove >")?;
+        match answer.as_str() {
             "q" | "Q" => break,
-            "l" | "L" => print_track_list(&player)?,
-            "g" | "G" => goto_track(&player)?,
+            "l" | "L" => print_track_list(&player).context("Failed to list tracks")?,
+            "g" | "G" => goto_track(&player).context("Failed to change track")?,
+            "a" | "A" => add_track(&player).context("Failed to add track")?,
+            "r" | "R" => remove_track(&player).context("Failed to remove track")?,
             _ => println!("I don't understand \"{}\"", answer),
         }
     }
@@ -57,8 +63,7 @@ fn run() -> Result<(), Error> {
 
 fn print_track_list(player: &Player) -> Result<(), Error> {
     let track_list = player
-        .get_track_list()
-        .context("Could not get track list for player")?;
+        .get_track_list()?;
 
     println!("Track list:\n");
     let iter = track_list
@@ -78,26 +83,56 @@ fn print_track_list(player: &Player) -> Result<(), Error> {
     Ok(())
 }
 
-fn goto_track(player: &Player) -> Result<(), Error> {
-    use std::io::stdin;
-
+fn select_track(player: &Player, lower_bound: usize) -> Result<Option<TrackID>, Error> {
     let track_list = player
         .get_track_list()
         .context("Could not get track list for player")?;
     let len = track_list.len();
-    println!("Select track index [1-{}, q] > ", len);
+    let answer = prompt_string(&format!("Select track index [{}-{}, q] > ", lower_bound, len))?;
 
-    let mut answer = String::new();
-    stdin().read_line(&mut answer)?;
-    let answer = answer.trim();
-
-    if answer != "q" {
-        let number: usize = answer.parse::<usize>().context("Not a valid number")?;
-        let track_id = track_list
-            .get(number.saturating_sub(1))
-            .ok_or_else(|| format_err!("Not a valid position"))?;
-        player.go_to(track_id).context("Failed to change track")?;
+    if answer.is_empty() || answer == "q" {
+        return Ok(None);
     }
 
-    Ok(())
+    let number: usize = answer.parse::<usize>().context("Not a valid number")?;
+    if number == 0 {
+        return Ok(None);
+    }
+
+    let track_id = track_list
+        .get(number - 1)
+        .ok_or_else(|| format_err!("Not a valid position"))?;
+
+    Ok(Some(track_id.clone()))
+}
+
+fn goto_track(player: &Player) -> Result<(), Error> {
+    match select_track(player, 1) {
+        Ok(Some(track_id)) => player.go_to(&track_id).map_err(Error::from),
+        Ok(None) => Ok(()),
+        Err(err) => Err(err).context("Failed to select track").map_err(Error::from),
+    }
+}
+
+fn remove_track(player: &Player) -> Result<(), Error> {
+    match select_track(player, 1) {
+        Ok(Some(track_id)) => player.remove_track(&track_id).map_err(Error::from),
+        Ok(None) => Ok(()),
+        Err(err) => Err(err).context("Failed to select track").map_err(Error::from),
+    }
+}
+
+fn add_track(player: &Player) -> Result<(), Error> {
+    println!("NOTE: To add local media, start with the \"file://\" protocol. E.x. \"file:///path/to/file.mp3\"");
+    let uri = prompt_string("Enter URI (or nothing to cancel) > ")?;
+    if uri.is_empty() {
+        return Ok(());
+    }
+
+    println!("Will be inserted after selected track. Select no track (0) to insert at the beginning.");
+    match select_track(player, 0) {
+        Ok(Some(track_id)) => player.add_track(&uri, &track_id, false).map_err(Error::from),
+        Ok(None) => player.add_track_at_start(&uri, false).map_err(Error::from),
+        Err(err) => Err(err).context("Failed to select track").map_err(Error::from),
+    }
 }
