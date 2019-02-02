@@ -313,10 +313,7 @@ impl<'a> ProgressTracker<'a> {
 
     fn refresh_track_list(&mut self) -> bool {
         match self.track_list {
-            Some(ref mut list) => match list.reload(&self.player) {
-                Ok(_) => true,
-                Err(_) => false,
-            },
+            Some(ref mut list) => list.reload(&self.player).is_ok(),
             None => false,
         }
     }

@@ -5,6 +5,8 @@ use std::collections::HashMap;
 use std::fmt;
 use std::iter::{FromIterator, IntoIterator};
 
+pub(crate) const NO_TRACK: &str = "/org/mpris/MediaPlayer2/TrackList/NoTrack";
+
 /// Represents [the MPRIS `Track_Id` type][track_id].
 ///
 /// ```rust
@@ -86,6 +88,12 @@ impl From<TrackID> for String {
     }
 }
 
+impl<'a> From<&'a TrackID> for dbus::Path<'a> {
+    fn from(id: &'a TrackID) -> dbus::Path<'a> {
+        id.as_path()
+    }
+}
+
 impl fmt::Display for TrackID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.0.fmt(f)
@@ -113,6 +121,20 @@ impl TrackID {
         } else {
             Ok(TrackID(id))
         }
+    }
+
+    /// Return a new TrackID that matches the MPRIS standard for the "No track" sentinel value.
+    ///
+    /// Some APIs takes this in order to signal a missing value for a track, for example by saying
+    /// that no specific track is playing, or that a track should be added at the start of the
+    /// list instead of after a specific track.
+    ///
+    /// The actual path is "/org/mpris/MediaPlayer2/TrackList/NoTrack".
+    ///
+    /// This value is only valid in some cases. Make sure to read the MPRIS specification before
+    /// you use this manually.
+    pub fn no_track() -> Self {
+        TrackID(NO_TRACK.into())
     }
 
     /// Returns a `&str` variant of the ID.
@@ -162,6 +184,16 @@ impl TrackList {
     /// Returns the number of tracks on the list.
     pub fn len(&self) -> usize {
         self.ids.len()
+    }
+
+    /// If the tracklist is empty or not.
+    pub fn is_empty(&self) -> bool {
+        self.ids.is_empty()
+    }
+
+    /// Return the TrackID of the index. Out-of-bounds will result in `None`.
+    pub fn get(&self, index: usize) -> Option<&TrackID> {
+        self.ids.get(index)
     }
 
     /// Insert a new track (via its metadata) after another one. If the provided ID cannot be found
@@ -317,11 +349,8 @@ impl TrackList {
             let mut cache = self.metadata_cache.try_borrow_mut()?;
 
             for info in metadata.into_iter() {
-                match info.track_id() {
-                    Some(id) => {
-                        cache.insert(id, info);
-                    }
-                    None => {}
+                if let Some(id) = info.track_id() {
+                    cache.insert(id, info);
                 }
             }
         }
@@ -346,7 +375,7 @@ impl TrackList {
     }
 
     fn clear_extra_cache(&mut self) {
-        let ids: Vec<TrackID> = self.ids().into_iter().map(TrackID::from).collect();
+        let ids: Vec<TrackID> = self.ids().iter().map(TrackID::from).collect();
 
         self.change_metadata(|cache| {
             // For each id in the list, move the cache out into a new HashMap, then replace the old
@@ -356,7 +385,8 @@ impl TrackList {
                 .flat_map(|id| match cache.remove(id) {
                     Some(value) => Some((id.to_owned(), value)),
                     None => None,
-                }).collect();
+                })
+                .collect();
 
             *cache = new_cache;
         });

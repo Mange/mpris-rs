@@ -1,5 +1,5 @@
 #![allow(unknown_lints)]
-#![allow(clippy)]
+#![allow(clippy::all)]
 #![allow(missing_debug_implementations,
         missing_copy_implementations,
         trivial_casts,
@@ -27,25 +27,25 @@ impl<'a, C: ::std::ops::Deref<Target=dbus::Connection>> OrgMprisMediaPlayer2Play
     type Err = dbus::Error;
 
     fn activate_playlist(&self, playlist_id: dbus::Path) -> Result<(), Self::Err> {
-        let mut m = try!(self.method_call_with_args(&"org.mpris.MediaPlayer2.Playlists".into(), &"ActivatePlaylist".into(), |msg| {
+        let mut m = self.method_call_with_args(&"org.mpris.MediaPlayer2.Playlists".into(), &"ActivatePlaylist".into(), |msg| {
             let mut i = arg::IterAppend::new(msg);
             i.append(playlist_id);
-        }));
-        try!(m.as_result());
+        })?;
+        m.as_result()?;
         Ok(())
     }
 
     fn get_playlists(&self, index: u32, max_count: u32, order: &str, reverse_order: bool) -> Result<Vec<(dbus::Path<'static>, String, String)>, Self::Err> {
-        let mut m = try!(self.method_call_with_args(&"org.mpris.MediaPlayer2.Playlists".into(), &"GetPlaylists".into(), |msg| {
+        let mut m = self.method_call_with_args(&"org.mpris.MediaPlayer2.Playlists".into(), &"GetPlaylists".into(), |msg| {
             let mut i = arg::IterAppend::new(msg);
             i.append(index);
             i.append(max_count);
             i.append(order);
             i.append(reverse_order);
-        }));
-        try!(m.as_result());
+        })?;
+        m.as_result()?;
         let mut i = m.iter_init();
-        let playlists: Vec<(dbus::Path<'static>, String, String)> = try!(i.read());
+        let playlists: Vec<(dbus::Path<'static>, String, String)> = i.read()?;
         Ok(playlists)
     }
 
@@ -71,10 +71,10 @@ impl dbus::SignalArgs for OrgMprisMediaPlayer2PlaylistsPlaylistChanged {
     const NAME: &'static str = "PlaylistChanged";
     const INTERFACE: &'static str = "org.mpris.MediaPlayer2.Playlists";
     fn append(&self, i: &mut arg::IterAppend) {
-        (&self.playlist as &arg::RefArg).append(i);
+        arg::RefArg::append(&self.playlist, i);
     }
     fn get(&mut self, i: &mut arg::Iter) -> Result<(), arg::TypeMismatchError> {
-        self.playlist = try!(i.read());
+        self.playlist = i.read()?;
         Ok(())
     }
 }

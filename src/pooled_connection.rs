@@ -58,7 +58,8 @@ impl PooledConnection {
             "/",
             "org.freedesktop.DBus",
             "GetNameOwner",
-        ).unwrap()
+        )
+        .unwrap()
         .append1(bus_name.into());
 
         self.connection
@@ -73,7 +74,8 @@ impl PooledConnection {
             "/",
             "org.freedesktop.DBus",
             "NameHasOwner",
-        ).unwrap()
+        )
+        .unwrap()
         .append1(bus_name.into());
 
         self.connection
@@ -194,9 +196,7 @@ impl PooledConnection {
                     .push(MprisEvent::TrackListPropertiesChanged);
             }
             MprisMessage::TrackListReplaced {
-                unique_name,
-                ids,
-                current_id: _,
+                unique_name, ids, ..
             } => {
                 events
                     .entry(unique_name)
@@ -214,7 +214,7 @@ impl PooledConnection {
                     .entry(unique_name)
                     .or_default()
                     .push(MprisEvent::TrackAdded {
-                        after_id: after_id.into(),
+                        after_id,
                         metadata: Metadata::from(metadata),
                     });
             }
@@ -222,7 +222,7 @@ impl PooledConnection {
                 events
                     .entry(unique_name)
                     .or_default()
-                    .push(MprisEvent::TrackRemoved { id: id.into() });
+                    .push(MprisEvent::TrackRemoved { id });
             }
             MprisMessage::TrackMetadataChanged {
                 unique_name,
@@ -233,7 +233,7 @@ impl PooledConnection {
                     .entry(unique_name)
                     .or_default()
                     .push(MprisEvent::TrackMetadataChanged {
-                        old_id: old_id.into(),
+                        old_id,
                         metadata: Metadata::from(metadata),
                     });
             }
