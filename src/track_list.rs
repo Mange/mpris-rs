@@ -86,6 +86,12 @@ impl From<TrackID> for String {
     }
 }
 
+impl<'a> From<&'a TrackID> for dbus::Path<'a> {
+    fn from(id: &'a TrackID) -> dbus::Path<'a> {
+        id.as_path()
+    }
+}
+
 impl fmt::Display for TrackID {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.0.fmt(f)
@@ -162,6 +168,11 @@ impl TrackList {
     /// Returns the number of tracks on the list.
     pub fn len(&self) -> usize {
         self.ids.len()
+    }
+
+    /// Return the TrackID of the index. Out-of-bounds will result in `None`.
+    pub fn get(&self, index: usize) -> Option<&TrackID> {
+        self.ids.get(index)
     }
 
     /// Insert a new track (via its metadata) after another one. If the provided ID cannot be found
@@ -356,7 +367,8 @@ impl TrackList {
                 .flat_map(|id| match cache.remove(id) {
                     Some(value) => Some((id.to_owned(), value)),
                     None => None,
-                }).collect();
+                })
+                .collect();
 
             *cache = new_cache;
         });

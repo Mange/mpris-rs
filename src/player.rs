@@ -280,7 +280,8 @@ impl<'a> Player<'a> {
             &connection_path,
             "org.mpris.MediaPlayer2.Player",
             "Metadata",
-        ).map(Metadata::from)
+        )
+        .map(Metadata::from)
         .map_err(DBusError::from)
     }
 
@@ -299,7 +300,8 @@ impl<'a> Player<'a> {
             &connection_path,
             "org.mpris.MediaPlayer2.TrackList",
             "Tracks",
-        ).map(TrackList::from)
+        )
+        .map(TrackList::from)
         .map_err(DBusError::from)
     }
 
@@ -335,7 +337,8 @@ impl<'a> Player<'a> {
             &connection_path,
             "org.mpris.MediaPlayer2.TrackList",
             "CanEditTracks",
-        ).map_err(DBusError::from)
+        )
+        .map_err(DBusError::from)
     }
 
     /// Query the player to see if it allows changes to its TrackList.
@@ -574,6 +577,21 @@ impl<'a> Player<'a> {
     /// See: `seek` method on `Player`.
     pub fn seek_backwards(&self, offset: &Duration) -> Result<(), DBusError> {
         self.seek(-(DurationExtensions::as_micros(offset) as i64))
+    }
+
+    /// Go to a specific track on the Player's TrackList.
+    ///
+    /// If the given TrackID is not part of the player's TrackList, it will have no effect.
+    ///
+    /// Requires the player to implement the `TrackList` interface.
+    ///
+    /// See: [MPRIS2 specification about `GoTo`](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:GoTo)
+    pub fn go_to(&self, track_id: &TrackID) -> Result<(), DBusError> {
+        use generated::OrgMprisMediaPlayer2TrackList;
+
+        self.connection_path()
+            .go_to(track_id.into())
+            .map_err(DBusError::from)
     }
 
     /// Sends a `PlayPause` signal to the player, if the player indicates that it can pause.
