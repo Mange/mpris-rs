@@ -186,6 +186,11 @@ impl TrackList {
         self.ids.len()
     }
 
+    /// If the tracklist is empty or not.
+    pub fn is_empty(&self) -> bool {
+        self.ids.is_empty()
+    }
+
     /// Return the TrackID of the index. Out-of-bounds will result in `None`.
     pub fn get(&self, index: usize) -> Option<&TrackID> {
         self.ids.get(index)
@@ -344,11 +349,8 @@ impl TrackList {
             let mut cache = self.metadata_cache.try_borrow_mut()?;
 
             for info in metadata.into_iter() {
-                match info.track_id() {
-                    Some(id) => {
-                        cache.insert(id, info);
-                    }
-                    None => {}
+                if let Some(id) = info.track_id() {
+                    cache.insert(id, info);
                 }
             }
         }
@@ -373,7 +375,7 @@ impl TrackList {
     }
 
     fn clear_extra_cache(&mut self) {
-        let ids: Vec<TrackID> = self.ids().into_iter().map(TrackID::from).collect();
+        let ids: Vec<TrackID> = self.ids().iter().map(TrackID::from).collect();
 
         self.change_metadata(|cache| {
             // For each id in the list, move the cache out into a new HashMap, then replace the old

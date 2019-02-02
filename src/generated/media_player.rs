@@ -1,5 +1,5 @@
 #![allow(unknown_lints)]
-#![allow(clippy)]
+#![allow(clippy::all)]
 #![allow(missing_debug_implementations,
         missing_copy_implementations,
         trivial_casts,

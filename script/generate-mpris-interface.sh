@@ -32,7 +32,7 @@ for spec in "$root"/mpris-spec/spec/org.mpris.*.xml; do
 
   cat <<EOF > "$dest_file"
 #![allow(unknown_lints)]
-#![allow(clippy)]
+#![allow(clippy::all)]
 #![allow(missing_debug_implementations,
         missing_copy_implementations,
         trivial_casts,

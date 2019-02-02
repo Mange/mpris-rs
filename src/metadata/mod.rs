@@ -162,7 +162,7 @@ impl Metadata {
 
 // Disable implicit_hasher; suggested code fix does not compile. I think this might be a false
 // positive, but I'm not sure.
-#[cfg_attr(feature = "cargo-clippy", allow(implicit_hasher))]
+#[cfg_attr(feature = "cargo-clippy", allow(clippy::implicit_hasher))]
 impl From<Metadata> for HashMap<String, Value> {
     fn from(metadata: Metadata) -> Self {
         metadata.values

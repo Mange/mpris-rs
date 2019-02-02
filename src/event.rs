@@ -192,15 +192,12 @@ impl<'a> PlayerEvents<'a> {
         }
 
         if reload_track_list && self.track_list.is_some() {
-            match self.player.checked_get_track_list()? {
-                Some(new_tracks) => {
-                    match self.track_list {
-                        Some(ref mut list) => list.replace(new_tracks),
-                        None => self.track_list = Some(new_tracks),
-                    }
-                    self.buffer.push(Event::TrackListReplaced);
+            if let Some(new_tracks) = self.player.checked_get_track_list()? {
+                match self.track_list {
+                    Some(ref mut list) => list.replace(new_tracks),
+                    None => self.track_list = Some(new_tracks),
                 }
-                _ => {}
+                self.buffer.push(Event::TrackListReplaced);
             }
         }
 
