@@ -49,7 +49,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Removed
 
-- All deprecated items in [v1.1.0] have been removed.
+- All deprecated items in [v1.1.1] have been removed.
+
+## [v1.1.1] - 2019-01-04
+
+### Fixed
+
+- Loading of length of a track now works in more clients. #40
 
 ## [v1.1.0] - 2018-08-18
 
@@ -122,6 +128,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## 0.1.0 - 2017-12-29
 
-[Unreleased]: https://github.com/Mange/mpris-rs/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/Mange/mpris-rs/compare/v1.1.1...HEAD
+[v1.1.1]: https://github.com/Mange/mpris-rs/compare/v1.1.0...v1.1.1
 [v1.1.0]: https://github.com/Mange/mpris-rs/compare/v1.0.0...v1.1.0
 [v1.0.0]: https://github.com/Mange/mpris-rs/compare/v0.1.0...v1.0.0
