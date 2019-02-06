@@ -5,8 +5,8 @@ use std::rc::Rc;
 use dbus::{arg, BusType, Connection, Message};
 
 use super::DBusError;
-use player::{Player, DEFAULT_TIMEOUT_MS, MPRIS2_PATH, MPRIS2_PREFIX};
-use pooled_connection::PooledConnection;
+use crate::player::{Player, DEFAULT_TIMEOUT_MS, MPRIS2_PATH, MPRIS2_PREFIX};
+use crate::pooled_connection::PooledConnection;
 
 const LIST_NAMES_TIMEOUT_MS: i32 = 500;
 

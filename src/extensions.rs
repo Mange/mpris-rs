@@ -2,7 +2,7 @@ use std::time::Duration;
 
 pub(crate) trait DurationExtensions {
     // Rust beta has a from_micros function that is unstable.
-    fn from_micros_ext(u64) -> Duration;
+    fn from_micros_ext(_: u64) -> Duration;
     fn as_millis(&self) -> u64;
     fn as_micros(&self) -> u64;
 }

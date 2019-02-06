@@ -60,12 +60,12 @@ mod pooled_connection;
 mod progress;
 mod track_list;
 
-pub use event::{Event, EventError};
-pub use find::{FindingError, PlayerFinder};
-pub use metadata::{Metadata, Value as MetadataValue, ValueKind as MetadataValueKind};
-pub use player::Player;
-pub use progress::{Progress, ProgressError, ProgressTick, ProgressTracker};
-pub use track_list::{TrackID, TrackList, TrackListError};
+pub use crate::event::{Event, EventError};
+pub use crate::find::{FindingError, PlayerFinder};
+pub use crate::metadata::{Metadata, Value as MetadataValue, ValueKind as MetadataValueKind};
+pub use crate::player::Player;
+pub use crate::progress::{Progress, ProgressError, ProgressTick, ProgressTracker};
+pub use crate::track_list::{TrackID, TrackList, TrackListError};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 #[allow(missing_docs)]
@@ -103,7 +103,7 @@ impl ::std::str::FromStr for PlaybackStatus {
     type Err = InvalidPlaybackStatus;
 
     fn from_str(string: &str) -> Result<Self, Self::Err> {
-        use PlaybackStatus::*;
+        use crate::PlaybackStatus::*;
 
         match string {
             "Playing" => Ok(Playing),

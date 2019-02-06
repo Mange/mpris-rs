@@ -1,10 +1,10 @@
 use std::time::{Duration, Instant};
 
 use super::{DBusError, LoopStatus, PlaybackStatus, TrackList, TrackListError};
-use extensions::DurationExtensions;
-use metadata::Metadata;
-use player::Player;
-use pooled_connection::MprisEvent;
+use crate::extensions::DurationExtensions;
+use crate::metadata::Metadata;
+use crate::player::Player;
+use crate::pooled_connection::MprisEvent;
 
 /// Struct containing information about current progress of a Player.
 ///

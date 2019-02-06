@@ -50,7 +50,7 @@ const ACTIONS: &[Action] = &[
 impl Action {
     fn from_key(key: termion::event::Key) -> Option<Action> {
         use termion::event::Key;
-        use Action::*;
+        use crate::Action::*;
 
         match key {
             Key::Ctrl('c') | Key::Esc | Key::Char('q') => Some(Quit),

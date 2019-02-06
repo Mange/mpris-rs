@@ -8,13 +8,13 @@ use std::time::Duration;
 use dbus::{BusName, ConnPath, Connection, Path};
 
 use super::{DBusError, LoopStatus, MetadataValue, PlaybackStatus, TrackID, TrackList};
-use event::PlayerEvents;
-use extensions::DurationExtensions;
-use generated::OrgMprisMediaPlayer2;
-use generated::OrgMprisMediaPlayer2Player;
-use metadata::Metadata;
-use pooled_connection::{MprisEvent, PooledConnection};
-use progress::ProgressTracker;
+use crate::event::PlayerEvents;
+use crate::extensions::DurationExtensions;
+use crate::generated::OrgMprisMediaPlayer2;
+use crate::generated::OrgMprisMediaPlayer2Player;
+use crate::metadata::Metadata;
+use crate::pooled_connection::{MprisEvent, PooledConnection};
+use crate::progress::ProgressTracker;
 
 pub(crate) const MPRIS2_PREFIX: &str = "org.mpris.MediaPlayer2.";
 pub(crate) const MPRIS2_PATH: &str = "/org/mpris/MediaPlayer2";
@@ -587,7 +587,7 @@ impl<'a> Player<'a> {
     ///
     /// See: [MPRIS2 specification about `GoTo`](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:GoTo)
     pub fn go_to(&self, track_id: &TrackID) -> Result<(), DBusError> {
-        use generated::OrgMprisMediaPlayer2TrackList;
+        use crate::generated::OrgMprisMediaPlayer2TrackList;
 
         self.connection_path()
             .go_to(track_id.into())
@@ -607,7 +607,7 @@ impl<'a> Player<'a> {
         after: &TrackID,
         set_as_current: bool,
     ) -> Result<(), DBusError> {
-        use generated::OrgMprisMediaPlayer2TrackList;
+        use crate::generated::OrgMprisMediaPlayer2TrackList;
 
         self.connection_path()
             .add_track(uri, after.into(), set_as_current)
@@ -624,7 +624,7 @@ impl<'a> Player<'a> {
         uri: &str,
         set_as_current: bool,
     ) -> Result<(), DBusError> {
-        use generated::OrgMprisMediaPlayer2TrackList;
+        use crate::generated::OrgMprisMediaPlayer2TrackList;
 
         self.connection_path()
             .add_track(uri, crate::track_list::NO_TRACK.into(), set_as_current)
@@ -637,7 +637,7 @@ impl<'a> Player<'a> {
     ///
     /// See: [MPRIS2 specification about `RemoveTrack`](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:RemoveTrack)
     pub fn remove_track(&self, track_id: &TrackID) -> Result<(), DBusError> {
-        use generated::OrgMprisMediaPlayer2TrackList;
+        use crate::generated::OrgMprisMediaPlayer2TrackList;
 
         self.connection_path()
             .remove_track(track_id.into())

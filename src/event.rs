@@ -2,7 +2,7 @@ use super::{
     DBusError, LoopStatus, Metadata, PlaybackStatus, Player, Progress, TrackID, TrackList,
     TrackListError,
 };
-use pooled_connection::MprisEvent;
+use crate::pooled_connection::MprisEvent;
 
 /// Represents a change in Player state.
 ///

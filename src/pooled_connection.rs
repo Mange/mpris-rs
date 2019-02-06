@@ -4,10 +4,10 @@ use std::time::{Duration, Instant};
 
 use dbus::{BusName, ConnPath, Connection, Message, Path};
 
-use extensions::DurationExtensions;
-use metadata::{Metadata, Value};
-use player::MPRIS2_PATH;
-use track_list::TrackID;
+use crate::extensions::DurationExtensions;
+use crate::metadata::{Metadata, Value};
+use crate::player::MPRIS2_PATH;
+use crate::track_list::TrackID;
 
 #[derive(Debug)]
 pub(crate) struct PooledConnection {

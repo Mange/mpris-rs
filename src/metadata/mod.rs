@@ -131,7 +131,7 @@ impl Metadata {
     ///
     /// Based on `mpris:length`.
     pub fn length(&self) -> Option<Duration> {
-        use extensions::DurationExtensions;
+        use crate::extensions::DurationExtensions;
         self.length_in_microseconds().map(Duration::from_micros_ext)
     }
 
