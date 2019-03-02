@@ -1,7 +1,6 @@
 use std::time::{Duration, Instant};
 
 use super::{DBusError, LoopStatus, PlaybackStatus};
-use extensions::DurationExtensions;
 use metadata::Metadata;
 use player::Player;
 
@@ -284,12 +283,12 @@ mod test {
             shuffle: false,
             loop_status: LoopStatus::None,
             rate: 1.0,
-            position: Duration::from_micros_ext(1),
+            position: Duration::from_micros(1),
             current_volume: 0.0,
             instant: Instant::now(),
         };
 
-        assert_eq!(progress.initial_position(), Duration::from_micros_ext(1));
+        assert_eq!(progress.initial_position(), Duration::from_micros(1));
         assert!(progress.position() >= progress.initial_position());
     }
 
@@ -301,7 +300,7 @@ mod test {
             shuffle: false,
             loop_status: LoopStatus::None,
             rate: 1.0,
-            position: Duration::from_micros_ext(1336),
+            position: Duration::from_micros(1336),
             current_volume: 0.0,
             instant: Instant::now() - Duration::from_millis(500),
         };

@@ -150,7 +150,7 @@ impl<'a> Player<'a> {
     where
         ID: Into<TrackID<'id>>,
     {
-        self.set_position_in_microseconds(track_id, position.as_micros())
+        self.set_position_in_microseconds(track_id, position.as_micros() as u64)
     }
 
     /// Sets the position of the current track to the given position (in microseconds).

@@ -4,7 +4,6 @@ use std::time::{Duration, Instant};
 
 use dbus::{BusName, ConnPath, Connection, Member, Message, Path};
 
-use extensions::DurationExtensions;
 use player::MPRIS2_PATH;
 
 #[derive(Debug)]

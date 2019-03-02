@@ -2,7 +2,7 @@
 authors = ["Magnus Bergmark <magnus.bergmark@gmail.com>"]
 name = "mpris"
 description = "Idiomatic MPRIS D-Bus interface library"
-version = "1.1.1"
+version = "1.1.2"
 license = "Apache-2.0"
 repository = "https://github.com/Mange/mpris-rs"
 readme = "README.md"
