@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 Nothing yet.
 
+## [v1.1.2] - 2019-03-06
+
+### Fixed
+
+- Crate now compiles on Rust 1.33. #46 - [Ondřej Hruška
+  (MightyPork)](https://github.com/MightyPork)
+
 ## [v1.1.1] - 2019-01-04
 
 ### Fixed
@@ -86,7 +93,8 @@ Nothing yet.
 
 ## 0.1.0 - 2017-12-29
 
-[Unreleased]: https://github.com/Mange/mpris-rs/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Mange/mpris-rs/compare/v1.1.2...HEAD
 [v1.0.0]: https://github.com/Mange/mpris-rs/compare/v0.1.0...v1.0.0
 [v1.1.0]: https://github.com/Mange/mpris-rs/compare/v1.0.0...v1.1.0
 [v1.1.1]: https://github.com/Mange/mpris-rs/compare/v1.1.0...v1.1.1
+[v1.1.1]: https://github.com/Mange/mpris-rs/compare/v1.1.1...v1.1.2
