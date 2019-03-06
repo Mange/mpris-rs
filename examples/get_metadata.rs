@@ -2,13 +2,13 @@ extern crate failure;
 extern crate mpris;
 
 use failure::{Error, ResultExt};
-use mpris::PlayerFinder;
+use mpris::{Player, PlayerFinder};
 
 fn main() {
     match print_metadata() {
         Ok(_) => {}
         Err(error) => {
-            for (i, cause) in error.causes().enumerate() {
+            for (i, cause) in error.iter_chain().enumerate() {
                 if i == 0 {
                     println!("Error: {}", cause);
                 } else {
@@ -43,12 +43,18 @@ fn print_metadata() -> Result<(), Error> {
         metadata.rest_hash()
     );
 
+    print_deprecated_metadata_hash(&player)?;
+
+    Ok(())
+}
+
+#[allow(deprecated)]
+fn print_deprecated_metadata_hash(player: &Player) -> Result<(), Error> {
     println!(
         "\nRaw metadata value:\n{:#?}",
         player
             .get_metadata_hash()
             .context("Could not fetch raw metadata hash")?
     );
-
     Ok(())
 }
