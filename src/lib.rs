@@ -5,6 +5,7 @@
     trivial_casts,
     trivial_numeric_casts,
     unsafe_code,
+    unreachable_pub,
     unstable_features,
     unused_import_braces,
     unused_qualifications
@@ -50,6 +51,8 @@ extern crate from_variants;
 extern crate dbus;
 
 mod extensions;
+
+#[allow(unreachable_pub)]
 mod generated;
 
 mod event;
@@ -62,7 +65,9 @@ mod track_list;
 
 pub use crate::event::{Event, EventError, PlayerEvents};
 pub use crate::find::{FindingError, PlayerFinder};
-pub use crate::metadata::{Metadata, Value as MetadataValue, ValueKind as MetadataValueKind};
+pub use crate::metadata::Metadata;
+pub use crate::metadata::ValueKind as MetadataValueKind;
+pub use crate::metadata::Value as MetadataValue;
 pub use crate::player::Player;
 pub use crate::progress::{Progress, ProgressError, ProgressTick, ProgressTracker};
 pub use crate::track_list::{TrackID, TrackList, TrackListError};
