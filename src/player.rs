@@ -21,7 +21,7 @@ pub(crate) const MPRIS2_PREFIX: &str = "org.mpris.MediaPlayer2.";
 pub(crate) const MPRIS2_PATH: &str = "/org/mpris/MediaPlayer2";
 
 /// When D-Bus connection is managed for you, use this timeout while communicating with a Player.
-pub const DEFAULT_TIMEOUT_MS: i32 = 500; // ms
+pub(crate) const DEFAULT_TIMEOUT_MS: i32 = 500; // ms
 
 /// A MPRIS-compatible player.
 ///
