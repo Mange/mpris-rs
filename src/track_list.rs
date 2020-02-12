@@ -280,7 +280,7 @@ impl TrackList {
                 self.ids[index] = new_id.to_owned();
                 self.change_metadata(|cache| cache.insert(new_id.to_owned(), new_metadata));
 
-                return Some(new_id.to_owned());
+                return Some(new_id);
             }
         }
 
