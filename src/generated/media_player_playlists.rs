@@ -13,68 +13,60 @@
 
 use dbus as dbus;
 use dbus::arg;
+use dbus::ffidisp;
 
 pub trait OrgMprisMediaPlayer2Playlists {
-    type Err;
-    fn activate_playlist(&self, playlist_id: dbus::Path) -> Result<(), Self::Err>;
-    fn get_playlists(&self, index: u32, max_count: u32, order: &str, reverse_order: bool) -> Result<Vec<(dbus::Path<'static>, String, String)>, Self::Err>;
-    fn get_playlist_count(&self) -> Result<u32, Self::Err>;
-    fn get_orderings(&self) -> Result<Vec<String>, Self::Err>;
-    fn get_active_playlist(&self) -> Result<(bool, (dbus::Path<'static>, String, String)), Self::Err>;
+    fn activate_playlist(&self, playlist_id: dbus::Path) -> Result<(), dbus::Error>;
+    fn get_playlists(&self, index: u32, max_count: u32, order: &str, reverse_order: bool) -> Result<Vec<(dbus::Path<'static>, String, String)>, dbus::Error>;
+    fn get_playlist_count(&self) -> Result<u32, dbus::Error>;
+    fn get_orderings(&self) -> Result<Vec<String>, dbus::Error>;
+    fn get_active_playlist(&self) -> Result<(bool, (dbus::Path<'static>, String, String)), dbus::Error>;
 }
 
-impl<'a, C: ::std::ops::Deref<Target=dbus::Connection>> OrgMprisMediaPlayer2Playlists for dbus::ConnPath<'a, C> {
-    type Err = dbus::Error;
+impl<'a, C: ::std::ops::Deref<Target=ffidisp::Connection>> OrgMprisMediaPlayer2Playlists for ffidisp::ConnPath<'a, C> {
 
-    fn activate_playlist(&self, playlist_id: dbus::Path) -> Result<(), Self::Err> {
-        let mut m = self.method_call_with_args(&"org.mpris.MediaPlayer2.Playlists".into(), &"ActivatePlaylist".into(), |msg| {
-            let mut i = arg::IterAppend::new(msg);
-            i.append(playlist_id);
-        })?;
-        m.as_result()?;
-        Ok(())
+    fn activate_playlist(&self, playlist_id: dbus::Path) -> Result<(), dbus::Error> {
+        self.method_call("org.mpris.MediaPlayer2.Playlists", "ActivatePlaylist", (playlist_id, ))
     }
 
-    fn get_playlists(&self, index: u32, max_count: u32, order: &str, reverse_order: bool) -> Result<Vec<(dbus::Path<'static>, String, String)>, Self::Err> {
-        let mut m = self.method_call_with_args(&"org.mpris.MediaPlayer2.Playlists".into(), &"GetPlaylists".into(), |msg| {
-            let mut i = arg::IterAppend::new(msg);
-            i.append(index);
-            i.append(max_count);
-            i.append(order);
-            i.append(reverse_order);
-        })?;
-        m.as_result()?;
-        let mut i = m.iter_init();
-        let playlists: Vec<(dbus::Path<'static>, String, String)> = i.read()?;
-        Ok(playlists)
+    fn get_playlists(&self, index: u32, max_count: u32, order: &str, reverse_order: bool) -> Result<Vec<(dbus::Path<'static>, String, String)>, dbus::Error> {
+        self.method_call("org.mpris.MediaPlayer2.Playlists", "GetPlaylists", (index, max_count, order, reverse_order, ))
+            .and_then(|r: (Vec<(dbus::Path<'static>, String, String)>,)| Ok(r.0))
     }
 
-    fn get_playlist_count(&self) -> Result<u32, Self::Err> {
-        <Self as dbus::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.mpris.MediaPlayer2.Playlists", "PlaylistCount")
+    fn get_playlist_count(&self) -> Result<u32, dbus::Error> {
+        <Self as ffidisp::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.mpris.MediaPlayer2.Playlists", "PlaylistCount")
     }
 
-    fn get_orderings(&self) -> Result<Vec<String>, Self::Err> {
-        <Self as dbus::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.mpris.MediaPlayer2.Playlists", "Orderings")
+    fn get_orderings(&self) -> Result<Vec<String>, dbus::Error> {
+        <Self as ffidisp::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.mpris.MediaPlayer2.Playlists", "Orderings")
     }
 
-    fn get_active_playlist(&self) -> Result<(bool, (dbus::Path<'static>, String, String)), Self::Err> {
-        <Self as dbus::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.mpris.MediaPlayer2.Playlists", "ActivePlaylist")
+    fn get_active_playlist(&self) -> Result<(bool, (dbus::Path<'static>, String, String)), dbus::Error> {
+        <Self as ffidisp::stdintf::org_freedesktop_dbus::Properties>::get(&self, "org.mpris.MediaPlayer2.Playlists", "ActivePlaylist")
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct OrgMprisMediaPlayer2PlaylistsPlaylistChanged {
     pub playlist: (dbus::Path<'static>, String, String),
 }
 
-impl dbus::SignalArgs for OrgMprisMediaPlayer2PlaylistsPlaylistChanged {
-    const NAME: &'static str = "PlaylistChanged";
-    const INTERFACE: &'static str = "org.mpris.MediaPlayer2.Playlists";
+impl arg::AppendAll for OrgMprisMediaPlayer2PlaylistsPlaylistChanged {
     fn append(&self, i: &mut arg::IterAppend) {
         arg::RefArg::append(&self.playlist, i);
     }
-    fn get(&mut self, i: &mut arg::Iter) -> Result<(), arg::TypeMismatchError> {
-        self.playlist = i.read()?;
-        Ok(())
+}
+
+impl arg::ReadAll for OrgMprisMediaPlayer2PlaylistsPlaylistChanged {
+    fn read(i: &mut arg::Iter) -> Result<Self, arg::TypeMismatchError> {
+        Ok(OrgMprisMediaPlayer2PlaylistsPlaylistChanged {
+            playlist: i.read()?,
+        })
     }
+}
+
+impl dbus::message::SignalArgs for OrgMprisMediaPlayer2PlaylistsPlaylistChanged {
+    const NAME: &'static str = "PlaylistChanged";
+    const INTERFACE: &'static str = "org.mpris.MediaPlayer2.Playlists";
 }

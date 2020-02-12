@@ -2,7 +2,8 @@ extern crate dbus;
 
 use std::rc::Rc;
 
-use dbus::{arg, BusType, Connection, Message};
+use dbus::{arg, Message};
+use dbus::ffidisp::{BusType, Connection};
 
 use super::DBusError;
 use crate::player::{Player, DEFAULT_TIMEOUT_MS, MPRIS2_PATH, MPRIS2_PREFIX};

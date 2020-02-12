@@ -2,7 +2,9 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use dbus::{BusName, ConnPath, Connection, Message, Path};
+use dbus::ffidisp::{ConnPath, Connection};
+use dbus::strings::{BusName, Path};
+use dbus::Message;
 
 use crate::extensions::DurationExtensions;
 use crate::metadata::{Metadata, Value};
