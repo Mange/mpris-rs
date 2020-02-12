@@ -60,7 +60,7 @@ mod pooled_connection;
 mod progress;
 mod track_list;
 
-pub use crate::event::{Event, EventError};
+pub use crate::event::{Event, EventError, PlayerEvents};
 pub use crate::find::{FindingError, PlayerFinder};
 pub use crate::metadata::{Metadata, Value as MetadataValue, ValueKind as MetadataValueKind};
 pub use crate::player::Player;
