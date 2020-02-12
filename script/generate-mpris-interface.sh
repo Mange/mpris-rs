@@ -43,7 +43,7 @@ for spec in "$root"/mpris-spec/spec/org.mpris.*.xml; do
         unused_qualifications,
         unused_imports)]
 EOF
-  dbus-codegen-rust -m None < "$spec" >> "$dest_file"
+  dbus-codegen-rust -m None -c ffidisp < "$spec" >> "$dest_file"
 done
 
 echo "Formatting code... "
