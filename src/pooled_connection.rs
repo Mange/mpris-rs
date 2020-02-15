@@ -2,7 +2,9 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use dbus::{BusName, ConnPath, Connection, Message, Path};
+use dbus::ffidisp::{ConnPath, Connection};
+use dbus::strings::{BusName, Path};
+use dbus::Message;
 
 use crate::extensions::DurationExtensions;
 use crate::metadata::{Metadata, Value};
@@ -154,7 +156,7 @@ impl PooledConnection {
     /// to the generated MprisEvent, if applicable.
     fn process_message(&self, message: MprisMessage) {
         let mut events = match self.events.try_borrow_mut() {
-            Ok(mut val) => val,
+            Ok(val) => val,
             Err(_) => {
                 // Drop the message. This is a better evil than triggering a panic inside a library
                 // like this.

@@ -348,7 +348,6 @@ impl dbus::arg::Arg for Value {
 
 impl<'a> dbus::arg::Get<'a> for Value {
     fn get(i: &mut dbus::arg::Iter) -> Option<Self> {
-        use dbus::arg::ArgType;
 
         let arg_type = i.arg_type();
         // Trying to calculate signature of an invalid arg will panic, so abort early.
@@ -387,7 +386,8 @@ impl<'a> dbus::arg::Get<'a> for Value {
 mod tests {
     use super::*;
     use dbus::arg::{Append, RefArg, Variant};
-    use dbus::{BusType, Connection, ConnectionItem, Message};
+    use dbus::ffidisp::{BusType, Connection, ConnectionItem};
+    use dbus::Message;
 
     fn send_values_over_dbus<F>(appender: F) -> Message
     where
@@ -495,7 +495,7 @@ mod tests {
 
     #[test]
     fn it_supports_arrays_of_variants() {
-        let input: Vec<Variant<Box<RefArg>>> = vec![
+        let input: Vec<Variant<Box<dyn RefArg>>> = vec![
             Variant(Box::new(String::from("World"))),
             Variant(Box::new(42u8)),
         ];
@@ -524,7 +524,7 @@ mod tests {
 
     #[test]
     fn it_supports_maps_of_variants() {
-        let mut input: HashMap<String, Variant<Box<RefArg>>> = HashMap::new();
+        let mut input: HashMap<String, Variant<Box<dyn RefArg>>> = HashMap::new();
         input.insert(
             String::from("receiver"),
             Variant(Box::new(String::from("World"))),

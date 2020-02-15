@@ -5,7 +5,8 @@ use std::ops::Range;
 use std::rc::Rc;
 use std::time::Duration;
 
-use dbus::{BusName, ConnPath, Connection, Path};
+use dbus::ffidisp::{ConnPath, Connection};
+use dbus::strings::{BusName, Path};
 
 use super::{DBusError, LoopStatus, MetadataValue, PlaybackStatus, TrackID, TrackList};
 use crate::event::PlayerEvents;
@@ -20,7 +21,7 @@ pub(crate) const MPRIS2_PREFIX: &str = "org.mpris.MediaPlayer2.";
 pub(crate) const MPRIS2_PATH: &str = "/org/mpris/MediaPlayer2";
 
 /// When D-Bus connection is managed for you, use this timeout while communicating with a Player.
-pub const DEFAULT_TIMEOUT_MS: i32 = 500; // ms
+pub(crate) const DEFAULT_TIMEOUT_MS: i32 = 500; // ms
 
 /// A MPRIS-compatible player.
 ///
@@ -272,7 +273,7 @@ impl<'a> Player<'a> {
     ///
     /// See `Metadata` for more information about what is included here.
     pub fn get_metadata(&self) -> Result<Metadata, DBusError> {
-        use dbus::stdintf::org_freedesktop_dbus::Properties;
+        use dbus::ffidisp::stdintf::org_freedesktop_dbus::Properties;
 
         let connection_path = self.connection_path();
 
@@ -292,7 +293,7 @@ impl<'a> Player<'a> {
     ///
     /// See `checked_get_track_list` to automatically detect players not supporting track lists.
     pub fn get_track_list(&self) -> Result<TrackList, DBusError> {
-        use dbus::stdintf::org_freedesktop_dbus::Properties;
+        use dbus::ffidisp::stdintf::org_freedesktop_dbus::Properties;
 
         let connection_path = self.connection_path();
 
@@ -329,8 +330,7 @@ impl<'a> Player<'a> {
     /// See: [MPRIS2 specification about
     /// `CanEditTracks`](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Property:CanEditTracks).
     pub fn can_edit_tracks(&self) -> Result<bool, DBusError> {
-        use dbus::stdintf::org_freedesktop_dbus::Properties;
-
+        use dbus::ffidisp::stdintf::org_freedesktop_dbus::Properties;
         let connection_path = self.connection_path();
 
         Properties::get::<bool>(
@@ -619,11 +619,7 @@ impl<'a> Player<'a> {
     /// Requires the player to implement the `TrackList` interface.
     ///
     /// See: [MPRIS2 specification about `AddTrack`](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:AddTrack)
-    pub fn add_track_at_start(
-        &self,
-        uri: &str,
-        set_as_current: bool,
-    ) -> Result<(), DBusError> {
+    pub fn add_track_at_start(&self, uri: &str, set_as_current: bool) -> Result<(), DBusError> {
         use crate::generated::OrgMprisMediaPlayer2TrackList;
 
         self.connection_path()
@@ -1057,7 +1053,7 @@ fn has_tracklist_interface(connection: ConnPath<&Connection>) -> Result<bool, DB
     //
     // It's probably accurate enough.
 
-    use dbus::stdintf::OrgFreedesktopDBusIntrospectable;
+    use dbus::ffidisp::stdintf::OrgFreedesktopDBusIntrospectable;
     let xml: String = connection.introspect()?;
     Ok(xml.contains("org.mpris.MediaPlayer2.TrackList"))
 }

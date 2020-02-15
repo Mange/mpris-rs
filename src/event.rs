@@ -113,7 +113,7 @@ pub struct PlayerEvents<'a> {
 }
 
 impl<'a> PlayerEvents<'a> {
-    pub fn new(player: &'a Player<'a>) -> Result<PlayerEvents<'a>, DBusError> {
+    pub(crate) fn new(player: &'a Player<'a>) -> Result<PlayerEvents<'a>, DBusError> {
         let progress = Progress::from_player(player)?;
         Ok(PlayerEvents {
             player,
@@ -123,6 +123,7 @@ impl<'a> PlayerEvents<'a> {
         })
     }
 
+    /// Current tracklist of the player. Will be kept up to date.
     pub fn track_list(&self) -> Option<&TrackList> {
         self.track_list.as_ref()
     }
