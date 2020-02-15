@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 Nothing yet.
 
+## [v2.0.0-rc2] - 2020-02-15
+
+This is a RC for 2.0.0. If no major problems are discovered, this version will be re-labeled as 2.0.0. If issues are found, they will be fixed in subsequent versions.
+
+### Changed
+
+- `PlayerEvents` is now properly exposed from the crate root.
+- Now using `dbus` 0.8.1.
+- This might require a bump of Rust version.
+
 ## [v2.0.0-rc1] - 2019-02-06
 
 This is a RC for 2.0.0. If no major problems are discovered, this version will be re-labeled as 2.0.0. If issues are found, they will be fixed in subsequent versions.
@@ -134,7 +144,8 @@ This is a RC for 2.0.0. If no major problems are discovered, this version will b
 
 ## 0.1.0 - 2017-12-29
 
-[Unreleased]: https://github.com/Mange/mpris-rs/compare/v2.0.0-rc1...HEAD
+[Unreleased]: https://github.com/Mange/mpris-rs/compare/v2.0.0-rc2...HEAD
+[v2.0.0-rc1]: https://github.com/Mange/mpris-rs/compare/v2.0.0-rc1...v2.0.0-rc2
 [v2.0.0-rc1]: https://github.com/Mange/mpris-rs/compare/v1.1.0...v2.0.0-rc1
 [v1.1.1]: https://github.com/Mange/mpris-rs/compare/v1.1.0...v1.1.1
 [v1.1.0]: https://github.com/Mange/mpris-rs/compare/v1.0.0...v1.1.0
