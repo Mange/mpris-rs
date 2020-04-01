@@ -324,7 +324,7 @@ impl Progress {
         Ok(Progress {
             metadata: player.get_metadata()?,
             playback_status: player.get_playback_status()?,
-            shuffle: player.get_shuffle()?,
+            shuffle: player.checked_get_shuffle()?.unwrap_or(false),
             loop_status: player.get_loop_status()?,
             rate: player.get_playback_rate()?,
             position: player.get_position()?,
