@@ -7,11 +7,28 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
-Nothing yet.
+## Fixed
+
+* Track change detection for some non-conforming players (e.g. Spotify). -
+  [Stephan Henrichs (Kilobyte22)][Kilobyte22]
+* Error on progress tracker for players that do not support shuffling. -
+  [Stephan Henrichs (Kilobyte22)][Kilobyte22]
+
+## Added
+
+* `Player::can_shuffle` and `Player::checked_get_shuffle`. - [Stephan Henrichs
+  (Kilobyte22)][Kilobyte22]
+
+## Changed
+
+* `Player::checked_set_shuffle` also checks `::can_shuffle`. - [Stephan
+  Henrichs (Kilobyte22)][Kilobyte22]
 
 ## [v2.0.0-rc2] - 2020-02-15
 
-This is a RC for 2.0.0. If no major problems are discovered, this version will be re-labeled as 2.0.0. If issues are found, they will be fixed in subsequent versions.
+This is a RC for 2.0.0. If no major problems are discovered, this version will
+be re-labeled as 2.0.0. If issues are found, they will be fixed in subsequent
+versions.
 
 ### Changed
 
@@ -21,7 +38,9 @@ This is a RC for 2.0.0. If no major problems are discovered, this version will b
 
 ## [v2.0.0-rc1] - 2019-02-06
 
-This is a RC for 2.0.0. If no major problems are discovered, this version will be re-labeled as 2.0.0. If issues are found, they will be fixed in subsequent versions.
+This is a RC for 2.0.0. If no major problems are discovered, this version will
+be re-labeled as 2.0.0. If issues are found, they will be fixed in subsequent
+versions.
 
 ### Changed
 
@@ -150,3 +169,5 @@ This is a RC for 2.0.0. If no major problems are discovered, this version will b
 [v1.1.1]: https://github.com/Mange/mpris-rs/compare/v1.1.0...v1.1.1
 [v1.1.0]: https://github.com/Mange/mpris-rs/compare/v1.0.0...v1.1.0
 [v1.0.0]: https://github.com/Mange/mpris-rs/compare/v0.1.0...v1.0.0
+
+[Kilobyte22]: https://github.com/Kilobyte22
