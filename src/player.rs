@@ -857,6 +857,16 @@ impl<'a> Player<'a> {
             .map(|range| range.start < 1.0 || range.end > 1.0)
     }
 
+    /// Queries the player to see if it supports the "Shuffle" setting
+    pub fn can_shuffle(&self) -> Result<bool, DBusError> {
+        use dbus::ffidisp::stdintf::org_freedesktop_dbus::Properties;
+
+        self.connection_path()
+            .get_all("org.mpris.MediaPlayer2.Player")
+            .map(|props| props.contains_key("Shuffle"))
+            .map_err(DBusError::from)
+    }
+
     /// Query the player for current fullscreen state.
     ///
     /// This property was added in MPRIS 2.2, and not all players will implement it. This method
@@ -906,6 +916,18 @@ impl<'a> Player<'a> {
             .map_err(DBusError::from)
     }
 
+    /// Gets the "Shuffle" setting, if the player indicates that it supports it.
+    ///
+    /// Return [[Some]] containing the current value of the shuffle setting. If the setting is not
+    /// supported, will return [[None]]
+    pub fn checked_get_shuffle(&self) -> Result<Option<bool>, DBusError> {
+        if self.can_shuffle()? {
+            Ok(Some(self.get_shuffle()?))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Set the "Shuffle" setting of the player.
     ///
     /// See: [MPRIS2 specification about
@@ -916,14 +938,15 @@ impl<'a> Player<'a> {
             .map_err(DBusError::from)
     }
 
-    /// Set the "Shuffle" setting of the player, if the player indicates that it can be controlled.
+    /// Set the "Shuffle" setting of the player, if the player indicates that it supports the
+    /// "Shuffle" setting and can be controlled.
     ///
     /// Returns a boolean to show if the signal was sent or not.
     ///
     /// See: [MPRIS2 specification about
     /// `Shuffle`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Shuffle)
     pub fn checked_set_shuffle(&self, state: bool) -> Result<bool, DBusError> {
-        if self.can_control()? {
+        if self.can_control()? && self.can_shuffle()? {
             self.set_shuffle(state)
                 .map(|_| true)
                 .map_err(DBusError::from)
