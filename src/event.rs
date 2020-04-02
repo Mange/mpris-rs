@@ -246,9 +246,15 @@ impl<'a> PlayerEvents<'a> {
     }
 
     fn detect_metadata_events(&mut self, new_progress: &Progress) {
-        let metadata = new_progress.metadata();
-        if self.last_progress.metadata().track_id() != metadata.track_id() {
-            self.buffer.push(Event::TrackChanged(metadata.clone()));
+        let new_metadata = new_progress.metadata();
+        let old_metadata = self.last_progress.metadata();
+
+        // As a workaround for Players not setting a valid track ID, we also check against the URL
+
+        if old_metadata.track_id() != new_metadata.track_id()
+            || old_metadata.url() != new_metadata.url()
+        {
+            self.buffer.push(Event::TrackChanged(new_metadata.clone()));
         }
     }
 }
