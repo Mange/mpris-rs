@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 * `Player::can_shuffle` and `Player::checked_get_shuffle`. - [Stephan Henrichs
   (Kilobyte22)][Kilobyte22]
+* Iterator methods to `Metadata`:
+  * `impl IntoIterator`
+  * `iter()`
+  * `keys()`
+* `Metadata::as_hashmap(&self)` which returns a simple borrowed hashmap.
 
 ## Changed
 

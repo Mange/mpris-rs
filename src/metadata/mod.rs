@@ -158,6 +158,33 @@ impl Metadata {
     pub fn url(&self) -> Option<&str> {
         self.get("xesam:url").and_then(Value::as_str)
     }
+
+    /// Returns an owned `HashMap` of borrowed values from this `Metadata`. Useful if you need a
+    /// mutable hash but don't have ownership of `Metadata` or want to consume it.
+    ///
+    /// If you want to convert to a `HashMap`, use `Into::into` instead.
+    pub fn as_hashmap(&self) -> HashMap<&str, &Value> {
+        self.iter().collect()
+    }
+
+    /// Iterate all metadata keys and values.
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &Value)> {
+        self.values.iter().map(|(k, v)| (k.as_str(), v))
+    }
+
+    /// Iterate all metadata keys.
+    pub fn keys(&self) -> impl Iterator<Item = &str> {
+        self.values.keys().map(String::as_str)
+    }
+}
+
+impl IntoIterator for Metadata {
+    type Item = (String, Value);
+    type IntoIter = std::collections::hash_map::IntoIter<String, Value>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.values.into_iter()
+    }
 }
 
 // Disable implicit_hasher; suggested code fix does not compile. I think this might be a false
@@ -189,5 +216,35 @@ mod tests {
     fn it_supports_blank_metadata() {
         let metadata = Metadata::from(HashMap::new());
         assert_eq!(metadata.track_id(), None);
+    }
+
+    #[test]
+    fn it_builds_values_hash() {
+        let mut input_hash: HashMap<String, Value> = HashMap::new();
+        input_hash.insert(String::from("xesam:trackNumber"), Value::from(42));
+
+        let metadata = Metadata::from(input_hash.clone());
+        let output_hash = metadata.as_hashmap();
+
+        assert_eq!(input_hash.get("xesam:trackNumber"), Some(&Value::I32(42)));
+        assert_eq!(output_hash.get("xesam:trackNumber"), Some(&&Value::I32(42)));
+    }
+
+    #[test]
+    fn it_has_iterators() {
+        let mut input_hash: HashMap<String, Value> = HashMap::new();
+        input_hash.insert(String::from("xesam:trackNumber"), Value::from(42));
+        let metadata = Metadata::from(input_hash);
+
+        let keys: Vec<&str> = metadata.keys().collect();
+        assert_eq!(keys, vec!["xesam:trackNumber"]);
+
+        let keyvals: Vec<(&str, &Value)> = metadata.iter().collect();
+        assert_eq!(keyvals, vec![("xesam:trackNumber", &Value::I32(42))]);
+
+        for (key, val) in metadata {
+            assert_eq!(key, String::from("xesam:trackNumber"));
+            assert_eq!(val, Value::I32(42));
+        }
     }
 }
