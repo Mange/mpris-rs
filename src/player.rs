@@ -119,6 +119,21 @@ impl<'a> Player<'a> {
         &self.bus_name
     }
 
+    /// Returns the player name part of the player's D-Bus bus name.
+    /// This is the part after "org.mpris.MediaPlayer2.", not including the instance part.
+    ///
+    /// See: [MPRIS2 specification about bus names](https://specifications.freedesktop.org/mpris-spec/latest/#Bus-Name-Policy).
+    pub fn bus_name_player_name_part(&self) -> &str {
+        self.bus_name()
+            .as_cstr()
+            .to_str()
+            .unwrap() // `BusName` is guaranteed to be valid ASCII/UTF-8
+            .trim_start_matches(MPRIS2_PREFIX)
+            .split('.') // Remove the "instance" part
+            .next()
+            .unwrap()
+    }
+
     /// Returns the player's unique D-Bus bus name (usually something like `:1.1337`).
     pub fn unique_name(&self) -> &str {
         &self.unique_name
