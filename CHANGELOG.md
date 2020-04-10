@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   * `impl IntoIterator`
   * `iter()`
   * `keys()`
+* `Player::bus_name_player_name_part` - [Koen Bolhuis
+  (InputUsername)](https://github.com/InputUsername)
 * `Metadata::as_hashmap(&self)` which returns a simple borrowed hashmap.
 
 ## Changed
