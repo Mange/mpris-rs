@@ -7,7 +7,10 @@ matrix:
   allow_failures:
     - rust: nightly
   fast_finish: true
-cache: cargo
+
+# Travis is starting to timeout all the time when using cache
+# cache: cargo
+
 addons:
   apt:
     packages:
