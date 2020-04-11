@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Changed
 
+* Now using Rust 2018 edition.
 * `Player::checked_set_shuffle` also checks `::can_shuffle`. - [Stephan
   Henrichs (Kilobyte22)][Kilobyte22]
 * `Player::checked_set_loop_status` also checks `::can_loop` - 

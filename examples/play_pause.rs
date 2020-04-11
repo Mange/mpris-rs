@@ -1,5 +1,3 @@
-extern crate mpris;
-
 use mpris::{PlaybackStatus, PlayerFinder};
 
 fn main() {

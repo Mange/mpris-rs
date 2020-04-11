@@ -1,5 +1,3 @@
-extern crate mpris;
-
 use std::io::{stdout, Write};
 use std::time::Duration;
 

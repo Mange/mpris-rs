@@ -1,6 +1,7 @@
-extern crate dbus;
-
 use dbus::arg::ArgType;
+use derive_is_enum_variant::is_enum_variant;
+use enum_kinds::EnumKind;
+use from_variants::FromVariants;
 use std::collections::HashMap;
 
 /// Holds a dynamically-typed metadata value.
@@ -56,10 +57,7 @@ impl Value {
     /// # Examples
     ///
     /// ```rust
-    /// # extern crate mpris;
-    /// # extern crate dbus;
     /// # use mpris::Metadata;
-    /// # fn main() {
     /// # let metadata = Metadata::new("1234");
     /// # let key_name = "foo";
     /// use mpris::MetadataValueKind;
@@ -82,7 +80,6 @@ impl Value {
     /// } else {
     ///     println!("Metadata does not have a {} key", key_name);
     /// }
-    /// # }
     /// ```
     pub fn kind(&self) -> ValueKind {
         ValueKind::from(self)
@@ -347,8 +344,7 @@ impl dbus::arg::Arg for Value {
 }
 
 impl<'a> dbus::arg::Get<'a> for Value {
-    fn get(i: &mut dbus::arg::Iter) -> Option<Self> {
-
+    fn get(i: &mut dbus::arg::Iter<'_>) -> Option<Self> {
         let arg_type = i.arg_type();
         // Trying to calculate signature of an invalid arg will panic, so abort early.
         if let ArgType::Invalid = arg_type {
@@ -374,7 +370,9 @@ impl<'a> dbus::arg::Get<'a> for Value {
             ArgType::UInt64 => i.get::<u64>().map(Value::U64),
             ArgType::Variant => i.recurse(ArgType::Variant).and_then(|mut iter| iter.get()),
             ArgType::Invalid => unreachable!("Early return at the top of the method"),
-            ArgType::ObjectPath => i.get::<dbus::Path>().map(|p| Value::String(p.to_string())),
+            ArgType::ObjectPath => i
+                .get::<dbus::Path<'_>>()
+                .map(|p| Value::String(p.to_string())),
             ArgType::DictEntry | ArgType::UnixFd | ArgType::Signature | ArgType::Struct => {
                 Some(Value::Unsupported)
             }
@@ -406,7 +404,8 @@ mod tests {
             "/hello",
             "com.example.hello",
             "Hello",
-        ).expect("Could not create message");
+        )
+        .expect("Could not create message");
 
         let send_message = appender(send_message);
 

@@ -1,5 +1,3 @@
-extern crate dbus;
-
 mod value;
 pub use self::value::{Value, ValueKind};
 use super::TrackID;
@@ -40,16 +38,12 @@ impl Metadata {
     /// # Examples
     ///
     /// ```rust
-    /// # extern crate mpris;
-    /// # extern crate dbus;
     /// # use mpris::{Metadata, MetadataValue};
-    /// # fn main() {
     /// # let mut metadata = Metadata::new(String::from("1234"));
     /// # let key_name = "foo";
     /// if let Some(MetadataValue::String(name)) = metadata.get("xesam:composer") {
     ///     println!("Composed by: {}", name);
     /// }
-    /// # }
     /// ```
     pub fn get(&self, key: &str) -> Option<&Value> {
         self.values.get(key)

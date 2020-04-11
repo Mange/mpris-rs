@@ -1,3 +1,4 @@
+use failure::Fail;
 use std::time::{Duration, Instant};
 
 use super::{DBusError, LoopStatus, PlaybackStatus, TrackList, TrackListError};
@@ -209,7 +210,7 @@ impl<'a> ProgressTracker<'a> {
     ///     }
     /// }
     /// ```
-    pub fn tick(&mut self) -> ProgressTick {
+    pub fn tick(&mut self) -> ProgressTick<'_> {
         let mut player_quit = false;
         let mut progress_changed = false;
         let mut track_list_changed = false;
@@ -325,9 +326,13 @@ impl Progress {
             metadata: player.get_metadata()?,
             playback_status: player.get_playback_status()?,
             shuffle: player.checked_get_shuffle()?.unwrap_or(false),
-            loop_status: player.checked_get_loop_status()?.unwrap_or(LoopStatus::None),
+            loop_status: player
+                .checked_get_loop_status()?
+                .unwrap_or(LoopStatus::None),
             rate: player.checked_get_playback_rate()?.unwrap_or(1.0),
-            position: player.checked_get_position()?.unwrap_or_else(|| Duration::new(0, 0)),
+            position: player
+                .checked_get_position()?
+                .unwrap_or_else(|| Duration::new(0, 0)),
             current_volume: player.checked_get_volume()?.unwrap_or(1.0),
             instant: Instant::now(),
         })

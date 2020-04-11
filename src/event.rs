@@ -3,6 +3,7 @@ use super::{
     TrackListError,
 };
 use crate::pooled_connection::MprisEvent;
+use failure::Fail;
 
 /// Represents a change in Player state.
 ///

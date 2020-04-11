@@ -31,8 +31,6 @@ or *if* something is playing.
 ## How to use
 
 ```rust
-extern crate mpris;
-
 use mpris::PlayerFinder;
 
 // Pauses currently playing media and prints metadata information about that

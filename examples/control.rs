@@ -1,5 +1,5 @@
-extern crate mpris;
-extern crate termion;
+use mpris;
+use termion;
 
 use std::borrow::Cow;
 use std::io::{stdout, Stdout, Write};
@@ -49,8 +49,8 @@ const ACTIONS: &[Action] = &[
 
 impl Action {
     fn from_key(key: termion::event::Key) -> Option<Action> {
-        use termion::event::Key;
         use crate::Action::*;
+        use termion::event::Key;
 
         match key {
             Key::Ctrl('c') | Key::Esc | Key::Char('q') => Some(Quit),
@@ -100,7 +100,7 @@ impl Action {
         }
     }
 
-    fn is_enabled(&self, player: &Player) -> bool {
+    fn is_enabled(&self, player: &Player<'_>) -> bool {
         match *self {
             Action::Quit => true,
             Action::PlayPause => player.can_pause().unwrap_or(false),
@@ -225,7 +225,7 @@ impl<'a> App<'a> {
     }
 }
 
-fn print_instructions(screen: &mut Screen, player: &Player) {
+fn print_instructions(screen: &mut Screen, player: &Player<'_>) {
     let bold = termion::style::Bold;
     // Note: The NoBold variant enables double-underscore in Kitty terminal
     let nobold = termion::style::Reset;
@@ -236,7 +236,8 @@ fn print_instructions(screen: &mut Screen, player: &Player) {
         bold,
         player.identity(),
         nobold,
-    ).unwrap();
+    )
+    .unwrap();
 
     for action in ACTIONS {
         let is_enabled = action.is_enabled(player);
@@ -254,7 +255,8 @@ fn print_instructions(screen: &mut Screen, player: &Player) {
             nobold = nobold,
             key = action.key_name(),
             description = action.description(),
-        ).unwrap();
+        )
+        .unwrap();
 
         if !is_enabled {
             write!(screen, " (not supported)").unwrap();
@@ -264,7 +266,8 @@ fn print_instructions(screen: &mut Screen, player: &Player) {
             screen,
             "{nostatecolor}\r\n",
             nostatecolor = color::Fg(color::Reset),
-        ).unwrap();
+        )
+        .unwrap();
     }
     write!(screen, "\r\n").unwrap();
 }
@@ -273,11 +276,11 @@ fn control_player(result: Result<(), mpris::DBusError>) {
     result.expect("Could not control player");
 }
 
-fn toggle_shuffle(player: &Player) -> Result<(), mpris::DBusError> {
+fn toggle_shuffle(player: &Player<'_>) -> Result<(), mpris::DBusError> {
     player.set_shuffle(!player.get_shuffle()?)
 }
 
-fn cycle_loop_status(player: &Player) -> Result<(), mpris::DBusError> {
+fn cycle_loop_status(player: &Player<'_>) -> Result<(), mpris::DBusError> {
     let current_status = player.get_loop_status()?;
     let next_status = match current_status {
         LoopStatus::None => LoopStatus::Playlist,
@@ -287,7 +290,7 @@ fn cycle_loop_status(player: &Player) -> Result<(), mpris::DBusError> {
     player.set_loop_status(next_status)
 }
 
-fn change_volume(player: &Player, diff: f64) -> Result<(), mpris::DBusError> {
+fn change_volume(player: &Player<'_>, diff: f64) -> Result<(), mpris::DBusError> {
     let current_volume = player.get_volume()?;
     let new_volume = (current_volume + diff).max(0.0).min(1.0);
     player.set_volume(new_volume)
@@ -321,13 +324,14 @@ fn print_playback_info(screen: &mut Screen, progress: &Progress) {
         shuffle = shuffle_string,
         loop = loop_string,
         color_reset = color::Fg(color::Reset),
-    ).unwrap();
+    )
+    .unwrap();
     print_track_info(screen, progress.metadata());
     write!(screen, " {volume}\r\n", volume = volume_string).unwrap();
 }
 
 fn print_track_info(screen: &mut Screen, track: &Metadata) {
-    let artist_string: Cow<str> = track
+    let artist_string: Cow<'_, str> = track
         .artists()
         .map(|artists| Cow::Owned(artists.join(" + ")))
         .unwrap_or_else(|| Cow::Borrowed("Unknown artist"));
@@ -344,7 +348,8 @@ fn print_track_info(screen: &mut Screen, track: &Metadata) {
         reset = termion::style::Reset,
         artist = artist_string,
         title = title_string,
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 fn print_track_list(screen: &mut Screen, track_list: &TrackList, next_track: Option<Metadata>) {
@@ -354,7 +359,8 @@ fn print_track_list(screen: &mut Screen, track_list: &TrackList, next_track: Opt
             "{bold}Next:{reset} ",
             bold = termion::style::Bold,
             reset = termion::style::Reset,
-        ).unwrap();
+        )
+        .unwrap();
         print_track_info(screen, &track);
         write!(screen, ", ").unwrap();
     }
@@ -364,13 +370,14 @@ fn print_track_list(screen: &mut Screen, track_list: &TrackList, next_track: Opt
         count = track_list.len(),
         bold = termion::style::Bold,
         reset = termion::style::Reset,
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 fn find_next_track(
     current_track_id: Option<TrackID>,
     track_list: &TrackList,
-    player: &Player,
+    player: &Player<'_>,
 ) -> Option<Metadata> {
     if let Some(current_id) = current_track_id {
         track_list
@@ -380,7 +387,8 @@ fn find_next_track(
                 // Stops on current track
                 Some(id) => id != current_id,
                 None => false,
-            }).skip(1) // Skip one more to get the next one
+            })
+            .skip(1) // Skip one more to get the next one
             .next()
     } else {
         None
@@ -388,13 +396,13 @@ fn find_next_track(
 }
 
 fn print_progress_bar(screen: &mut Screen, progress: &Progress, supports_position: bool) {
-    let position_string: Cow<str> = if supports_position {
+    let position_string: Cow<'_, str> = if supports_position {
         Cow::Owned(format_duration(progress.position()))
     } else {
         Cow::Borrowed("??:??:??")
     };
 
-    let length_string: Cow<str> = progress
+    let length_string: Cow<'_, str> = progress
         .length()
         .map(|s| Cow::Owned(format_duration(s)))
         .unwrap_or_else(|| Cow::Borrowed("??:??:??"));
@@ -404,7 +412,8 @@ fn print_progress_bar(screen: &mut Screen, progress: &Progress, supports_positio
         "{position} / {length}\r\n",
         position = position_string,
         length = length_string,
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 fn clear_progress_bar(screen: &mut Screen) {
@@ -413,7 +422,8 @@ fn clear_progress_bar(screen: &mut Screen) {
         "{}\r{}",
         termion::cursor::Up(1),
         termion::clear::CurrentLine,
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 fn clear_screen(screen: &mut Screen) {
@@ -422,7 +432,8 @@ fn clear_screen(screen: &mut Screen) {
         "{}{}",
         termion::clear::All,
         termion::cursor::Goto(1, 1)
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 fn format_duration(duration: Duration) -> String {

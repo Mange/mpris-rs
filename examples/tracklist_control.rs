@@ -1,6 +1,3 @@
-extern crate failure;
-extern crate mpris;
-
 use failure::{format_err, Error, ResultExt};
 use mpris::{Player, PlayerFinder, TrackID};
 
@@ -61,9 +58,8 @@ fn run() -> Result<(), Error> {
     Ok(())
 }
 
-fn print_track_list(player: &Player) -> Result<(), Error> {
-    let track_list = player
-        .get_track_list()?;
+fn print_track_list(player: &Player<'_>) -> Result<(), Error> {
+    let track_list = player.get_track_list()?;
 
     println!("Track list:\n");
     let iter = track_list
@@ -83,12 +79,15 @@ fn print_track_list(player: &Player) -> Result<(), Error> {
     Ok(())
 }
 
-fn select_track(player: &Player, lower_bound: usize) -> Result<Option<TrackID>, Error> {
+fn select_track(player: &Player<'_>, lower_bound: usize) -> Result<Option<TrackID>, Error> {
     let track_list = player
         .get_track_list()
         .context("Could not get track list for player")?;
     let len = track_list.len();
-    let answer = prompt_string(&format!("Select track index [{}-{}, q] > ", lower_bound, len))?;
+    let answer = prompt_string(&format!(
+        "Select track index [{}-{}, q] > ",
+        lower_bound, len
+    ))?;
 
     if answer.is_empty() || answer == "q" {
         return Ok(None);
@@ -106,33 +105,43 @@ fn select_track(player: &Player, lower_bound: usize) -> Result<Option<TrackID>, 
     Ok(Some(track_id.clone()))
 }
 
-fn goto_track(player: &Player) -> Result<(), Error> {
+fn goto_track(player: &Player<'_>) -> Result<(), Error> {
     match select_track(player, 1) {
         Ok(Some(track_id)) => player.go_to(&track_id).map_err(Error::from),
         Ok(None) => Ok(()),
-        Err(err) => Err(err).context("Failed to select track").map_err(Error::from),
+        Err(err) => Err(err)
+            .context("Failed to select track")
+            .map_err(Error::from),
     }
 }
 
-fn remove_track(player: &Player) -> Result<(), Error> {
+fn remove_track(player: &Player<'_>) -> Result<(), Error> {
     match select_track(player, 1) {
         Ok(Some(track_id)) => player.remove_track(&track_id).map_err(Error::from),
         Ok(None) => Ok(()),
-        Err(err) => Err(err).context("Failed to select track").map_err(Error::from),
+        Err(err) => Err(err)
+            .context("Failed to select track")
+            .map_err(Error::from),
     }
 }
 
-fn add_track(player: &Player) -> Result<(), Error> {
+fn add_track(player: &Player<'_>) -> Result<(), Error> {
     println!("NOTE: To add local media, start with the \"file://\" protocol. E.x. \"file:///path/to/file.mp3\"");
     let uri = prompt_string("Enter URI (or nothing to cancel) > ")?;
     if uri.is_empty() {
         return Ok(());
     }
 
-    println!("Will be inserted after selected track. Select no track (0) to insert at the beginning.");
+    println!(
+        "Will be inserted after selected track. Select no track (0) to insert at the beginning."
+    );
     match select_track(player, 0) {
-        Ok(Some(track_id)) => player.add_track(&uri, &track_id, false).map_err(Error::from),
+        Ok(Some(track_id)) => player
+            .add_track(&uri, &track_id, false)
+            .map_err(Error::from),
         Ok(None) => player.add_track_at_start(&uri, false).map_err(Error::from),
-        Err(err) => Err(err).context("Failed to select track").map_err(Error::from),
+        Err(err) => Err(err)
+            .context("Failed to select track")
+            .map_err(Error::from),
     }
 }

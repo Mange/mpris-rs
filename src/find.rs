@@ -1,9 +1,9 @@
-extern crate dbus;
+use failure::Fail;
 
 use std::rc::Rc;
 
-use dbus::{arg, Message};
 use dbus::ffidisp::{BusType, Connection};
+use dbus::{arg, Message};
 
 use super::DBusError;
 use crate::player::{Player, DEFAULT_TIMEOUT_MS, MPRIS2_PATH, MPRIS2_PREFIX};
@@ -72,8 +72,10 @@ impl PlayerFinder {
                     bus_name.into(),
                     MPRIS2_PATH.into(),
                     DEFAULT_TIMEOUT_MS,
-                ).map_err(FindingError::from)
-            }).collect()
+                )
+                .map_err(FindingError::from)
+            })
+            .collect()
     }
 
     /// Try to find the "active" player in the connection.
@@ -92,7 +94,8 @@ impl PlayerFinder {
                 bus_name.into(),
                 MPRIS2_PATH.into(),
                 DEFAULT_TIMEOUT_MS,
-            ).map_err(FindingError::from)
+            )
+            .map_err(FindingError::from)
         } else {
             Err(FindingError::NoPlayerFound)
         }
@@ -101,7 +104,7 @@ impl PlayerFinder {
     fn active_player_bus(&self) -> Result<Option<String>, FindingError> {
         // Right now, we just pick the first of the players. Is there some way to select this more
         // intelligently?
-        Ok(self.all_player_buses()?.into_iter().nth(0))
+        Ok(self.all_player_buses()?.into_iter().next())
     }
 
     fn all_player_buses(&self) -> Result<Vec<String>, DBusError> {
@@ -110,14 +113,15 @@ impl PlayerFinder {
             "/",
             "org.freedesktop.DBus",
             "ListNames",
-        ).unwrap();
+        )
+        .unwrap();
 
         let reply = self
             .connection
             .underlying()
             .send_with_reply_and_block(list_names, LIST_NAMES_TIMEOUT_MS)?;
 
-        let names: arg::Array<&str, _> = reply.read1().map_err(DBusError::from)?;
+        let names: arg::Array<'_, &str, _> = reply.read1().map_err(DBusError::from)?;
 
         Ok(names
             .filter(|name| name.starts_with(MPRIS2_PREFIX))

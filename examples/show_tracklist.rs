@@ -1,6 +1,3 @@
-extern crate failure;
-extern crate mpris;
-
 use failure::{Error, ResultExt};
 use mpris::PlayerFinder;
 

@@ -1,6 +1,3 @@
-extern crate failure;
-extern crate mpris;
-
 use failure::{Error, ResultExt};
 use mpris::{DBusError, Player, PlayerFinder};
 use std::borrow::Cow;
@@ -8,7 +5,7 @@ use std::borrow::Cow;
 const VALUE_INDENTATION: usize = 25;
 
 trait CustomDisplay {
-    fn string_for_display(&self) -> Cow<str>;
+    fn string_for_display(&self) -> Cow<'_, str>;
 }
 
 fn main() {
@@ -38,7 +35,7 @@ fn print_capabilities_for_all_players() -> Result<(), Error> {
     Ok(())
 }
 
-fn print_capabilities_for_player(player: Player) -> Result<(), Error> {
+fn print_capabilities_for_player(player: Player<'_>) -> Result<(), Error> {
     println!(
         ">> Player: {} ({})",
         player.identity(),
@@ -101,7 +98,7 @@ fn print_value<T: CustomDisplay>(name: &str, value: T) {
 }
 
 impl CustomDisplay for bool {
-    fn string_for_display(&self) -> Cow<str> {
+    fn string_for_display(&self) -> Cow<'_, str> {
         match self {
             true => "✔ Yes".into(),
             false => "✖ No".into(),
@@ -110,19 +107,19 @@ impl CustomDisplay for bool {
 }
 
 impl CustomDisplay for f64 {
-    fn string_for_display(&self) -> Cow<str> {
+    fn string_for_display(&self) -> Cow<'_, str> {
         format!("{:.3}", self).into()
     }
 }
 
 impl CustomDisplay for String {
-    fn string_for_display(&self) -> Cow<str> {
+    fn string_for_display(&self) -> Cow<'_, str> {
         self.into()
     }
 }
 
 impl CustomDisplay for DBusError {
-    fn string_for_display(&self) -> Cow<str> {
+    fn string_for_display(&self) -> Cow<'_, str> {
         format!("Error: {}", self).into()
     }
 }
@@ -131,7 +128,7 @@ impl<T> CustomDisplay for Vec<T>
 where
     T: CustomDisplay,
 {
-    fn string_for_display(&self) -> Cow<str> {
+    fn string_for_display(&self) -> Cow<'_, str> {
         let mut buf = String::new();
         for val in self {
             if buf.len() == 0 {
@@ -154,7 +151,7 @@ where
     T: CustomDisplay,
     E: CustomDisplay,
 {
-    fn string_for_display(&self) -> Cow<str> {
+    fn string_for_display(&self) -> Cow<'_, str> {
         match self {
             Ok(val) => val.string_for_display(),
             Err(err) => err.string_for_display(),

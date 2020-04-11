@@ -1,5 +1,3 @@
-extern crate mpris;
-
 use mpris::PlayerFinder;
 use std::time::{Duration, Instant};
 

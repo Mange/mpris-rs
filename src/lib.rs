@@ -26,29 +26,7 @@
 //! 2. Look at the `PlayerFinder` struct.
 //!
 
-// Rust currently has a false-positive on unused_imports for proc macro crates:
-// If it's imported with #[macro_use] it triggers the "Unused imports" lint.
-// If you remove #[macro_use], then the custom derives stop working with a recommendation to add it
-// again.
-//
-// Allowing unused_imports on this statement gets rid of the warning.
-#[allow(unused_imports)]
-#[macro_use]
-extern crate failure_derive;
-
-#[macro_use]
-extern crate failure;
-
-#[macro_use]
-extern crate enum_kinds;
-
-#[macro_use]
-extern crate derive_is_enum_variant;
-
-#[macro_use]
-extern crate from_variants;
-
-extern crate dbus;
+use failure::Fail;
 
 mod extensions;
 
@@ -66,8 +44,8 @@ mod track_list;
 pub use crate::event::{Event, EventError, PlayerEvents};
 pub use crate::find::{FindingError, PlayerFinder};
 pub use crate::metadata::Metadata;
-pub use crate::metadata::ValueKind as MetadataValueKind;
 pub use crate::metadata::Value as MetadataValue;
+pub use crate::metadata::ValueKind as MetadataValueKind;
 pub use crate::player::Player;
 pub use crate::progress::{Progress, ProgressError, ProgressTick, ProgressTracker};
 pub use crate::track_list::{TrackID, TrackList, TrackListError};

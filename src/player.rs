@@ -1,5 +1,3 @@
-extern crate dbus;
-
 use std::collections::HashMap;
 use std::ops::Range;
 use std::rc::Rc;
@@ -115,7 +113,7 @@ impl<'a> Player<'a> {
     }
 
     /// Returns the player's D-Bus bus name.
-    pub fn bus_name(&self) -> &BusName {
+    pub fn bus_name(&self) -> &BusName<'_> {
         &self.bus_name
     }
 
@@ -236,7 +234,11 @@ impl<'a> Player<'a> {
     ///
     /// See: [MPRIS2 specification about
     /// `Position`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Position)
-    pub fn checked_set_position(&self, track_id: TrackID, position: &Duration) -> Result<bool, DBusError> {
+    pub fn checked_set_position(
+        &self,
+        track_id: TrackID,
+        position: &Duration,
+    ) -> Result<bool, DBusError> {
         if self.can_control()? && self.has_position()? {
             self.set_position(track_id, position)
                 .map(|_| true)
@@ -370,7 +372,7 @@ impl<'a> Player<'a> {
 
         let connection_path = self.connection_path();
 
-        Properties::get::<Vec<Path>>(
+        Properties::get::<Vec<Path<'_>>>(
             &connection_path,
             "org.mpris.MediaPlayer2.TrackList",
             "Tracks",
@@ -493,7 +495,7 @@ impl<'a> Player<'a> {
     /// render something like a progress bar, or information about the current track.
     ///
     /// See `Player::events` for an alternative approach.
-    pub fn track_progress(&self, interval_ms: u32) -> Result<ProgressTracker, DBusError> {
+    pub fn track_progress(&self, interval_ms: u32) -> Result<ProgressTracker<'_>, DBusError> {
         ProgressTracker::new(self, interval_ms)
     }
 
@@ -510,7 +512,7 @@ impl<'a> Player<'a> {
     /// remain frozen until the next event is emitted and the iterator returns.
     ///
     /// See `Player::track_progress` for an alternative approach.
-    pub fn events(&self) -> Result<PlayerEvents, DBusError> {
+    pub fn events(&self) -> Result<PlayerEvents<'_>, DBusError> {
         PlayerEvents::new(self)
     }
 
@@ -1187,7 +1189,7 @@ impl<'a> Player<'a> {
         }
     }
 
-    fn connection_path(&self) -> ConnPath<&Connection> {
+    fn connection_path(&self) -> ConnPath<'_, &Connection> {
         self.connection
             .with_path(self.bus_name.clone(), self.path.clone(), self.timeout_ms)
     }
@@ -1224,7 +1226,7 @@ fn handle_optional_property<T>(result: Result<T, dbus::Error>) -> Result<Option<
 }
 
 /// Checks if the Player implements the `org.mpris.MediaPlayer2.TrackList` interface.
-fn has_tracklist_interface(connection: ConnPath<&Connection>) -> Result<bool, DBusError> {
+fn has_tracklist_interface(connection: ConnPath<'_, &Connection>) -> Result<bool, DBusError> {
     // Get the introspection XML and look for the substring instead of parsing the XML. Yeah,
     // pretty dirty, but it's also a lot faster and doesn't require a huge XML library as a
     // dependency either.

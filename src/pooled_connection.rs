@@ -46,7 +46,7 @@ impl PooledConnection {
         bus_name: BusName<'a>,
         path: Path<'a>,
         timeout_ms: i32,
-    ) -> ConnPath<&'a Connection> {
+    ) -> ConnPath<'_, &'a Connection> {
         self.connection.with_path(bus_name, path, timeout_ms)
     }
 
@@ -397,8 +397,8 @@ fn try_parse_seeked(message: &Message) -> Option<MprisMessage> {
 fn try_parse_tracklist_replaced(message: &Message) -> Option<MprisMessage> {
     let unique_name = message.sender().map(|bus_name| bus_name.to_string())?;
     let mut iter = message.iter_init();
-    let ids: Vec<Path> = iter.read().ok()?;
-    let current_id: Path = iter.read().ok()?;
+    let ids: Vec<Path<'_>> = iter.read().ok()?;
+    let current_id: Path<'_> = iter.read().ok()?;
 
     Some(MprisMessage::TrackListReplaced {
         unique_name,
@@ -411,7 +411,7 @@ fn try_parse_track_added(message: &Message) -> Option<MprisMessage> {
     let unique_name = message.sender().map(|bus_name| bus_name.to_string())?;
     let mut iter = message.iter_init();
     let metadata: HashMap<String, Value> = iter.read().ok()?;
-    let after_id: Path = iter.read().ok()?;
+    let after_id: Path<'_> = iter.read().ok()?;
 
     Some(MprisMessage::TrackAdded {
         unique_name,
@@ -423,7 +423,7 @@ fn try_parse_track_added(message: &Message) -> Option<MprisMessage> {
 fn try_parse_track_removed(message: &Message) -> Option<MprisMessage> {
     let unique_name = message.sender().map(|bus_name| bus_name.to_string())?;
     let mut iter = message.iter_init();
-    let id: Path = iter.read().ok()?;
+    let id: Path<'_> = iter.read().ok()?;
 
     Some(MprisMessage::TrackRemoved {
         unique_name,
@@ -434,7 +434,7 @@ fn try_parse_track_removed(message: &Message) -> Option<MprisMessage> {
 fn try_parse_track_metadata_changed(message: &Message) -> Option<MprisMessage> {
     let unique_name = message.sender().map(|bus_name| bus_name.to_string())?;
     let mut iter = message.iter_init();
-    let old_id: Path = iter.read().ok()?;
+    let old_id: Path<'_> = iter.read().ok()?;
     let metadata: HashMap<String, Value> = iter.read().ok()?;
 
     Some(MprisMessage::TrackMetadataChanged {

@@ -1,5 +1,5 @@
-extern crate dbus;
 use super::{DBusError, Metadata, Player};
+use failure::Fail;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
@@ -95,7 +95,7 @@ impl<'a> From<&'a TrackID> for dbus::Path<'a> {
 }
 
 impl fmt::Display for TrackID {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
 }
@@ -142,7 +142,7 @@ impl TrackID {
         &*self.0
     }
 
-    pub(crate) fn as_path(&self) -> dbus::Path {
+    pub(crate) fn as_path(&self) -> dbus::Path<'_> {
         // All inputs to this class should be validated to work with dbus::Path, so unwrapping
         // should be safe here.
         dbus::Path::new(self.as_str()).unwrap()
@@ -292,7 +292,7 @@ impl TrackList {
     ///
     /// Metadata will be loaded from the provided player when not present in the metadata cache.
     /// If metadata loading fails, then a DBusError will be returned instead of the iterator.
-    pub fn metadata_iter(&self, player: &Player) -> Result<MetadataIter, TrackListError> {
+    pub fn metadata_iter(&self, player: &Player<'_>) -> Result<MetadataIter, TrackListError> {
         self.complete_cache(player)?;
         let metadata: HashMap<_, _> = self.metadata_cache.clone().into_inner();
         let ids = self.ids.clone();
@@ -309,7 +309,7 @@ impl TrackList {
     /// list.
     ///
     /// Cache for tracks that are no longer part of the player's tracklist will be removed.
-    pub fn reload(&mut self, player: &Player) -> Result<(), TrackListError> {
+    pub fn reload(&mut self, player: &Player<'_>) -> Result<(), TrackListError> {
         self.ids = player.get_track_list()?.ids;
         self.clear_extra_cache();
         Ok(())
@@ -319,7 +319,7 @@ impl TrackList {
     ///
     /// Cache will be replaced *after* the new metadata has been loaded, so on load errors the
     /// cache will still be maintained.
-    pub fn reload_cache(&self, player: &Player) -> Result<(), TrackListError> {
+    pub fn reload_cache(&self, player: &Player<'_>) -> Result<(), TrackListError> {
         let id_metadata = self
             .ids
             .iter()
@@ -336,7 +336,7 @@ impl TrackList {
     /// Fill in any holes in the cache so that each track on the list has a cached Metadata entry.
     ///
     /// If all tracks already have a cache entry, then this will do nothing.
-    pub fn complete_cache(&self, player: &Player) -> Result<(), TrackListError> {
+    pub fn complete_cache(&self, player: &Player<'_>) -> Result<(), TrackListError> {
         let ids: Vec<_> = self
             .ids_without_cache()
             .into_iter()
