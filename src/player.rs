@@ -195,6 +195,18 @@ impl<'a> Player<'a> {
             .map(Duration::from_micros_ext)
     }
 
+    /// Gets the "Position" setting, if the player indicates that it supports it.
+    ///
+    /// Return [[Some]] containing the current value of the position. If the setting is not
+    /// supported, return [[None]]
+    pub fn checked_get_position(&self) -> Result<Option<Duration>, DBusError> {
+        if self.has_position()? {
+            Ok(Some(self.get_position()?))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Returns the player's MPRIS `position` as a count of microseconds since the start of the
     /// media.
     pub fn get_position_in_microseconds(&self) -> Result<u64, DBusError> {
@@ -215,6 +227,23 @@ impl<'a> Player<'a> {
     /// See: [MPRIS2 specification about `SetPosition`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:SetPosition)
     pub fn set_position(&self, track_id: TrackID, position: &Duration) -> Result<(), DBusError> {
         self.set_position_in_microseconds(track_id, DurationExtensions::as_micros(position))
+    }
+
+    /// Set the "Position" setting of the player, if the player indicates that it supports the
+    /// "Position" setting and can be controlled.
+    ///
+    /// Returns a boolean to show if the signal was sent or not.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `Position`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Position)
+    pub fn checked_set_position(&self, track_id: TrackID, position: &Duration) -> Result<bool, DBusError> {
+        if self.can_control()? && self.has_position()? {
+            self.set_position(track_id, position)
+                .map(|_| true)
+                .map_err(DBusError::from)
+        } else {
+            Ok(false)
+        }
     }
 
     /// Sets the position of the current track to the given position (in microseconds).
@@ -928,6 +957,16 @@ impl<'a> Player<'a> {
         self.connection_path()
             .get_all("org.mpris.MediaPlayer2.Player")
             .map(|props| props.contains_key("Rate"))
+            .map_err(DBusError::from)
+    }
+
+    /// Queries the player to see if it supports the "Position" setting
+    pub fn has_position(&self) -> Result<bool, DBusError> {
+        use dbus::ffidisp::stdintf::org_freedesktop_dbus::Properties;
+
+        self.connection_path()
+            .get_all("org.mpris.MediaPlayer2.Player")
+            .map(|props| props.contains_key("Position"))
             .map_err(DBusError::from)
     }
 
