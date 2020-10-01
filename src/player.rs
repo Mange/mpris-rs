@@ -882,6 +882,16 @@ impl<'a> Player<'a> {
             .map_err(DBusError::from)
     }
 
+    /// Queries the player to see if it supports the "LoopStatus" setting
+    pub fn can_loop(&self) -> Result<bool, DBusError> {
+        use dbus::ffidisp::stdintf::org_freedesktop_dbus::Properties;
+
+        self.connection_path()
+            .get_all("org.mpris.MediaPlayer2.Player")
+            .map(|props| props.contains_key("LoopStatus"))
+            .map_err(DBusError::from)
+    }
+
     /// Query the player for current fullscreen state.
     ///
     /// This property was added in MPRIS 2.2, and not all players will implement it. This method
@@ -981,6 +991,18 @@ impl<'a> Player<'a> {
             .map_err(DBusError::from)
     }
 
+    /// Gets the "LoopStatus" setting, if the player indicates that it supports it.
+    ///
+    /// Returns [[Some]] containing the current value of the loop setting. If the setting is not
+    /// supported, returns [[None]]
+    pub fn checked_get_loop_status(&self) -> Result<Option<LoopStatus>, DBusError> {
+        if self.can_loop()? {
+            Ok(Some(self.get_loop_status()?))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Set the loop status of the player.
     ///
     /// See: [MPRIS2 specification about
@@ -991,14 +1013,15 @@ impl<'a> Player<'a> {
             .map_err(DBusError::from)
     }
 
-    /// Set the loop status of the player, if the player indicates that it can be controlled.
+    /// Set the loop status of the player, if the player indicates that supports it and that it can
+    /// be controlled.
     ///
     /// Returns a boolean to show if the signal was sent or not.
     ///
     /// See: [MPRIS2 specification about
     /// `LoopStatus`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:LoopStatus)
     pub fn checked_set_loop_status(&self, status: LoopStatus) -> Result<bool, DBusError> {
-        if self.can_control()? {
+        if self.can_control()? && self.can_loop()? {
             self.set_loop_status(status)
                 .map(|_| true)
                 .map_err(DBusError::from)
