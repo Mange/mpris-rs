@@ -326,7 +326,7 @@ impl Progress {
             playback_status: player.get_playback_status()?,
             shuffle: player.checked_get_shuffle()?.unwrap_or(false),
             loop_status: player.checked_get_loop_status()?.unwrap_or(LoopStatus::None),
-            rate: player.get_playback_rate()?,
+            rate: player.checked_get_playback_rate()?.unwrap_or(1.0),
             position: player.get_position()?,
             current_volume: player.get_volume()?,
             instant: Instant::now(),

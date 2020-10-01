@@ -243,6 +243,18 @@ impl<'a> Player<'a> {
         self.connection_path().get_rate().map_err(|e| e.into())
     }
 
+    /// Gets the "Rate" setting, if the player indicates that it supports it.
+    ///
+    /// Returns [[Some]] containing the current value of the rate setting. If the setting is not
+    /// supported, returns [[None]]
+    pub fn checked_get_playback_rate(&self) -> Result<Option<f64>, DBusError> {
+        if self.has_playback_rate()? {
+            Ok(Some(self.get_playback_rate()?))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Sets the player's MPRIS (playback) `rate` as a factor.
     ///
     /// 1.0 would mean normal rate, while 2.0 would mean twice the playback speed.
@@ -256,6 +268,23 @@ impl<'a> Player<'a> {
     /// See: [MPRIS2 specification about `Rate`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Rate)
     pub fn set_playback_rate(&self, rate: f64) -> Result<(), DBusError> {
         self.connection_path().set_rate(rate).map_err(|e| e.into())
+    }
+
+    /// Set the playback rate of the player, if the player indicates that supports it and that it
+    /// can be controlled.
+    ///
+    /// Returns a boolean to show if the signal was sent or not.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `Rate`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Rate)
+    pub fn checked_set_playback_rate(&self, rate: f64) -> Result<bool, DBusError> {
+        if self.can_control()? && self.has_playback_rate()? {
+            self.set_playback_rate(rate)
+                .map(|_| true)
+                .map_err(DBusError::from)
+        } else {
+            Ok(false)
+        }
     }
 
     /// Gets the minimum allowed value for playback rate.
@@ -889,6 +918,16 @@ impl<'a> Player<'a> {
         self.connection_path()
             .get_all("org.mpris.MediaPlayer2.Player")
             .map(|props| props.contains_key("LoopStatus"))
+            .map_err(DBusError::from)
+    }
+
+    /// Queries the player to see if it supports the "Rate" setting
+    pub fn has_playback_rate(&self) -> Result<bool, DBusError> {
+        use dbus::ffidisp::stdintf::org_freedesktop_dbus::Properties;
+
+        self.connection_path()
+            .get_all("org.mpris.MediaPlayer2.Player")
+            .map(|props| props.contains_key("Rate"))
             .map_err(DBusError::from)
     }
 
