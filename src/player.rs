@@ -970,6 +970,16 @@ impl<'a> Player<'a> {
             .map_err(DBusError::from)
     }
 
+    /// Queries the player to see if it supports the "Volume" setting
+    pub fn has_volume(&self) -> Result<bool, DBusError> {
+        use dbus::ffidisp::stdintf::org_freedesktop_dbus::Properties;
+
+        self.connection_path()
+            .get_all("org.mpris.MediaPlayer2.Player")
+            .map(|props| props.contains_key("Volume"))
+            .map_err(DBusError::from)
+    }
+
     /// Query the player for current fullscreen state.
     ///
     /// This property was added in MPRIS 2.2, and not all players will implement it. This method
@@ -1119,6 +1129,18 @@ impl<'a> Player<'a> {
         self.connection_path().get_volume().map_err(DBusError::from)
     }
 
+    /// Gets the "Volume" setting, if the player indicates that it supports it.
+    ///
+    /// Returns [[Some]] containing the current value of the position. If the setting is not
+    /// supported, returns [[None]]
+    pub fn checked_get_volume(&self) -> Result<Option<f64>, DBusError> {
+        if self.has_volume()? {
+            Ok(Some(self.get_volume()?))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Set the volume of the player.
     ///
     /// Volume should be between 0.0 and 1.0. Above 1.0 is possible, but not
@@ -1130,6 +1152,23 @@ impl<'a> Player<'a> {
         self.connection_path()
             .set_volume(value.max(0.0))
             .map_err(DBusError::from)
+    }
+
+    /// Set the "Volume" setting of the player, if the player indicates that it supports the
+    /// "Volume" setting and can be controlled.
+    ///
+    /// Returns a boolean to show if the signal was sent or not.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `Volume`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Volume)
+    pub fn checked_set_volume(&self, volume: f64) -> Result<bool, DBusError> {
+        if self.can_control()? && self.has_volume()? {
+            self.set_volume(volume)
+                .map(|_| true)
+                .map_err(DBusError::from)
+        } else {
+            Ok(false)
+        }
     }
 
     /// Set the volume of the player, if the player indicates that it can be
