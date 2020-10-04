@@ -59,11 +59,16 @@ fn print_capabilities_for_player(player: Player) -> Result<(), Error> {
     print_value("CanControl", player.can_control());
     print_value("CanGoNext", player.can_go_next());
     print_value("CanGoPrevious", player.can_go_previous());
+    print_value("CanLoop", player.can_loop());
     print_value("CanPause", player.can_pause());
     print_value("CanPlay", player.can_play());
     print_value("CanSeek", player.can_seek());
     print_value("CanSetPaybackRate", player.can_set_playback_rate());
+    print_value("CanShuffle", player.can_shuffle());
     print_value("CanStop", player.can_stop());
+    print_value("HasPlaybackRate", player.has_playback_rate());
+    print_value("HasPosition", player.has_position());
+    print_value("HasVolume", player.has_volume());
 
     print_value("Rate", player.get_playback_rate());
     print_value("MaximumRate", player.get_maximum_playback_rate());
