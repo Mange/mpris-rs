@@ -325,10 +325,10 @@ impl Progress {
             metadata: player.get_metadata()?,
             playback_status: player.get_playback_status()?,
             shuffle: player.checked_get_shuffle()?.unwrap_or(false),
-            loop_status: player.get_loop_status()?,
-            rate: player.get_playback_rate()?,
-            position: player.get_position()?,
-            current_volume: player.get_volume()?,
+            loop_status: player.checked_get_loop_status()?.unwrap_or(LoopStatus::None),
+            rate: player.checked_get_playback_rate()?.unwrap_or(1.0),
+            position: player.checked_get_position()?.unwrap_or_else(|| Duration::new(0, 0)),
+            current_volume: player.checked_get_volume()?.unwrap_or(1.0),
             instant: Instant::now(),
         })
     }

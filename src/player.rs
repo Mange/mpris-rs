@@ -195,6 +195,18 @@ impl<'a> Player<'a> {
             .map(Duration::from_micros_ext)
     }
 
+    /// Gets the "Position" setting, if the player indicates that it supports it.
+    ///
+    /// Return [[Some]] containing the current value of the position. If the setting is not
+    /// supported, return [[None]]
+    pub fn checked_get_position(&self) -> Result<Option<Duration>, DBusError> {
+        if self.has_position()? {
+            Ok(Some(self.get_position()?))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Returns the player's MPRIS `position` as a count of microseconds since the start of the
     /// media.
     pub fn get_position_in_microseconds(&self) -> Result<u64, DBusError> {
@@ -215,6 +227,23 @@ impl<'a> Player<'a> {
     /// See: [MPRIS2 specification about `SetPosition`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:SetPosition)
     pub fn set_position(&self, track_id: TrackID, position: &Duration) -> Result<(), DBusError> {
         self.set_position_in_microseconds(track_id, DurationExtensions::as_micros(position))
+    }
+
+    /// Set the "Position" setting of the player, if the player indicates that it supports the
+    /// "Position" setting and can be controlled.
+    ///
+    /// Returns a boolean to show if the signal was sent or not.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `Position`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Position)
+    pub fn checked_set_position(&self, track_id: TrackID, position: &Duration) -> Result<bool, DBusError> {
+        if self.can_control()? && self.has_position()? {
+            self.set_position(track_id, position)
+                .map(|_| true)
+                .map_err(DBusError::from)
+        } else {
+            Ok(false)
+        }
     }
 
     /// Sets the position of the current track to the given position (in microseconds).
@@ -243,6 +272,18 @@ impl<'a> Player<'a> {
         self.connection_path().get_rate().map_err(|e| e.into())
     }
 
+    /// Gets the "Rate" setting, if the player indicates that it supports it.
+    ///
+    /// Returns [[Some]] containing the current value of the rate setting. If the setting is not
+    /// supported, returns [[None]]
+    pub fn checked_get_playback_rate(&self) -> Result<Option<f64>, DBusError> {
+        if self.has_playback_rate()? {
+            Ok(Some(self.get_playback_rate()?))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Sets the player's MPRIS (playback) `rate` as a factor.
     ///
     /// 1.0 would mean normal rate, while 2.0 would mean twice the playback speed.
@@ -256,6 +297,23 @@ impl<'a> Player<'a> {
     /// See: [MPRIS2 specification about `Rate`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Rate)
     pub fn set_playback_rate(&self, rate: f64) -> Result<(), DBusError> {
         self.connection_path().set_rate(rate).map_err(|e| e.into())
+    }
+
+    /// Set the playback rate of the player, if the player indicates that supports it and that it
+    /// can be controlled.
+    ///
+    /// Returns a boolean to show if the signal was sent or not.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `Rate`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Rate)
+    pub fn checked_set_playback_rate(&self, rate: f64) -> Result<bool, DBusError> {
+        if self.can_control()? && self.has_playback_rate()? {
+            self.set_playback_rate(rate)
+                .map(|_| true)
+                .map_err(DBusError::from)
+        } else {
+            Ok(false)
+        }
     }
 
     /// Gets the minimum allowed value for playback rate.
@@ -882,6 +940,46 @@ impl<'a> Player<'a> {
             .map_err(DBusError::from)
     }
 
+    /// Queries the player to see if it supports the "LoopStatus" setting
+    pub fn can_loop(&self) -> Result<bool, DBusError> {
+        use dbus::ffidisp::stdintf::org_freedesktop_dbus::Properties;
+
+        self.connection_path()
+            .get_all("org.mpris.MediaPlayer2.Player")
+            .map(|props| props.contains_key("LoopStatus"))
+            .map_err(DBusError::from)
+    }
+
+    /// Queries the player to see if it supports the "Rate" setting
+    pub fn has_playback_rate(&self) -> Result<bool, DBusError> {
+        use dbus::ffidisp::stdintf::org_freedesktop_dbus::Properties;
+
+        self.connection_path()
+            .get_all("org.mpris.MediaPlayer2.Player")
+            .map(|props| props.contains_key("Rate"))
+            .map_err(DBusError::from)
+    }
+
+    /// Queries the player to see if it supports the "Position" setting
+    pub fn has_position(&self) -> Result<bool, DBusError> {
+        use dbus::ffidisp::stdintf::org_freedesktop_dbus::Properties;
+
+        self.connection_path()
+            .get_all("org.mpris.MediaPlayer2.Player")
+            .map(|props| props.contains_key("Position"))
+            .map_err(DBusError::from)
+    }
+
+    /// Queries the player to see if it supports the "Volume" setting
+    pub fn has_volume(&self) -> Result<bool, DBusError> {
+        use dbus::ffidisp::stdintf::org_freedesktop_dbus::Properties;
+
+        self.connection_path()
+            .get_all("org.mpris.MediaPlayer2.Player")
+            .map(|props| props.contains_key("Volume"))
+            .map_err(DBusError::from)
+    }
+
     /// Query the player for current fullscreen state.
     ///
     /// This property was added in MPRIS 2.2, and not all players will implement it. This method
@@ -981,6 +1079,18 @@ impl<'a> Player<'a> {
             .map_err(DBusError::from)
     }
 
+    /// Gets the "LoopStatus" setting, if the player indicates that it supports it.
+    ///
+    /// Returns [[Some]] containing the current value of the loop setting. If the setting is not
+    /// supported, returns [[None]]
+    pub fn checked_get_loop_status(&self) -> Result<Option<LoopStatus>, DBusError> {
+        if self.can_loop()? {
+            Ok(Some(self.get_loop_status()?))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Set the loop status of the player.
     ///
     /// See: [MPRIS2 specification about
@@ -991,14 +1101,15 @@ impl<'a> Player<'a> {
             .map_err(DBusError::from)
     }
 
-    /// Set the loop status of the player, if the player indicates that it can be controlled.
+    /// Set the loop status of the player, if the player indicates that supports it and that it can
+    /// be controlled.
     ///
     /// Returns a boolean to show if the signal was sent or not.
     ///
     /// See: [MPRIS2 specification about
     /// `LoopStatus`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:LoopStatus)
     pub fn checked_set_loop_status(&self, status: LoopStatus) -> Result<bool, DBusError> {
-        if self.can_control()? {
+        if self.can_control()? && self.can_loop()? {
             self.set_loop_status(status)
                 .map(|_| true)
                 .map_err(DBusError::from)
@@ -1018,6 +1129,18 @@ impl<'a> Player<'a> {
         self.connection_path().get_volume().map_err(DBusError::from)
     }
 
+    /// Gets the "Volume" setting, if the player indicates that it supports it.
+    ///
+    /// Returns [[Some]] containing the current value of the position. If the setting is not
+    /// supported, returns [[None]]
+    pub fn checked_get_volume(&self) -> Result<Option<f64>, DBusError> {
+        if self.has_volume()? {
+            Ok(Some(self.get_volume()?))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Set the volume of the player.
     ///
     /// Volume should be between 0.0 and 1.0. Above 1.0 is possible, but not
@@ -1029,6 +1152,23 @@ impl<'a> Player<'a> {
         self.connection_path()
             .set_volume(value.max(0.0))
             .map_err(DBusError::from)
+    }
+
+    /// Set the "Volume" setting of the player, if the player indicates that it supports the
+    /// "Volume" setting and can be controlled.
+    ///
+    /// Returns a boolean to show if the signal was sent or not.
+    ///
+    /// See: [MPRIS2 specification about
+    /// `Volume`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Volume)
+    pub fn checked_set_volume(&self, volume: f64) -> Result<bool, DBusError> {
+        if self.can_control()? && self.has_volume()? {
+            self.set_volume(volume)
+                .map(|_| true)
+                .map_err(DBusError::from)
+        } else {
+            Ok(false)
+        }
     }
 
     /// Set the volume of the player, if the player indicates that it can be
