@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+**Important:** Now using Rust 2018 edition.
+
 ## Fixed
 
 * Track change detection for some non-conforming players (e.g. Spotify). -
@@ -25,17 +27,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * `Player::bus_name_player_name_part` - [Koen Bolhuis
   (InputUsername)](https://github.com/InputUsername)
 * `Metadata::as_hashmap(&self)` which returns a simple borrowed hashmap.
-* More `Player::has_*`, `Player::can_*`, and
-  `Player::checked_*` methods - [Harrison Thorne
-  (harrisonthorne)][harrisonthorne]
+* More `Player::has_*`, `Player::can_*`, and `Player::checked_*` methods -
+  [Harrison Thorne (harrisonthorne)][harrisonthorne]
   * `Player::has_volume`, `Player::checked_get_volume`,
-    `Player::checked_set_volume` 
-  * `Player::has_position`,
-    `Player::checked_get_position`,
+    `Player::checked_set_volume`
+  * `Player::has_position`, `Player::checked_get_position`,
     `Player::checked_set_position`
-  * `Player::has_playback_rate`,
-    `Player::checked_get_playback_rate`,
-    `Player::checked_set_playback_rate` 
+  * `Player::has_playback_rate`, `Player::checked_get_playback_rate`,
+    `Player::checked_set_playback_rate`
   * `Player::can_loop`, `Player::checked_get_loop_status`
 
 ## Changed
@@ -43,11 +42,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Now using Rust 2018 edition.
 * `Player::checked_set_shuffle` also checks `::can_shuffle`. - [Stephan
   Henrichs (Kilobyte22)][Kilobyte22]
-* `Player::checked_set_loop_status` also checks `::can_loop` - 
-  [Harrison Thorne (harrisonthorne)][harrisonthorne]
-* `Progress` default values to used `checked_get_*`
-  functions - [Harrison Thorne
+* `Player::checked_set_loop_status` also checks `::can_loop` - [Harrison Thorne
   (harrisonthorne)][harrisonthorne]
+* `Progress` default values uses `checked_get_*` functions - [Harrison
+  Thorne (harrisonthorne)][harrisonthorne]
 
 
 ## [v2.0.0-rc2] - 2020-02-15
