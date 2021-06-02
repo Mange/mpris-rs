@@ -251,9 +251,13 @@ impl<'a> PlayerEvents<'a> {
         let old_metadata = self.last_progress.metadata();
 
         // As a workaround for Players not setting a valid track ID, we also check against the URL
+        // Title and artists are checked to detect changes for streams (radios) because track ID and URL don't change.
+        // Title is checked first because most radios set title to `Artist - Title` and have the station name in artists.
 
         if old_metadata.track_id() != new_metadata.track_id()
             || old_metadata.url() != new_metadata.url()
+            || old_metadata.title() != new_metadata.title()
+            || old_metadata.artists() != new_metadata.artists()
         {
             self.buffer.push(Event::TrackChanged(new_metadata.clone()));
         }
