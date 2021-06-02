@@ -22,7 +22,7 @@ const NAME_HAS_OWNER_TIMEOUT: i32 = 100; // ms
 
 impl PooledConnection {
     pub(crate) fn new(connection: Connection) -> Self {
-        // Subscribe to events that relate to players. See `MprisMessage` below for details.
+        // Subscribe to events that relate to players. See [`MprisMessage`] below for details.
         let _ = connection.add_match(
             "interface='org.freedesktop.DBus.Properties',member='PropertiesChanged',path='/org/mpris/MediaPlayer2'",
         );
@@ -86,9 +86,9 @@ impl PooledConnection {
             .and_then(|reply| reply.get1())
     }
 
-    /// Returns `true` if the given bus name has any pending events waiting to be processed.
+    /// Returns [`true`] if the given bus name has any pending events waiting to be processed.
     ///
-    /// If you want to actually act on the messages, use `pending_events`.
+    /// If you want to actually act on the messages, use [`pending_events`](Self::pending_events).
     pub(crate) fn has_pending_events(&self, bus_name: &str) -> bool {
         self.events
             .try_borrow()
@@ -100,7 +100,7 @@ impl PooledConnection {
     /// Removes all pending events from a bus' queue and returns them.
     ///
     /// If you want to non-destructively check if a bus has anything queued, use
-    /// `has_pending_events`.
+    /// [`has_pending_events`](Self::has_pending_events).
     pub(crate) fn pending_events(&self, bus_name: &str) -> Vec<MprisEvent> {
         self.events
             .try_borrow_mut()
@@ -109,7 +109,7 @@ impl PooledConnection {
             .unwrap_or_default()
     }
 
-    /// Process events in a blocking fashion until the deadline/timebox `Duration` runs out.
+    /// Process events in a blocking fashion until the deadline/timebox [`Duration`] runs out.
     pub(crate) fn process_events_blocking_for(&self, duration: Duration) {
         let start = Instant::now();
 
@@ -153,7 +153,7 @@ impl PooledConnection {
     }
 
     /// Takes a message and processes it appropriately. Returns the affected bus name, and a borrow
-    /// to the generated MprisEvent, if applicable.
+    /// to the generated [`MprisEvent`], if applicable.
     fn process_message(&self, message: MprisMessage) {
         let mut events = match self.events.try_borrow_mut() {
             Ok(val) => val,
@@ -276,7 +276,7 @@ pub(crate) enum MprisEvent {
     },
 }
 
-/// Easier to use representation of supported D-Bus messages.
+/// Easier to use representation of supported [`D-Bus message`](Message).
 #[derive(Debug)]
 pub(crate) enum MprisMessage {
     NameOwnerChanged {
@@ -315,14 +315,14 @@ pub(crate) enum MprisMessage {
 }
 
 impl MprisMessage {
-    /// Tries to convert the provided D-Bus message into a MprisMessage; returns None if the
+    /// Tries to convert the provided [`D-Bus message`](Message) into a MprisMessage; returns [`None`] if the
     /// message was not supported.
     fn try_parse(message: Message) -> Option<Self> {
         MprisMessage::try_parse_name_owner_changed(&message)
             .or_else(|| MprisMessage::try_parse_mpris_signal(&message))
     }
 
-    /// Return a MprisMessage::NameOwnerChanged if the provided D-Bus message is a
+    /// Return a [`MprisMessage::NameOwnerChanged`] if the provided D-Bus message is a
     /// org.freedesktop.DBus NameOwnerChanged message.
     fn try_parse_name_owner_changed(message: &Message) -> Option<Self> {
         match (message.sender(), message.member()) {

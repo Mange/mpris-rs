@@ -7,7 +7,7 @@ use crate::metadata::Metadata;
 use crate::player::Player;
 use crate::pooled_connection::MprisEvent;
 
-/// Struct containing information about current progress of a Player.
+/// Struct containing information about current progress of a [`Player`].
 ///
 /// It has access to the metadata of the current track, as well as information about the current
 /// position of the track.
@@ -29,9 +29,9 @@ pub struct Progress {
     current_volume: f64,
 }
 
-/// Controller for calculating `Progress` and maintaining a `TrackList` (if supported) for a given `Player`.
+/// Controller for calculating [`Progress`] and maintaining a [`TrackList`] (if supported) for a given [`Player`].
 ///
-/// Call the `tick` method to get the most current `Progress` data.
+/// Call the [`tick`](Self::tick) method to get the most current [`Progress`] data.
 #[derive(Debug)]
 pub struct ProgressTracker<'a> {
     player: &'a Player<'a>,
@@ -41,17 +41,17 @@ pub struct ProgressTracker<'a> {
     last_progress: Progress,
 }
 
-/// Return value of `ProgressTracker::tick`, which gives details about the latest refresh.
+/// Return value of [`ProgressTracker::tick`](ProgressTracker::tick), which gives details about the latest refresh.
 #[derive(Debug)]
 pub struct ProgressTick<'a> {
-    /// `true` if `Player` quit. This likely means that the player is no longer running.
+    /// [`true`] if [`Player`] quit. This likely means that the player is no longer running.
     ///
     /// If the player is no longer running, then fetching new data will not be possible,
-    /// so they will all be reused (`progress_changed` and `track_list_changed` should all be
-    /// `false`).
+    /// so they will all be reused ([`progress_changed`](Self::progress_changed) and
+    /// [`track_list_changed`](Self::track_list_changed) should all be [`false`]).
     pub player_quit: bool,
 
-    /// `true` if `Progress` data changed (beyond the calculated `position`)
+    /// [`true`] if [`Progress`] data changed (beyond the calculated `position`)
     ///
     /// **Examples:**
     ///
@@ -60,7 +60,7 @@ pub struct ProgressTick<'a> {
     /// * Volume was decreased
     pub progress_changed: bool,
 
-    /// `true` if `TrackList` data changed. This will always be `false` if player does not support
+    /// [`true`] if [`TrackList`] data changed. This will always be [`false`] if player does not support
     /// track lists.
     ///
     /// **Examples:**
@@ -70,34 +70,34 @@ pub struct ProgressTick<'a> {
     /// * Metadata changed for a track
     pub track_list_changed: bool,
 
-    /// The current `Progress` from the `ProgressTracker`. `progress_changed` tells you if this was
-    /// reused from the last tick or if it's a new one.
+    /// The current [`Progress`] from the [`ProgressTracker`]. [`progress_changed`](Self::progress_changed)
+    /// tells you if this was reused from the last tick or if it's a new one.
     pub progress: &'a Progress,
 
-    /// The current `TrackList` from the `ProgressTracker`. `track_list_changed` tells you if this was
-    /// changed since the last tick.
+    /// The current [`TrackList`] from the [`ProgressTracker`]. [`track_list_changed`](Self::track_list_changed)
+    /// tells you if this was changed since the last tick.
     pub track_list: Option<&'a TrackList>,
 }
 
 /// Errors that can occur while refreshing progress.
 #[derive(Debug, Fail)]
 pub enum ProgressError {
-    /// Something went wrong with the D-Bus communication. See the `DBusError` type.
+    /// Something went wrong with the D-Bus communication. See the [`DBusError`] type.
     #[fail(display = "D-Bus communication failed")]
     DBusError(#[cause] DBusError),
 
-    /// Something went wrong with the track list. See the `TrackListError` type.
+    /// Something went wrong with the track list. See the [`TrackListError`] type.
     #[fail(display = "TrackList could not be refreshed")]
     TrackListError(#[cause] TrackListError),
 }
 
 impl<'a> ProgressTracker<'a> {
-    /// Construct a new `ProgressTracker` for the provided `Player`.
+    /// Construct a new [`ProgressTracker`] for the provided [`Player`].
     ///
-    /// The `interval_ms` value is the desired time between ticks when calling the `tick` method.
-    /// See `tick` for more information about that.
+    /// The `interval_ms` value is the desired time between ticks when calling the [`tick`](Self::tick) method.
+    /// See [`tick`](Self::tick) for more information about that.
     ///
-    /// You probably want to use `Player::track_progress` instead of this method.
+    /// You probably want to use [`Player::track_progress`] instead of this method.
     ///
     /// # Errors
     ///
@@ -112,10 +112,10 @@ impl<'a> ProgressTracker<'a> {
         })
     }
 
-    /// Returns a `ProgressTick` at each interval, or as close to each interval as possible.
+    /// Returns a [`ProgressTick`] at each interval, or as close to each interval as possible.
     ///
     /// The returned struct contains borrows of the current data along with booleans telling you if
-    /// the underlying data changed or not. See `ProgressTick` for more information about that.
+    /// the underlying data changed or not. See [`ProgressTick`] for more information about that.
     ///
     /// If there is time left until the next interval window, then the tracker will process DBus
     /// events to determine if something changed (and potentially perform a full refresh of the
@@ -127,18 +127,18 @@ impl<'a> ProgressTracker<'a> {
     ///
     /// ## On reusing data
     ///
-    /// `Progress` can be reused until something about the player changes, like track or playback
-    /// status. As long as nothing changes, `Progress` can accurately determine playback position
+    /// [`Progress`] can be reused until something about the player changes, like track or playback
+    /// status. As long as nothing changes, [`Progress`] can accurately determine playback position
     /// from timing data.
     ///
-    /// In addition, `TrackList` will maintain a cache of track metadata so as long as the list
+    /// In addition, [`TrackList`] will maintain a cache of track metadata so as long as the list
     /// remains static if should be cheap to read from it.
     ///
-    /// You can use the `bool`s in the `ProgressTick` to perform optimizations as they tell you if
-    /// any data has changed. If all of them are `false` you don't have to treat any of the data as
+    /// You can use the [`bool`]s in the [`ProgressTick`] to perform optimizations as they tell you if
+    /// any data has changed. If all of them are [`false`] you don't have to treat any of the data as
     /// dirty.
     ///
-    /// The calculated `Progress::position` might still change depending on the player state, so if
+    /// The calculated [`Progress::position`] might still change depending on the player state, so if
     /// you want to show the track position you might still want to refresh that part.
     ///
     /// # Examples
@@ -160,7 +160,7 @@ impl<'a> ProgressTracker<'a> {
     /// }
     /// ```
     ///
-    /// Using the `progress_changed` `bool`:
+    /// Using the [`progress_changed`](ProgressTick::progress_changed) [`bool`]:
     ///
     /// ```rust,no_run
     /// # use mpris::PlayerFinder;
@@ -290,8 +290,8 @@ impl<'a> ProgressTracker<'a> {
 
     /// Force a refresh right now.
     ///
-    /// This will ignore the interval and perform a refresh anyway. The new `Progress` will be
-    /// saved, and the `TrackList` will be refreshed.
+    /// This will ignore the interval and perform a refresh anyway. The new [`Progress`] will be
+    /// saved, and the [`TrackList`] will be refreshed.
     ///
     /// # Errors
     ///
@@ -363,52 +363,54 @@ impl Progress {
         self.rate
     }
 
-    /// Returns the length of the current track as a `Duration`.
+    /// Returns the length of the current track as a [`Duration`].
     pub fn length(&self) -> Option<Duration> {
         self.metadata.length()
     }
 
-    /// Returns the current position of the current track as a `Duration`.
+    /// Returns the current position of the current track as a [`Duration`].
     ///
     /// This method will calculate the expected position of the track at the instant of the
-    /// invocation using the `initial_position` and knowledge of how long ago that position was
+    /// invocation using the [`initial_position`](Self::initial_position) and knowledge of how long ago that position was
     /// determined.
     ///
     /// **Note:** Some players might not support this and will return a bad position. Spotify is
     /// one such example. There is no reliable way of detecting problematic players, so it will be
     /// up to your client to check for this.
     ///
-    /// One way of doing this is to query the `initial_position` for two measures with the
-    /// `Playing` `PlaybackStatus` and if both are `0`, then it is likely that this client does not
+    /// One way of doing this is to query the [`initial_position`](Self::initial_position) for two measures with the
+    /// [`PlaybackStatus::Playing`] and if both are `0`, then it is likely that this client does not
     /// support positions.
     pub fn position(&self) -> Duration {
         self.position + self.elapsed()
     }
 
-    /// Returns the position that the current track was at when the `Progress` was created.
+    /// Returns the position that the current track was at when the [`Progress`] was created.
     ///
-    /// This is the number that was returned for the `Position` property in the MPRIS2 interface.
+    /// This is the number that was returned for the [`Position`][position] property in the MPRIS2 interface.
+    ///
+    /// [position]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Position
     pub fn initial_position(&self) -> Duration {
         self.position
     }
 
-    /// The instant where this `Progress` was recorded.
+    /// The instant where this [`Progress`] was recorded.
     ///
-    /// See: `age`.
+    /// See: [`age`](Self::age).
     pub fn created_at(&self) -> &Instant {
         &self.instant
     }
 
-    /// Returns the age of the data as a `Duration`.
+    /// Returns the age of the data as a [`Duration`].
     ///
-    /// If the `Progress` has a high age it is more likely to be out of date.
+    /// If the [`Progress`] has a high age it is more likely to be out of date.
     pub fn age(&self) -> Duration {
         self.instant.elapsed()
     }
 
     /// Returns the player's volume as it was at the time of refresh.
     ///
-    /// See: `Player::get_volume`.
+    /// See: [`Player::get_volume`].
     pub fn current_volume(&self) -> f64 {
         self.current_volume
     }
