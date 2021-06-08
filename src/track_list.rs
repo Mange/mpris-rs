@@ -18,7 +18,7 @@ pub(crate) const NO_TRACK: &str = "/org/mpris/MediaPlayer2/TrackList/NoTrack";
 ///
 /// # Errors
 ///
-/// Trying to construct a `TrackID` from a string that is not a valid D-Bus Path will fail.
+/// Trying to construct a [`TrackID`] from a string that is not a valid D-Bus Path will fail.
 ///
 /// ```rust
 /// # use mpris::TrackID;
@@ -30,16 +30,15 @@ pub(crate) const NO_TRACK: &str = "/org/mpris/MediaPlayer2/TrackList/NoTrack";
 #[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub struct TrackID(pub(crate) String);
 
-/// Represents a MediaPlayer2.TrackList.
+/// Represents a [`MediaPlayer2.TrackList`][track_list].
 ///
-/// This type offers an iterator of the track's metadata, when provided a `Player` instance that
+/// This type offers an iterator of the track's metadata, when provided a [`Player`] instance that
 /// matches the list.
 ///
 /// TrackLists cache metadata about tracks so multiple iterations should be fast. It also enables
 /// signals received from the Player to pre-populate metadata and to keep everything up to date.
 ///
-/// See [MediaPlayer2.TrackList
-/// interface](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html)
+/// [track_list]: https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html
 #[derive(Debug, Default)]
 pub struct TrackList {
     ids: Vec<TrackID>,
@@ -48,11 +47,11 @@ pub struct TrackList {
 
 /// TrackList-related errors.
 ///
-/// This is mostly `DBusError` with the extra possibility of borrow errors of the internal metadata
+/// This is mostly [`DBusError`] with the extra possibility of borrow errors of the internal metadata
 /// cache.
 #[derive(Debug, Fail)]
 pub enum TrackListError {
-    /// Something went wrong with the D-Bus communication. See the `DBusError` type.
+    /// Something went wrong with the D-Bus communication. See the [`DBusError`] type.
     #[fail(display = "D-Bus communication failed")]
     DBusError(#[cause] DBusError),
 
@@ -101,12 +100,12 @@ impl fmt::Display for TrackID {
 }
 
 impl TrackID {
-    /// Create a new `TrackID` from a string-like entity.
+    /// Create a new [`TrackID`] from a string-like entity.
     ///
     /// This is not something you should normally do as the IDs are temporary and will only work if
     /// the Player knows about it.
     ///
-    /// However, creating `TrackID`s manually can help with test setup, comparisons, etc.
+    /// However, creating [`TrackID`]s manually can help with test setup, comparisons, etc.
     ///
     /// # Example
     /// ```rust
@@ -123,7 +122,7 @@ impl TrackID {
         }
     }
 
-    /// Return a new TrackID that matches the MPRIS standard for the "No track" sentinel value.
+    /// Return a new [`TrackID`] that matches the MPRIS standard for the "No track" sentinel value.
     ///
     /// Some APIs takes this in order to signal a missing value for a track, for example by saying
     /// that no specific track is playing, or that a track should be added at the start of the
@@ -131,8 +130,10 @@ impl TrackID {
     ///
     /// The actual path is "/org/mpris/MediaPlayer2/TrackList/NoTrack".
     ///
-    /// This value is only valid in some cases. Make sure to read the MPRIS specification before
-    /// you use this manually.
+    /// This value is only valid in some cases. Make sure to read the [MPRIS specification before
+    /// you use this manually][track_id].
+    ///
+    /// [track_id]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Simple-Type:Track_Id
     pub fn no_track() -> Self {
         TrackID(NO_TRACK.into())
     }
@@ -143,7 +144,7 @@ impl TrackID {
     }
 
     pub(crate) fn as_path(&self) -> dbus::Path<'_> {
-        // All inputs to this class should be validated to work with dbus::Path, so unwrapping
+        // All inputs to this class should be validated to work with [`dbus::Path`], so unwrapping
         // should be safe here.
         dbus::Path::new(self.as_str()).unwrap()
     }
@@ -168,7 +169,7 @@ impl FromIterator<TrackID> for TrackList {
 }
 
 impl TrackList {
-    /// Construct a new TrackList without any existing cache.
+    /// Construct a new [`TrackList`] without any existing cache.
     pub fn new(ids: Vec<TrackID>) -> TrackList {
         TrackList {
             metadata_cache: RefCell::new(HashMap::with_capacity(ids.len())),
@@ -176,7 +177,7 @@ impl TrackList {
         }
     }
 
-    /// Get a list of TrackIDs that are part of this TrackList. The order matters.
+    /// Get a list of [`TrackID`]s that are part of this [`TrackList`]. The order matters.
     pub fn ids(&self) -> &[TrackID] {
         self.ids.as_ref()
     }
@@ -191,7 +192,7 @@ impl TrackList {
         self.ids.is_empty()
     }
 
-    /// Return the TrackID of the index. Out-of-bounds will result in `None`.
+    /// Return the [`TrackID`] of the index. Out-of-bounds will result in [`None`].
     pub fn get(&self, index: usize) -> Option<&TrackID> {
         self.ids.get(index)
     }
@@ -201,7 +202,7 @@ impl TrackList {
     ///
     /// **NOTE:** This is *not* something that will affect a player's actual tracklist; this is
     /// strictly for client-side representation. Use this if you want to maintain your own instance
-    /// of `TrackList` or to feed your code with test fixtures.
+    /// of [`TrackList`] or to feed your code with test fixtures.
     pub fn insert(&mut self, after: &TrackID, metadata: Metadata) {
         let new_id = match metadata.track_id() {
             Some(val) => val,
@@ -248,13 +249,13 @@ impl TrackList {
         });
     }
 
-    /// Adds/updates the metadata cache for a track (as identified by `Metadata::track_id`).
+    /// Adds/updates the metadata cache for a track (as identified by [`Metadata::track_id`]).
     ///
-    /// The metadata will be added to the cache even if the `TrackID` isn't part of the list, but
+    /// The metadata will be added to the cache even if the [`TrackID`] isn't part of the list, but
     /// will be cleaned out again after the next cache cleanup unless the track in question have
     /// been added to the list before then.
     ///
-    /// If provided metadata does not contain a `TrackID`, the metadata will be discarded.
+    /// If provided metadata does not contain a [`TrackID`], the metadata will be discarded.
     pub fn add_metadata(&mut self, metadata: Metadata) {
         if let Some(id) = metadata.track_id() {
             self.change_metadata(|cache| cache.insert(id.to_owned(), metadata));
@@ -266,10 +267,10 @@ impl TrackList {
     ///
     /// The new ID (which *might* be identical to the old ID) will be returned by this method.
     ///
-    /// If the old ID cannot be found, the metadata will be discarded and `None` will be returned.
+    /// If the old ID cannot be found, the metadata will be discarded and [`None`] will be returned.
     ///
-    /// If provided metadata does not contain a `TrackID`, the metadata will be discarded and
-    /// `None` will be returned.
+    /// If provided metadata does not contain a [`TrackID`], the metadata will be discarded and
+    /// [`None`] will be returned.
     pub fn replace_track_metadata(
         &mut self,
         old_id: &TrackID,
@@ -287,11 +288,11 @@ impl TrackList {
         None
     }
 
-    /// Iterates the tracks in the tracklist, returning a tuple of TrackID and Metadata for that
+    /// Iterates the tracks in the tracklist, returning a tuple of [`TrackID`] and [`Metadata`] for that
     /// track.
     ///
-    /// Metadata will be loaded from the provided player when not present in the metadata cache.
-    /// If metadata loading fails, then a DBusError will be returned instead of the iterator.
+    /// [`Metadata`] will be loaded from the provided player when not present in the metadata cache.
+    /// If metadata loading fails, then a [`DBusError`] will be returned instead of the iterator.
     pub fn metadata_iter(&self, player: &Player<'_>) -> Result<MetadataIter, TrackListError> {
         self.complete_cache(player)?;
         let metadata: HashMap<_, _> = self.metadata_cache.clone().into_inner();
@@ -333,7 +334,7 @@ impl TrackList {
         Ok(())
     }
 
-    /// Fill in any holes in the cache so that each track on the list has a cached Metadata entry.
+    /// Fill in any holes in the cache so that each track on the list has a cached [`Metadata`] entry.
     ///
     /// If all tracks already have a cache entry, then this will do nothing.
     pub fn complete_cache(&self, player: &Player<'_>) -> Result<(), TrackListError> {

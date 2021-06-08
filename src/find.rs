@@ -18,7 +18,7 @@ pub enum FindingError {
     #[fail(display = "No player found")]
     NoPlayerFound,
 
-    /// Finding failed due to an underlying D-Bus error.
+    /// Finding failed due to an underlying [`DBusError`].
     #[fail(display = "{}", _0)]
     DBusError(#[cause] DBusError),
 }
@@ -35,25 +35,25 @@ impl From<DBusError> for FindingError {
     }
 }
 
-/// Used to find `Player`s running on a D-Bus connection.
+/// Used to find [`Player`]s running on a D-Bus connection.
 #[derive(Debug)]
 pub struct PlayerFinder {
     connection: Rc<PooledConnection>,
 }
 
 impl PlayerFinder {
-    /// Creates a new `PlayerFinder` with a new default D-Bus connection.
+    /// Creates a new [`PlayerFinder`] with a new default D-Bus connection.
     ///
-    /// Use `for_connection` if you want to provide the D-Bus connection yourself.
+    /// Use [`for_connection`](Self::for_connection) if you want to provide the D-Bus connection yourself.
     pub fn new() -> Result<Self, DBusError> {
         Ok(PlayerFinder::for_connection(Connection::get_private(
             BusType::Session,
         )?))
     }
 
-    /// Create a new `PlayerFinder` with the given connection.
+    /// Create a new [`PlayerFinder`] with the given connection.
     ///
-    /// Use `new` if you want a new default connection rather than manually managing the D-Bus
+    /// Use [`new`](Self::new) if you want a new default connection rather than manually managing the D-Bus
     /// connection.
     pub fn for_connection(connection: Connection) -> Self {
         PlayerFinder {
@@ -61,7 +61,7 @@ impl PlayerFinder {
         }
     }
 
-    /// Find all available `Player`s in the connection.
+    /// Find all available [`Player`]s in the connection.
     pub fn find_all<'b>(&self) -> Result<Vec<Player<'b>>, FindingError> {
         self.all_player_buses()
             .map_err(FindingError::from)?

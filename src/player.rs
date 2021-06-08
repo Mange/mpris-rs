@@ -25,8 +25,9 @@ pub(crate) const DEFAULT_TIMEOUT_MS: i32 = 500; // ms
 ///
 /// You can query this player about the currently playing media, or control it.
 ///
-/// **See:** [MPRIS2 MediaPlayer2.Player Specification][spec]
-/// [spec]: <https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html>
+/// **See:** [MPRIS2 MediaPlayer2.Player Specification][spec].
+/// 
+/// [spec]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html
 #[derive(Debug)]
 pub struct Player<'a> {
     connection: Rc<PooledConnection>,
@@ -39,9 +40,9 @@ pub struct Player<'a> {
 }
 
 impl<'a> Player<'a> {
-    /// Create a new `Player` using a D-Bus connection and address information.
+    /// Create a new [`Player`] using a D-Bus connection and address information.
     ///
-    /// If no player is running on this bus name an `Err` will be returned.
+    /// If no player is running on this bus name an [`Err`] will be returned.
     pub fn new<B, P>(
         connection: Connection,
         bus_name: B,
@@ -102,7 +103,7 @@ impl<'a> Player<'a> {
     /// When querying D-Bus the call should not block longer than this, and will instead fail the
     /// query if no response has been received in this time.
     ///
-    /// You can change this using `set_dbus_timeout_ms`.
+    /// You can change this using [`set_dbus_timeout_ms`](Self::set_dbus_timeout_ms).
     pub fn dbus_timeout_ms(&self) -> i32 {
         self.timeout_ms
     }
@@ -120,7 +121,9 @@ impl<'a> Player<'a> {
     /// Returns the player name part of the player's D-Bus bus name.
     /// This is the part after "org.mpris.MediaPlayer2.", not including the instance part.
     ///
-    /// See: [MPRIS2 specification about bus names](https://specifications.freedesktop.org/mpris-spec/latest/#Bus-Name-Policy).
+    /// See: [MPRIS2 specification about bus names][bus_names].
+    ///
+    /// [bus_names]: https://specifications.freedesktop.org/mpris-spec/latest/#Bus-Name-Policy
     pub fn bus_name_player_name_part(&self) -> &str {
         self.bus_name()
             .as_cstr()
@@ -137,9 +140,11 @@ impl<'a> Player<'a> {
         &self.unique_name
     }
 
-    /// Returns the player's MPRIS `Identity`.
+    /// Returns the player's MPRIS [`Identity`][identity].
     ///
     /// This is usually the application's name, like `Spotify`.
+    ///
+    /// [identity]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:Identity
     pub fn identity(&self) -> &str {
         &self.identity
     }
@@ -151,16 +156,18 @@ impl<'a> Player<'a> {
 
     /// Returns the player's `DesktopEntry` property, if supported.
     ///
-    /// See: [MPRIS2 specification about
-    /// `DesktopEntry`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:DesktopEntry).
+    /// See: [MPRIS2 specification about `DesktopEntry`][desktop_entry].
+    ///
+    /// [desktop_entry]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:DesktopEntry
     pub fn get_desktop_entry(&self) -> Result<Option<String>, DBusError> {
         handle_optional_property(self.connection_path().get_desktop_entry())
     }
 
     /// Returns the player's `SupportedMimeTypes` property.
     ///
-    /// See: [MPRIS2 specification about
-    /// `SupportedMimeTypes`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:SupportedMimeTypes).
+    /// See: [MPRIS2 specification about `SupportedMimeTypes`][mime_types].
+    ///
+    /// [mime_types]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:SupportedMimeTypes
     pub fn get_supported_mime_types(&self) -> Result<Vec<String>, DBusError> {
         self.connection_path()
             .get_supported_mime_types()
@@ -169,8 +176,9 @@ impl<'a> Player<'a> {
 
     /// Returns the player's `SupportedUriSchemes` property.
     ///
-    /// See: [MPRIS2 specification about
-    /// `SupportedUriSchemes`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:SupportedUriSchemes).
+    /// See: [MPRIS2 specification about `SupportedUriSchemes`][schemes].
+    ///
+    /// [schemes]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:SupportedUriSchemes
     pub fn get_supported_uri_schemes(&self) -> Result<Vec<String>, DBusError> {
         self.connection_path()
             .get_supported_uri_schemes()
@@ -179,15 +187,16 @@ impl<'a> Player<'a> {
 
     /// Returns the player's `HasTrackList` property.
     ///
-    /// See: [MPRIS2 specification about
-    /// `HasTrackList`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:HasTrackList).
+    /// See: [MPRIS2 specification about `HasTrackList`][track_list].
+    ///
+    /// [track_list]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:HasTrackList
     pub fn get_has_track_list(&self) -> Result<bool, DBusError> {
         self.connection_path()
             .get_has_track_list()
             .map_err(|e| e.into())
     }
 
-    /// Returns the player's MPRIS `position` as a `Duration` since the start of the media.
+    /// Returns the player's MPRIS `position` as a [`Duration`] since the start of the media.
     pub fn get_position(&self) -> Result<Duration, DBusError> {
         self.get_position_in_microseconds()
             .map(Duration::from_micros_ext)
@@ -195,8 +204,8 @@ impl<'a> Player<'a> {
 
     /// Gets the "Position" setting, if the player indicates that it supports it.
     ///
-    /// Return [[Some]] containing the current value of the position. If the setting is not
-    /// supported, return [[None]]
+    /// Return [`Some`] containing the current value of the position. If the setting is not
+    /// supported, return [`None`]
     pub fn checked_get_position(&self) -> Result<Option<Duration>, DBusError> {
         if self.has_position()? {
             Ok(Some(self.get_position()?))
@@ -214,15 +223,17 @@ impl<'a> Player<'a> {
             .map_err(|e| e.into())
     }
 
-    /// Sets the position of the current track to the given position (as a `Duration`).
+    /// Sets the position of the current track to the given position (as a [`Duration`]).
     ///
-    /// Current `TrackID` must be provided to avoid race conditions with the player, in case it
+    /// Current [`TrackID`] must be provided to avoid race conditions with the player, in case it
     /// changes tracks while the signal is being sent.
     ///
-    /// **Note:** There is currently no good way to retrieve the current `TrackID` through the
+    /// **Note:** There is currently no good way to retrieve the current [`TrackID`] through the
     /// `mpris` library. You will have to manually retrieve it through D-Bus until implemented.
     ///
-    /// See: [MPRIS2 specification about `SetPosition`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:SetPosition)
+    /// See: [MPRIS2 specification about `SetPosition`][set_position].
+    ///
+    /// [set_position]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:SetPosition
     pub fn set_position(&self, track_id: TrackID, position: &Duration) -> Result<(), DBusError> {
         self.set_position_in_microseconds(track_id, DurationExtensions::as_micros(position))
     }
@@ -232,8 +243,9 @@ impl<'a> Player<'a> {
     ///
     /// Returns a boolean to show if the signal was sent or not.
     ///
-    /// See: [MPRIS2 specification about
-    /// `Position`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Position)
+    /// See: [MPRIS2 specification about `Position`][position].
+    ///
+    /// [position]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Position
     pub fn checked_set_position(
         &self,
         track_id: TrackID,
@@ -250,13 +262,15 @@ impl<'a> Player<'a> {
 
     /// Sets the position of the current track to the given position (in microseconds).
     ///
-    /// Current `TrackID` must be provided to avoid race conditions with the player, in case it
+    /// Current [`TrackID`] must be provided to avoid race conditions with the player, in case it
     /// changes tracks while the signal is being sent.
     ///
-    /// **Note:** There is currently no good way to retrieve the current `TrackID` through the
+    /// **Note:** There is currently no good way to retrieve the current [`TrackID`] through the
     /// `mpris` library. You will have to manually retrieve it through D-Bus until implemented.
     ///
-    /// See: [MPRIS2 specification about `SetPosition`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:SetPosition)
+    /// See: [MPRIS2 specification about `SetPosition`][set_position].
+    ///
+    /// [set_position]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:SetPosition
     pub fn set_position_in_microseconds(
         &self,
         track_id: TrackID,
@@ -276,8 +290,8 @@ impl<'a> Player<'a> {
 
     /// Gets the "Rate" setting, if the player indicates that it supports it.
     ///
-    /// Returns [[Some]] containing the current value of the rate setting. If the setting is not
-    /// supported, returns [[None]]
+    /// Returns [`Some`] containing the current value of the rate setting. If the setting is not
+    /// supported, returns [`None`]
     pub fn checked_get_playback_rate(&self) -> Result<Option<f64>, DBusError> {
         if self.has_playback_rate()? {
             Ok(Some(self.get_playback_rate()?))
@@ -291,12 +305,14 @@ impl<'a> Player<'a> {
     /// 1.0 would mean normal rate, while 2.0 would mean twice the playback speed.
     ///
     /// It is not allowed to try to set playback rate to a value outside of the supported range.
-    /// `Player::get_valid_playback_rate_range` returns a `Range<f64>` that encodes the maximum and
+    /// [`get_valid_playback_rate_range`](Self::get_valid_playback_rate_range) returns a [`Range<f64>`] that encodes the maximum and
     /// minimum values.
     ///
-    /// You must not set rate to 0.0; instead call `Player::pause`.
+    /// You must not set rate to 0.0; instead call [`pause`](Self::pause).
     ///
-    /// See: [MPRIS2 specification about `Rate`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Rate)
+    /// See: [MPRIS2 specification about `Rate`][rate].
+    ///
+    /// [rate]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Rate
     pub fn set_playback_rate(&self, rate: f64) -> Result<(), DBusError> {
         self.connection_path().set_rate(rate).map_err(|e| e.into())
     }
@@ -306,8 +322,9 @@ impl<'a> Player<'a> {
     ///
     /// Returns a boolean to show if the signal was sent or not.
     ///
-    /// See: [MPRIS2 specification about
-    /// `Rate`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Rate)
+    /// See: [MPRIS2 specification about `Rate`][rate].
+    ///
+    /// [rate]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Rate
     pub fn checked_set_playback_rate(&self, rate: f64) -> Result<bool, DBusError> {
         if self.can_control()? && self.has_playback_rate()? {
             self.set_playback_rate(rate)
@@ -320,7 +337,9 @@ impl<'a> Player<'a> {
 
     /// Gets the minimum allowed value for playback rate.
     ///
-    /// See: [MPRIS2 specification about `MinimumRate`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:MinimumRate)
+    /// See: [MPRIS2 specification about `MinimumRate`][min_rate].
+    ///
+    /// [min_rate]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:MinimumRate
     pub fn get_minimum_playback_rate(&self) -> Result<f64, DBusError> {
         self.connection_path()
             .get_minimum_rate()
@@ -329,7 +348,9 @@ impl<'a> Player<'a> {
 
     /// Gets the maximum allowed value for playback rate.
     ///
-    /// See: [MPRIS2 specification about `MaximumRate`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:MaximumRate)
+    /// See: [MPRIS2 specification about `MaximumRate`][max_rate].
+    ///
+    /// [max_rate]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:MaximumRate
     pub fn get_maximum_playback_rate(&self) -> Result<f64, DBusError> {
         self.connection_path()
             .get_maximum_rate()
@@ -338,7 +359,8 @@ impl<'a> Player<'a> {
 
     /// Gets the minimum-maximum allowed value range for playback rate.
     ///
-    /// See: `get_minimum_playback_rate` and `get_maximum_playback_rate`.
+    /// See: [`get_minimum_playback_rate`](Self::get_minimum_playback_rate)
+    /// and [`get_maximum_playback_rate`](Self::get_maximum_playback_rate).
     pub fn get_valid_playback_rate_range(&self) -> Result<Range<f64>, DBusError> {
         self.get_minimum_playback_rate()
             .and_then(|min| self.get_maximum_playback_rate().map(|max| min..max))
@@ -346,7 +368,7 @@ impl<'a> Player<'a> {
 
     /// Query the player for current metadata.
     ///
-    /// See `Metadata` for more information about what is included here.
+    /// See [`Metadata`] for more information about what is included here.
     pub fn get_metadata(&self) -> Result<Metadata, DBusError> {
         use dbus::ffidisp::stdintf::org_freedesktop_dbus::Properties;
 
@@ -364,9 +386,9 @@ impl<'a> Player<'a> {
     /// Query the player for the current tracklist.
     ///
     /// **Note:** It's more expensive to rebuild this each time rather than trying to keep the same
-    /// `TrackList` updated. See `TrackList::reload`.
+    /// [`TrackList`] updated. See [`TrackList::reload`].
     ///
-    /// See `checked_get_track_list` to automatically detect players not supporting track lists.
+    /// See [`checked_get_track_list`](Self::checked_get_track_list) to automatically detect players not supporting track lists.
     pub fn get_track_list(&self) -> Result<TrackList, DBusError> {
         use dbus::ffidisp::stdintf::org_freedesktop_dbus::Properties;
 
@@ -384,10 +406,10 @@ impl<'a> Player<'a> {
     /// Query the player for the current tracklist.
     ///
     /// **Note:** It's more expensive to rebuild this each time rather than trying to keep the same
-    /// `TrackList` updated. See `TrackList::reload`.
+    /// [`TrackList`] updated. See [`TrackList::reload`].
     ///
-    /// See `get_track_list` and `supports_track_lists` if you want to manually handle compatibility
-    /// checks.
+    /// See [`get_track_list`](Self::get_track_list) and [`supports_track_lists`](Self::supports_track_lists)
+    /// if you want to manually handle compatibility checks.
     pub fn checked_get_track_list(&self) -> Result<Option<TrackList>, DBusError> {
         if self.supports_track_lists() {
             self.get_track_list().map(Some)
@@ -398,12 +420,13 @@ impl<'a> Player<'a> {
 
     /// Query the player to see if it allows changes to its TrackList.
     ///
-    /// Will return `Err` if Player isn't supporting the `TrackList` interface.
+    /// Will return [`Err`] if Player isn't supporting the [`TrackList`] interface.
     ///
-    /// See `checked_can_edit_tracks` to automatically detect players not supporting track lists.
+    /// See [`checked_can_edit_tracks`](Self::checked_can_edit_tracks) to automatically detect players not supporting track lists.
     ///
-    /// See: [MPRIS2 specification about
-    /// `CanEditTracks`](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Property:CanEditTracks).
+    /// See: [MPRIS2 specification about `CanEditTracks`][can_edit].
+    ///
+    /// [can_edit]: https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Property:CanEditTracks
     pub fn can_edit_tracks(&self) -> Result<bool, DBusError> {
         use dbus::ffidisp::stdintf::org_freedesktop_dbus::Properties;
         let connection_path = self.connection_path();
@@ -418,13 +441,14 @@ impl<'a> Player<'a> {
 
     /// Query the player to see if it allows changes to its TrackList.
     ///
-    /// Will return `false` if Player isn't supporting the `TrackList` interface.
+    /// Will return [`false`] if [`Player`] isn't supporting the `TrackList` interface.
     ///
-    /// See `can_edit_tracks` and `supports_track_lists` if you want to manually handle
-    /// compatibility checks.
+    /// See [`can_edit_tracks`](Self::can_edit_tracks) and [`supports_track_lists`](Self::supports_track_lists)
+    /// if you want to manually handle compatibility checks.
     ///
-    /// See: [MPRIS2 specification about
-    /// `CanEditTracks`](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Property:CanEditTracks).
+    /// See: [MPRIS2 specification about `CanEditTracks`][can_edit].
+    ///
+    /// [can_edit]: https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Property:CanEditTracks
     pub fn checked_can_edit_tracks(&self) -> bool {
         if self.supports_track_lists() {
             self.can_edit_tracks().unwrap_or(false)
@@ -433,12 +457,13 @@ impl<'a> Player<'a> {
         }
     }
 
-    /// Query the player for metadata for the given `TrackID`s.
+    /// Query the player for metadata for the given [`TrackID`]s.
     ///
-    /// This is used by the `TrackList` type to iterator metadata for the tracks in the track list.
+    /// This is used by the [`TrackList`] type to iterator metadata for the tracks in the track list.
     ///
-    /// See
-    /// [MediaPlayer2.TrackList.GetTracksMetadata](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:GetTracksMetadata)
+    /// See: [MediaPlayer2.TrackList.GetTracksMetadata][get_meta].
+    ///
+    /// [get_meta]: https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:GetTracksMetadata
     pub fn get_tracks_metadata(&self, track_ids: &[TrackID]) -> Result<Vec<Metadata>, DBusError> {
         use dbus::arg::IterAppend;
         let connection_path = self.connection_path();
@@ -466,13 +491,14 @@ impl<'a> Player<'a> {
         }
     }
 
-    /// Query the player for metadata for a single `TrackID`.
+    /// Query the player for metadata for a single [`TrackID`].
     ///
-    /// Note that `get_tracks_metadata` with a list is more effective if you have more than a
-    /// single `TrackID` to load.
+    /// Note that [`get_tracks_metadata`](Self::get_tracks_metadata) with a list is more effective if you have more than a
+    /// single [`TrackID`] to load.
     ///
-    /// See
-    /// [MediaPlayer2.TrackList.GetTracksMetadata](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:GetTracksMetadata)
+    /// See: [MediaPlayer2.TrackList.GetTracksMetadata][get_meta].
+    ///
+    /// [get_meta]: https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:GetTracksMetadata
     pub fn get_track_metadata(&self, track_id: &TrackID) -> Result<Metadata, DBusError> {
         self.get_tracks_metadata(&[track_id.clone()])
             .and_then(|mut result| {
@@ -485,7 +511,7 @@ impl<'a> Player<'a> {
             })
     }
 
-    /// Returns a new `ProgressTracker` for the player.
+    /// Returns a new [`ProgressTracker`] for the player.
     ///
     /// Use this if you want to monitor a player in order to show close-to-realtime information
     /// about it.
@@ -494,16 +520,16 @@ impl<'a> Player<'a> {
     /// interval with the most up-to-date information. It's mostly appropriate when trying to
     /// render something like a progress bar, or information about the current track.
     ///
-    /// See `Player::events` for an alternative approach.
+    /// See: [`events`](Self::events) for an alternative approach.
     pub fn track_progress(&self, interval_ms: u32) -> Result<ProgressTracker<'_>, DBusError> {
         ProgressTracker::new(self, interval_ms)
     }
 
-    /// Returns a `PlayerEvents` iterator, or an `DBusError` if there was a problem with the D-Bus
+    /// Returns a [`PlayerEvents`] iterator, or an [`DBusError`] if there was a problem with the D-Bus
     /// connection to the player.
     ///
     /// This iterator will block until an event for the current player is emitted. This is a lot
-    /// more bare-bones than `Player::track_progress`, but it's also something that makes it easier
+    /// more bare-bones than [`track_progress`](Self::track_progress), but it's also something that makes it easier
     /// for you to translate events into your own application's domain events and only deal with
     /// actual changes.
     ///
@@ -511,7 +537,7 @@ impl<'a> Player<'a> {
     /// appropriate to render a live progress bar using this iterator as the progress bar will
     /// remain frozen until the next event is emitted and the iterator returns.
     ///
-    /// See `Player::track_progress` for an alternative approach.
+    /// See: [`track_progress`](Self::track_progress) for an alternative approach.
     pub fn events(&self) -> Result<PlayerEvents<'_>, DBusError> {
         PlayerEvents::new(self)
     }
@@ -533,49 +559,63 @@ impl<'a> Player<'a> {
 
     /// Send a `PlayPause` signal to the player.
     ///
-    /// See: [MPRIS2 specification about `PlayPause`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:PlayPause)
+    /// See: [MPRIS2 specification about `PlayPause`][play_pause]
+    ///
+    /// [play_pause]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:PlayPause
     pub fn play_pause(&self) -> Result<(), DBusError> {
         self.connection_path().play_pause().map_err(|e| e.into())
     }
 
     /// Send a `Play` signal to the player.
     ///
-    /// See: [MPRIS2 specification about `Play`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Play)
+    /// See: [MPRIS2 specification about `Play`][play].
+    ///
+    /// [play]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Play
     pub fn play(&self) -> Result<(), DBusError> {
         self.connection_path().play().map_err(|e| e.into())
     }
 
     /// Send a `Pause` signal to the player.
     ///
-    /// See: [MPRIS2 specification about `Pause`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Pause)
+    /// See: [MPRIS2 specification about `Pause`][pause].
+    ///
+    /// [pause]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Pause
     pub fn pause(&self) -> Result<(), DBusError> {
         self.connection_path().pause().map_err(|e| e.into())
     }
 
     /// Send a `Stop` signal to the player.
     ///
-    /// See: [MPRIS2 specification about `Stop`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Stop)
+    /// See: [MPRIS2 specification about `Stop`][stop].
+    ///
+    /// [stop]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Stop
     pub fn stop(&self) -> Result<(), DBusError> {
         self.connection_path().stop().map_err(|e| e.into())
     }
 
     /// Send a `Next` signal to the player.
     ///
-    /// See: [MPRIS2 specification about `Next`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Next)
+    /// See: [MPRIS2 specification about `Next`][next].
+    ///
+    /// [next]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Next
     pub fn next(&self) -> Result<(), DBusError> {
         self.connection_path().next().map_err(|e| e.into())
     }
 
     /// Send a `Previous` signal to the player.
     ///
-    /// See: [MPRIS2 specification about `Previous`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Previous)
+    /// See: [MPRIS2 specification about `Previous`][prev].
+    ///
+    /// [prev]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Previous
     pub fn previous(&self) -> Result<(), DBusError> {
         self.connection_path().previous().map_err(|e| e.into())
     }
 
     /// Send a `Seek` signal to the player.
     ///
-    /// See: [MPRIS2 specification about `Seek`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Seek)
+    /// See: [MPRIS2 specification about `Seek`][seek].
+    ///
+    /// [seek]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Seek
     pub fn seek(&self, offset_in_microseconds: i64) -> Result<(), DBusError> {
         self.connection_path()
             .seek(offset_in_microseconds)
@@ -584,7 +624,7 @@ impl<'a> Player<'a> {
 
     /// Tell the player to seek forwards.
     ///
-    /// See: `seek` method on `Player`.
+    /// See: [`seek`](Self::seek) method.
     pub fn seek_forwards(&self, offset: &Duration) -> Result<(), DBusError> {
         self.seek(DurationExtensions::as_micros(offset) as i64)
     }
@@ -598,16 +638,16 @@ impl<'a> Player<'a> {
     /// > not have a graphical user interface at all. In this case, the CanRaise property is false
     /// > and this method does nothing.
     ///
-    /// See: [MPRIS2 specification about
-    /// `Raise`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Method:Raise)
-    /// and the `can_raise` method.
+    /// See: [MPRIS2 specification about `Raise`][raise] and the [`can_raise`](Self::can_raise) method.
+    ///
+    /// [raise]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Method:Raise
     pub fn raise(&self) -> Result<(), DBusError> {
         self.connection_path().raise().map_err(|e| e.into())
     }
 
     /// Send a `Raise` signal to the player, if it supports it.
     ///
-    /// See: `can_raise` and `raise` methods.
+    /// See: [`can_raise`](Self::can_raise) and [`raise`](Self::raise) methods.
     pub fn checked_raise(&self) -> Result<bool, DBusError> {
         if self.can_raise()? {
             self.raise().map(|_| true)
@@ -629,16 +669,16 @@ impl<'a> Player<'a> {
     /// >
     /// > If the media player does not have a UI, this should be implemented.
     ///
-    /// See: [MPRIS2 specification about
-    /// `Quit`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Method:Quit)
-    /// and the `can_raise` method.
+    /// See: [MPRIS2 specification about `Quit`][quit] and the [`can_quit`](Self::can_quit) method.
+    ///
+    /// [quit]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Method:Quit
     pub fn quit(&self) -> Result<(), DBusError> {
         self.connection_path().quit().map_err(|e| e.into())
     }
 
     /// Send a `Quit` signal to the player, if it supports it.
     ///
-    /// See: `can_quit` and `quit` methods.
+    /// See: [`can_quit`](Self::can_quit) and [`quit`](Self::quit) methods.
     pub fn checked_quit(&self) -> Result<bool, DBusError> {
         if self.can_quit()? {
             self.quit().map(|_| true)
@@ -649,18 +689,20 @@ impl<'a> Player<'a> {
 
     /// Tell the player to seek backwards.
     ///
-    /// See: `seek` method on `Player`.
+    /// See: [`seek`](Self::seek) method.
     pub fn seek_backwards(&self, offset: &Duration) -> Result<(), DBusError> {
         self.seek(-(DurationExtensions::as_micros(offset) as i64))
     }
 
-    /// Go to a specific track on the Player's TrackList.
+    /// Go to a specific track on the [`Player`]'s [`TrackList`].
     ///
-    /// If the given TrackID is not part of the player's TrackList, it will have no effect.
+    /// If the given [`TrackID`] is not part of the player's [`TrackList`], it will have no effect.
     ///
     /// Requires the player to implement the `TrackList` interface.
     ///
-    /// See: [MPRIS2 specification about `GoTo`](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:GoTo)
+    /// See: [MPRIS2 specification about `GoTo`][go_to]
+    ///
+    /// [go_to]: https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:GoTo
     pub fn go_to(&self, track_id: &TrackID) -> Result<(), DBusError> {
         use crate::generated::OrgMprisMediaPlayer2TrackList;
 
@@ -671,11 +713,13 @@ impl<'a> Player<'a> {
 
     /// Add a URI to the TrackList and optionally set it as current.
     ///
-    /// It is placed after the specified TrackID, if supported by the player.
+    /// It is placed after the specified [`TrackID`], if supported by the player.
     ///
     /// Requires the player to implement the `TrackList` interface.
     ///
-    /// See: [MPRIS2 specification about `AddTrack`](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:AddTrack)
+    /// See: [MPRIS2 specification about `AddTrack`][add_track].
+    ///
+    /// [add_track]: https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:AddTrack
     pub fn add_track(
         &self,
         uri: &str,
@@ -693,7 +737,9 @@ impl<'a> Player<'a> {
     ///
     /// Requires the player to implement the `TrackList` interface.
     ///
-    /// See: [MPRIS2 specification about `AddTrack`](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:AddTrack)
+    /// See: [MPRIS2 specification about `AddTrack`][add_track].
+    ///
+    /// [add_track]: https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:AddTrack
     pub fn add_track_at_start(&self, uri: &str, set_as_current: bool) -> Result<(), DBusError> {
         use crate::generated::OrgMprisMediaPlayer2TrackList;
 
@@ -706,7 +752,9 @@ impl<'a> Player<'a> {
     ///
     /// Requires the player to implement the `TrackList` interface.
     ///
-    /// See: [MPRIS2 specification about `RemoveTrack`](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:RemoveTrack)
+    /// See: [MPRIS2 specification about `RemoveTrack`][remove].
+    ///
+    /// [remove]: https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:RemoveTrack
     pub fn remove_track(&self, track_id: &TrackID) -> Result<(), DBusError> {
         use crate::generated::OrgMprisMediaPlayer2TrackList;
 
@@ -719,7 +767,9 @@ impl<'a> Player<'a> {
     ///
     /// Returns a boolean to show if the signal was sent or not.
     ///
-    /// See: [MPRIS2 specification about `PlayPause`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:PlayPause)
+    /// See: [MPRIS2 specification about `PlayPause`][play_pause]
+    ///
+    /// [play_pause]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:PlayPause
     pub fn checked_play_pause(&self) -> Result<bool, DBusError> {
         if self.can_pause()? {
             self.play_pause().map(|_| true)
@@ -732,7 +782,9 @@ impl<'a> Player<'a> {
     ///
     /// Returns a boolean to show if the signal was sent or not.
     ///
-    /// See: [MPRIS2 specification about `Play`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Play)
+    /// See: [MPRIS2 specification about `Play`][play].
+    ///
+    /// [play]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Play
     pub fn checked_play(&self) -> Result<bool, DBusError> {
         if self.can_play()? {
             self.play().map(|_| true)
@@ -745,7 +797,9 @@ impl<'a> Player<'a> {
     ///
     /// Returns a boolean to show if the signal was sent or not.
     ///
-    /// See: [MPRIS2 specification about `Pause`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Pause)
+    /// See: [MPRIS2 specification about `Pause`][pause].
+    ///
+    /// [pause]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Pause
     pub fn checked_pause(&self) -> Result<bool, DBusError> {
         if self.can_pause()? {
             self.pause().map(|_| true)
@@ -758,7 +812,9 @@ impl<'a> Player<'a> {
     ///
     /// Returns a boolean to show if the signal was sent or not.
     ///
-    /// See: [MPRIS2 specification about `Stop`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Stop)
+    /// See: [MPRIS2 specification about `Stop`][stop].
+    ///
+    /// [stop]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Stop
     pub fn checked_stop(&self) -> Result<bool, DBusError> {
         if self.can_stop()? {
             self.stop().map(|_| true)
@@ -772,7 +828,9 @@ impl<'a> Player<'a> {
     ///
     /// Returns a boolean to show if the signal was sent or not.
     ///
-    /// See: [MPRIS2 specification about `Next`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Next)
+    /// See: [MPRIS2 specification about `Next`][next].
+    ///
+    /// [next]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Next
     pub fn checked_next(&self) -> Result<bool, DBusError> {
         if self.can_go_next()? {
             self.next().map(|_| true)
@@ -786,7 +844,9 @@ impl<'a> Player<'a> {
     ///
     /// Returns a boolean to show if the signal was sent or not.
     ///
-    /// See: [MPRIS2 specification about `Previous`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Previous)
+    /// See: [MPRIS2 specification about `Previous`][prev].
+    ///
+    /// [prev]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Previous
     pub fn checked_previous(&self) -> Result<bool, DBusError> {
         if self.can_go_previous()? {
             self.previous().map(|_| true)
@@ -799,7 +859,9 @@ impl<'a> Player<'a> {
     ///
     /// Returns a boolean to show if the signal was sent or not.
     ///
-    /// See: [MPRIS2 specification about `Seek`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Seek)
+    /// See: [MPRIS2 specification about `Seek`][seek].
+    ///
+    /// [seek]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Seek
     pub fn checked_seek(&self, offset_in_microseconds: i64) -> Result<bool, DBusError> {
         if self.can_seek()? {
             self.seek(offset_in_microseconds).map(|_| true)
@@ -812,7 +874,9 @@ impl<'a> Player<'a> {
     ///
     /// Returns a boolean to show if the signal was sent or not.
     ///
-    /// See: [MPRIS2 specification about `Seek`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Seek)
+    /// See: [MPRIS2 specification about `Seek`][seek].
+    ///
+    /// [seek]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Seek
     pub fn checked_seek_forwards(&self, offset: &Duration) -> Result<bool, DBusError> {
         if self.can_seek()? {
             self.seek_forwards(offset).map(|_| true)
@@ -825,7 +889,9 @@ impl<'a> Player<'a> {
     ///
     /// Returns a boolean to show if the signal was sent or not.
     ///
-    /// See: [MPRIS2 specification about `Seek`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Seek)
+    /// See: [MPRIS2 specification about `Seek`][seek].
+    ///
+    /// [seek]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Seek
     pub fn checked_seek_backwards(&self, offset: &Duration) -> Result<bool, DBusError> {
         if self.can_seek()? {
             self.seek_backwards(offset).map(|_| true)
@@ -836,18 +902,18 @@ impl<'a> Player<'a> {
 
     /// Queries the player to see if it can be raised or not.
     ///
-    /// See: [MPRIS2 specification about
-    /// `CanRaise`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:CanRaise)
-    /// and the `raise` method.
+    /// See: [MPRIS2 specification about `CanRaise`][can_raise] and the [`raise`](Self::raise) method.
+    ///
+    /// [can_raise]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:CanRaise
     pub fn can_raise(&self) -> Result<bool, DBusError> {
         self.connection_path().get_can_raise().map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can be asked to quit.
     ///
-    /// See: [MPRIS2 specification about
-    /// `CanQuit`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:CanQuit)
-    /// and the `quit` method.
+    /// See: [MPRIS2 specification about `CanQuit`][can_quit] and the [`quit`](Self::quit) method.
+    ///
+    /// [can_quit]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:CanQuit
     pub fn can_quit(&self) -> Result<bool, DBusError> {
         self.connection_path().get_can_quit().map_err(|e| e.into())
     }
@@ -859,9 +925,9 @@ impl<'a> Player<'a> {
     ///
     /// It is up to you to decide if you want to ignore errors caused by this method or not.
     ///
-    /// See: [MPRIS2 specification about
-    /// `CanSetFullscreen`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:CanSetFullscreen)
-    /// and the `set_fullscreen` method.
+    /// See: [MPRIS2 specification about `CanSetFullscreen`][can_full] and the [`set_fullscreen`](Self::set_fullscreen) method.
+    ///
+    /// [can_full]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:CanSetFullscreen
     pub fn can_set_fullscreen(&self) -> Result<bool, DBusError> {
         handle_optional_property(self.connection_path().get_can_set_fullscreen())
             .map(|o| o.unwrap_or(false))
@@ -869,7 +935,9 @@ impl<'a> Player<'a> {
 
     /// Queries the player to see if it can be controlled or not.
     ///
-    /// See: [MPRIS2 specification about `CanControl`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanControl)
+    /// See: [MPRIS2 specification about `CanControl`][can_control].
+    ///
+    /// [can_control]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanControl
     pub fn can_control(&self) -> Result<bool, DBusError> {
         self.connection_path()
             .get_can_control()
@@ -878,7 +946,9 @@ impl<'a> Player<'a> {
 
     /// Queries the player to see if it can go to next or not.
     ///
-    /// See: [MPRIS2 specification about `CanGoNext`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanGoNext)
+    /// See: [MPRIS2 specification about `CanGoNext`][can_next].
+    ///
+    /// [can_next]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanGoNext
     pub fn can_go_next(&self) -> Result<bool, DBusError> {
         self.connection_path()
             .get_can_go_next()
@@ -887,7 +957,9 @@ impl<'a> Player<'a> {
 
     /// Queries the player to see if it can go to previous or not.
     ///
-    /// See: [MPRIS2 specification about `CanGoPrevious`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanGoPrevious)
+    /// See: [MPRIS2 specification about `CanGoPrevious`][can_prev].
+    ///
+    /// [can_prev]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanGoPrevious
     pub fn can_go_previous(&self) -> Result<bool, DBusError> {
         self.connection_path()
             .get_can_go_previous()
@@ -896,32 +968,40 @@ impl<'a> Player<'a> {
 
     /// Queries the player to see if it can pause.
     ///
-    /// See: [MPRIS2 specification about `CanPause`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanPause)
+    /// See: [MPRIS2 specification about `CanPause`][can_pause]
+    ///
+    /// [can_pause]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanPause
     pub fn can_pause(&self) -> Result<bool, DBusError> {
         self.connection_path().get_can_pause().map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can play.
     ///
-    /// See: [MPRIS2 specification about `CanPlay`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanPlay)
+    /// See: [MPRIS2 specification about `CanPlay`][can_play].
+    ///
+    /// [can_play]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanPlay
     pub fn can_play(&self) -> Result<bool, DBusError> {
         self.connection_path().get_can_play().map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can seek within the media.
     ///
-    /// See: [MPRIS2 specification about `CanSeek`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanSeek)
+    /// See: [MPRIS2 specification about `CanSeek`][can_seek].
+    ///
+    /// [can_seek]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanSeek
     pub fn can_seek(&self) -> Result<bool, DBusError> {
         self.connection_path().get_can_seek().map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can stop.
     ///
-    /// MPRIS2 defines [the `Stop` message to only work when the player can be controlled][stop], so that
+    /// MPRIS2 defines [the `Stop` message to only work when the player can be controlled][can_stop], so that
     /// is the property used for this method.
     ///
-    /// See: [MPRIS2 specification about `CanControl`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanControl)
-    /// [stop]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Stop
+    /// See: [MPRIS2 specification about `CanControl`][can_control].
+    ///
+    /// [can_stop]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Stop
+    /// [can_control]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanControl
     pub fn can_stop(&self) -> Result<bool, DBusError> {
         self.can_control()
     }
@@ -989,9 +1069,9 @@ impl<'a> Player<'a> {
     ///
     /// It is up to you to decide if you want to ignore errors caused by this method or not.
     ///
-    /// See: [MPRIS2 specification about
-    /// `Fullscreen`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:Fullscreen)
-    /// and the `can_set_fullscreen` method.
+    /// See: [MPRIS2 specification about `Fullscreen`][full] and the [`can_set_fullscreen`](Self::can_set_fullscreen) method.
+    ///
+    /// [full]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:Fullscreen
     pub fn get_fullscreen(&self) -> Result<Option<bool>, DBusError> {
         handle_optional_property(self.connection_path().get_fullscreen())
     }
@@ -1003,11 +1083,11 @@ impl<'a> Player<'a> {
     /// This property was added in MPRIS 2.2, and not all players will implement it. This method
     /// will try to detect this case and fall back to `Ok(false)`.
     ///
-    /// Other errors will be returned as `Err`.
+    /// Other errors will be returned as [`Err`].
     ///
-    /// See: [MPRIS2 specification about
-    /// `Fullscreen`](https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:Fullscreen)
-    /// and the `can_set_fullscreen` method.
+    /// See: [MPRIS2 specification about `Fullscreen`][full] and the [`can_set_fullscreen`](Self::can_set_fullscreen) method.
+    ///
+    /// [full]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:Fullscreen
     pub fn set_fullscreen(&self, new_state: bool) -> Result<bool, DBusError> {
         handle_optional_property(self.connection_path().set_fullscreen(new_state))
             .map(|o| o.is_some())
@@ -1023,8 +1103,9 @@ impl<'a> Player<'a> {
 
     /// Query player for the state of the "Shuffle" setting.
     ///
-    /// See: [MPRIS2 specification about
-    /// `Shuffle`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Shuffle)
+    /// See: [MPRIS2 specification about `Shuffle`][shuffle].
+    ///
+    /// [shuffle]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Shuffle
     pub fn get_shuffle(&self) -> Result<bool, DBusError> {
         self.connection_path()
             .get_shuffle()
@@ -1033,8 +1114,8 @@ impl<'a> Player<'a> {
 
     /// Gets the "Shuffle" setting, if the player indicates that it supports it.
     ///
-    /// Return [[Some]] containing the current value of the shuffle setting. If the setting is not
-    /// supported, will return [[None]]
+    /// Return [`Some`] containing the current value of the shuffle setting. If the setting is not
+    /// supported, will return [`None`]
     pub fn checked_get_shuffle(&self) -> Result<Option<bool>, DBusError> {
         if self.can_shuffle()? {
             Ok(Some(self.get_shuffle()?))
@@ -1045,8 +1126,9 @@ impl<'a> Player<'a> {
 
     /// Set the "Shuffle" setting of the player.
     ///
-    /// See: [MPRIS2 specification about
-    /// `Shuffle`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Shuffle)
+    /// See: [MPRIS2 specification about `Shuffle`][shuffle].
+    ///
+    /// [shuffle]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Shuffle
     pub fn set_shuffle(&self, state: bool) -> Result<(), DBusError> {
         self.connection_path()
             .set_shuffle(state)
@@ -1056,10 +1138,11 @@ impl<'a> Player<'a> {
     /// Set the "Shuffle" setting of the player, if the player indicates that it supports the
     /// "Shuffle" setting and can be controlled.
     ///
-    /// Returns a boolean to show if the signal was sent or not.
+    /// Returns a [`bool`] to show if the signal was sent or not.
     ///
-    /// See: [MPRIS2 specification about
-    /// `Shuffle`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Shuffle)
+    /// See: [MPRIS2 specification about `Shuffle`][shuffle].
+    ///
+    /// [shuffle]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Shuffle
     pub fn checked_set_shuffle(&self, state: bool) -> Result<bool, DBusError> {
         if self.can_control()? && self.can_shuffle()? {
             self.set_shuffle(state)
@@ -1072,8 +1155,9 @@ impl<'a> Player<'a> {
 
     /// Query the player for the current loop status.
     ///
-    /// See: [MPRIS2 specification about
-    /// `LoopStatus`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:LoopStatus)
+    /// See: [MPRIS2 specification about  `LoopStatus`][loop_status].
+    ///
+    /// [loop_status]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:LoopStatus
     pub fn get_loop_status(&self) -> Result<LoopStatus, DBusError> {
         self.connection_path()
             .get_loop_status()?
@@ -1083,8 +1167,8 @@ impl<'a> Player<'a> {
 
     /// Gets the "LoopStatus" setting, if the player indicates that it supports it.
     ///
-    /// Returns [[Some]] containing the current value of the loop setting. If the setting is not
-    /// supported, returns [[None]]
+    /// Returns [`Some`] containing the current value of the loop setting. If the setting is not
+    /// supported, returns [`None`]
     pub fn checked_get_loop_status(&self) -> Result<Option<LoopStatus>, DBusError> {
         if self.can_loop()? {
             Ok(Some(self.get_loop_status()?))
@@ -1095,8 +1179,9 @@ impl<'a> Player<'a> {
 
     /// Set the loop status of the player.
     ///
-    /// See: [MPRIS2 specification about
-    /// `LoopStatus`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:LoopStatus)
+    /// See: [MPRIS2 specification about  `LoopStatus`][loop_status].
+    ///
+    /// [loop_status]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:LoopStatus
     pub fn set_loop_status(&self, status: LoopStatus) -> Result<(), DBusError> {
         self.connection_path()
             .set_loop_status(status.dbus_value())
@@ -1108,8 +1193,9 @@ impl<'a> Player<'a> {
     ///
     /// Returns a boolean to show if the signal was sent or not.
     ///
-    /// See: [MPRIS2 specification about
-    /// `LoopStatus`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:LoopStatus)
+    /// See: [MPRIS2 specification about  `LoopStatus`][loop_status].
+    ///
+    /// [loop_status]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:LoopStatus
     pub fn checked_set_loop_status(&self, status: LoopStatus) -> Result<bool, DBusError> {
         if self.can_control()? && self.can_loop()? {
             self.set_loop_status(status)
@@ -1125,16 +1211,17 @@ impl<'a> Player<'a> {
     /// Volume should be between 0.0 and 1.0. Above 1.0 is possible, but not
     /// recommended.
     ///
-    /// See: [MPRIS2 specification about
-    /// `Volume`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Volume)
+    /// See: [MPRIS2 specification about `Volume`][vol].
+    ///
+    /// [vol]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Volume
     pub fn get_volume(&self) -> Result<f64, DBusError> {
         self.connection_path().get_volume().map_err(DBusError::from)
     }
 
     /// Gets the "Volume" setting, if the player indicates that it supports it.
     ///
-    /// Returns [[Some]] containing the current value of the position. If the setting is not
-    /// supported, returns [[None]]
+    /// Returns [`Some`] containing the current value of the position. If the setting is not
+    /// supported, returns [`None`]
     pub fn checked_get_volume(&self) -> Result<Option<f64>, DBusError> {
         if self.has_volume()? {
             Ok(Some(self.get_volume()?))
@@ -1148,8 +1235,9 @@ impl<'a> Player<'a> {
     /// Volume should be between 0.0 and 1.0. Above 1.0 is possible, but not
     /// recommended.
     ///
-    /// See: [MPRIS2 specification about
-    /// `Volume`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Volume)
+    /// See: [MPRIS2 specification about `Volume`][vol].
+    ///
+    /// [vol]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Volume
     pub fn set_volume(&self, value: f64) -> Result<(), DBusError> {
         self.connection_path()
             .set_volume(value.max(0.0))
@@ -1161,8 +1249,9 @@ impl<'a> Player<'a> {
     ///
     /// Returns a boolean to show if the signal was sent or not.
     ///
-    /// See: [MPRIS2 specification about
-    /// `Volume`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Volume)
+    /// See: [MPRIS2 specification about `Volume`][vol].
+    ///
+    /// [vol]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Volume
     pub fn checked_set_volume(&self, volume: f64) -> Result<bool, DBusError> {
         if self.can_control()? && self.has_volume()? {
             self.set_volume(volume)
@@ -1179,8 +1268,9 @@ impl<'a> Player<'a> {
     /// Volume should be between 0.0 and 1.0. Above 1.0 is possible, but not
     /// recommended.
     ///
-    /// See: [MPRIS2 specification about
-    /// `Volume`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Volume)
+    /// See: [MPRIS2 specification about `Volume`][vol].
+    ///
+    /// [vol]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Volume
     pub fn set_volume_checked(&self, value: f64) -> Result<bool, DBusError> {
         if self.can_control()? {
             self.set_volume(value).map(|_| true)

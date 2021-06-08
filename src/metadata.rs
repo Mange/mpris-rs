@@ -5,18 +5,20 @@ use super::TrackID;
 use std::collections::HashMap;
 use std::time::Duration;
 
-/// A structured representation of the `Player` metadata.
+/// A structured representation of the [`Player`](crate::player::Player) metadata.
 ///
-/// * [Read more about the MPRIS2 `Metadata_Map`
-/// type.](https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Mapping:Metadata_Map)
-/// * [Read MPRIS v2 metadata guidelines](https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/)
+/// * [Read more about the MPRIS2 `Metadata_Map` type.][metadata_map]
+/// * [Read MPRIS v2 metadata guidelines][metadata_guidelines]
+///
+/// [metadata_map]: https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Mapping:Metadata_Map
+/// [metadata_guidelines]: https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/
 #[derive(Debug, Default, Clone)]
 pub struct Metadata {
     values: HashMap<String, Value>,
 }
 
 impl Metadata {
-    /// Create a new `Metadata` struct with a given `track_id`.
+    /// Create a new [`Metadata`] struct with a given `track_id`.
     ///
     /// This is mostly useful for test fixtures and other places where you want to work with mock
     /// data.
@@ -51,7 +53,7 @@ impl Metadata {
 
     /// The track ID.
     ///
-    /// If the TrackID could not be parsed as a proper TrackID, `None` will be returned.
+    /// If the [`TrackID`] could not be parsed as a proper [`TrackID`], [`None`] will be returned.
     ///
     /// Based on `mpris:trackid`
     /// > A unique identity for this track within the context of an MPRIS object.
@@ -121,7 +123,7 @@ impl Metadata {
         }
     }
 
-    /// The duration of the track, as a `Duration`
+    /// The duration of the track, as a [`Duration`]
     ///
     /// Based on `mpris:length`.
     pub fn length(&self) -> Option<Duration> {
@@ -153,10 +155,10 @@ impl Metadata {
         self.get("xesam:url").and_then(Value::as_str)
     }
 
-    /// Returns an owned `HashMap` of borrowed values from this `Metadata`. Useful if you need a
-    /// mutable hash but don't have ownership of `Metadata` or want to consume it.
+    /// Returns an owned [`HashMap`] of borrowed values from this [`Metadata`]. Useful if you need a
+    /// mutable hash but don't have ownership of [`Metadata`] or want to consume it.
     ///
-    /// If you want to convert to a `HashMap`, use `Into::into` instead.
+    /// If you want to convert to a [`HashMap`], use [`Into::into`](std::convert::Into::into) instead.
     pub fn as_hashmap(&self) -> HashMap<&str, &Value> {
         self.iter().collect()
     }

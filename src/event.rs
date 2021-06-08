@@ -5,40 +5,40 @@ use super::{
 use crate::pooled_connection::MprisEvent;
 use failure::Fail;
 
-/// Represents a change in Player state.
+/// Represents a change in [`Player`] state.
 ///
 /// Note that this does not include position changes (seeking in a track or normal progress of time
 /// for playing media).
 #[derive(Debug)]
 pub enum Event {
-    /// Player was shut down / quit.
+    /// [`Player`] was shut down / quit.
     PlayerShutDown,
 
-    /// Player was paused.
+    /// [`Player`] was paused.
     Paused,
 
-    /// Player started playing media.
+    /// [`Player`] started playing media.
     Playing,
 
-    /// Player was stopped.
+    /// [`Player`] was stopped.
     Stopped,
 
-    /// Loop status of player was changed. New loop status is provided.
+    /// Loop status of [`Player`] was changed. New [`LoopStatus`] is provided.
     LoopingChanged(LoopStatus),
 
-    /// Shuffle status of player was changed. New shuffle status is provided.
+    /// Shuffle status of [`Player`] was changed. New shuffle status is provided.
     ShuffleToggled(bool),
 
-    /// Player's volume was changed. The new volume is provided.
+    /// [`Player`]'s volume was changed. The new volume is provided.
     VolumeChanged(f64),
 
-    /// Player's playback rate was changed. New playback rate is provided.
+    /// [`Player`]'s playback rate was changed. New playback rate is provided.
     PlaybackRateChanged(f64),
 
-    /// Player's track changed. Metadata of the new track is provided.
+    /// [`Player`]'s track changed. [`Metadata`] of the new track is provided.
     TrackChanged(Metadata),
 
-    /// Player seeked (changed position in the current track).
+    /// [`Player`] seeked (changed position in the current track).
     ///
     /// This will only be emitted when the player in question emits this signal. Some players do
     /// not support this signal. If you want to accurately detect seeking, you'll have to query
@@ -48,13 +48,13 @@ pub enum Event {
         position_in_us: u64,
     },
 
-    /// A new track was added to the TrackList.
+    /// A new track was added to the [`TrackList`].
     TrackAdded(TrackID),
 
-    /// A track was removed from the TrackList.
+    /// A track was removed from the [`TrackList`].
     TrackRemoved(TrackID),
 
-    /// A track on the TrackList had its metadata changed.
+    /// A track on the [`TrackList`] had its metadata changed.
     ///
     /// This could also mean that a entry on the playlist completely changed; including the ID.
     TrackMetadataChanged {
@@ -82,25 +82,25 @@ pub enum Event {
 /// Errors that can occur while processing event streams.
 #[derive(Debug, Fail)]
 pub enum EventError {
-    /// Something went wrong with the D-Bus communication. See the `DBusError` type.
+    /// Something went wrong with the D-Bus communication. See the [`DBusError`] type.
     #[fail(display = "D-Bus communication failed")]
     DBusError(#[cause] DBusError),
 
-    /// Something went wrong with the track list. See the `TrackListError` type.
+    /// Something went wrong with the track list. See the [`TrackListError`] type.
     #[fail(display = "TrackList could not be refreshed")]
     TrackListError(#[cause] TrackListError),
 }
 
-/// Iterator that blocks forever until the player has an event.
+/// Iterator that blocks forever until the player has an [`Event`].
 ///
 /// Iteration will stop if player stops running. If the player was running before this iterator
-/// blocks, one last `Event::PlayerShutDown` event will be emitted before stopping iteration.
+/// blocks, one last [`Event::PlayerShutDown`] event will be emitted before stopping iteration.
 ///
 /// If multiple events are found between processing D-Bus events then all of them will be iterated
 /// in rapid succession before processing more events.
 #[derive(Debug)]
 pub struct PlayerEvents<'a> {
-    /// Player to watch.
+    /// [`Player`] to watch.
     player: &'a Player<'a>,
 
     /// Queued up events found after the last signal.
@@ -251,9 +251,13 @@ impl<'a> PlayerEvents<'a> {
         let old_metadata = self.last_progress.metadata();
 
         // As a workaround for Players not setting a valid track ID, we also check against the URL
+        // Title and artists are checked to detect changes for streams (radios) because track ID and URL don't change.
+        // Title is checked first because most radios set title to `Artist - Title` and have the station name in artists.
 
         if old_metadata.track_id() != new_metadata.track_id()
             || old_metadata.url() != new_metadata.url()
+            || old_metadata.title() != new_metadata.title()
+            || old_metadata.artists() != new_metadata.artists()
         {
             self.buffer.push(Event::TrackChanged(new_metadata.clone()));
         }

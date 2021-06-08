@@ -23,7 +23,7 @@
 //! Some hints on how to use this library:
 //!
 //! 1. Look at the examples under `examples/`.
-//! 2. Look at the `PlayerFinder` struct.
+//! 2. Look at the [`PlayerFinder`] struct.
 //!
 
 use failure::Fail;
@@ -52,17 +52,26 @@ pub use crate::track_list::{TrackID, TrackList, TrackListError};
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 #[allow(missing_docs)]
+/// The [`Player`]'s playback status
+///
+/// See: [MPRIS2 specification about `PlaybackStatus`][playback_status]
+///
+/// [playback_status]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Enum:Playback_Status
 pub enum PlaybackStatus {
+    /// A track is currently playing.
     Playing,
+    /// A track is currently paused.
     Paused,
+    /// There is no track currently playing.
     Stopped,
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-/// A Player's looping status.
+/// A [`Player`]'s looping status.
 ///
-/// See: [MPRIS2 specification about
-/// `Loop_Status`](https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Enum:Loop_Status)
+/// See: [MPRIS2 specification about `Loop_Status`][loop_status]
+///
+/// [loop_status]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Enum:Loop_Status
 pub enum LoopStatus {
     /// The playback will stop when there are no more tracks to play
     None,
@@ -74,7 +83,7 @@ pub enum LoopStatus {
     Playlist,
 }
 
-/// `PlaybackStatus` had an invalid string value.
+/// [`PlaybackStatus`] had an invalid string value.
 #[derive(Fail, Debug)]
 #[fail(
     display = "PlaybackStatus must be one of Playing, Paused, Stopped, but was {}",
@@ -97,7 +106,7 @@ impl ::std::str::FromStr for PlaybackStatus {
     }
 }
 
-/// `LoopStatus` had an invalid string value.
+/// [`LoopStatus`] had an invalid string value.
 #[derive(Fail, Debug)]
 #[fail(
     display = "LoopStatus must be one of None, Track, Playlist, but was {}",
@@ -136,12 +145,12 @@ pub enum DBusError {
     #[fail(display = "D-Bus call failed: {}", _0)]
     TransportError(#[cause] dbus::Error),
 
-    /// Failed to parse an enum from a string value received from the player. This means that the
-    /// player replied with unexpected data.
+    /// Failed to parse an enum from a string value received from the [`Player`]. This means that the
+    /// [`Player`] replied with unexpected data.
     #[fail(display = "Failed to parse enum value: {}", _0)]
     EnumParseError(String),
 
-    /// A D-Bus method call did not pass arguments of the correct type. This means that the player
+    /// A D-Bus method call did not pass arguments of the correct type. This means that the [`Player`]
     /// replied with unexpected data.
     #[fail(display = "D-Bus call failed: {}", _0)]
     TypeMismatchError(#[cause] dbus::arg::TypeMismatchError),
