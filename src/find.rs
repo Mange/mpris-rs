@@ -106,34 +106,40 @@ impl PlayerFinder {
     pub fn find_active<'b>(&self) -> Result<Player<'b>, FindingError> {
         let mut players: Vec<Player> = self.find_all()?;
 
-        // Return Error if no players
+        match self.find_active_player_index(&players)? {
+            Some(index) => Ok(players.remove(index)),
+            None => Err(FindingError::NoPlayerFound),
+        }
+    }
+
+    /// Finds the index of an "active" player. Follows the order mentioned in [`find_active`](Self::find_active).
+    fn find_active_player_index(&self, players: &[Player]) -> Result<Option<usize>, DBusError> {
         if players.is_empty() {
-            return Err(FindingError::NoPlayerFound);
+            return Ok(None);
+        } else if players.len() == 1 {
+            return Ok(Some(0));
         }
 
-        // Look for "Playing"
-        for (n, player) in players.iter().enumerate() {
-            if let PlaybackStatus::Playing = player.get_playback_status()? {
-                return Ok(players.remove(n));
+        let mut first_paused: Option<usize> = None;
+        let mut first_with_track: Option<usize> = None;
+
+        for (index, player) in players.iter().enumerate() {
+            let player_status = player.get_playback_status()?;
+
+            if player_status == PlaybackStatus::Playing {
+                return Ok(Some(index));
+            }
+
+            if first_paused.is_none() && player_status == PlaybackStatus::Paused {
+                first_paused.replace(index);
+            }
+
+            if first_with_track.is_none() && !player.get_metadata()?.as_hashmap().is_empty() {
+                first_with_track.replace(index);
             }
         }
 
-        // Look for "Paused"
-        for (n, player) in players.iter().enumerate() {
-            if let PlaybackStatus::Paused = player.get_playback_status()? {
-                return Ok(players.remove(n));
-            }
-        }
-
-        // Look for player with metadata
-        for (n, player) in players.iter().enumerate() {
-            if !player.get_metadata()?.as_hashmap().is_empty() {
-                return Ok(players.remove(n));
-            }
-        }
-
-        // Finally just return any player
-        Ok(players.remove(0))
+        Ok(first_paused.or(first_with_track).or(Some(0)))
     }
 
     /// Find a [`Player`] by it's MPRIS [`Identity`][identity]. Returns [`NoPlayerFound`](FindingError::NoPlayerFound) if no direct match found.
@@ -149,6 +155,7 @@ impl PlayerFinder {
         Err(FindingError::NoPlayerFound)
     }
 
+    /// Returns all of the MPRIS DBus paths
     fn all_player_buses(&self) -> Result<Vec<String>, DBusError> {
         let list_names = Message::new_method_call(
             "org.freedesktop.DBus",
