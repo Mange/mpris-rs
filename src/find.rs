@@ -134,7 +134,7 @@ impl PlayerFinder {
                 first_paused.replace(index);
             }
 
-            if first_with_track.is_none() && !player.get_metadata()?.as_hashmap().is_empty() {
+            if first_with_track.is_none() && !player.get_metadata()?.is_empty() {
                 first_with_track.replace(index);
             }
         }
