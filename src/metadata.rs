@@ -172,6 +172,11 @@ impl Metadata {
     pub fn keys(&self) -> impl Iterator<Item = &str> {
         self.values.keys().map(String::as_str)
     }
+
+    /// Returns [`true`] if there is no metadata
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
 }
 
 impl IntoIterator for Metadata {

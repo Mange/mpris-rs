@@ -8,6 +8,7 @@ use dbus::{arg, Message};
 use super::DBusError;
 use crate::player::{Player, DEFAULT_TIMEOUT_MS, MPRIS2_PATH, MPRIS2_PREFIX};
 use crate::pooled_connection::PooledConnection;
+use crate::PlaybackStatus;
 
 const LIST_NAMES_TIMEOUT_MS: i32 = 500;
 
@@ -36,6 +37,8 @@ impl From<DBusError> for FindingError {
 }
 
 /// Used to find [`Player`]s running on a D-Bus connection.
+///
+/// All find results are sorted in alphabetical order.
 #[derive(Debug)]
 pub struct PlayerFinder {
     connection: Rc<PooledConnection>,
@@ -78,17 +81,10 @@ impl PlayerFinder {
             .collect()
     }
 
-    /// Try to find the "active" player in the connection.
-    ///
-    /// MPRIS does not have the concept of "active" and all players are treated the same, even if
-    /// only one of the players are currently playing something.
-    ///
-    /// This method will try to determine which player a user is most likely to use.
-    ///
-    /// **NOTE:** Currently this method is very naive and just returns the first player. This
-    /// behavior can change later without a major version change, so don't rely on that behavior.
-    pub fn find_active<'b>(&self) -> Result<Player<'b>, FindingError> {
-        if let Some(bus_name) = self.active_player_bus()? {
+    /// Return the first found [`Player`] regardless of state.
+    pub fn find_first<'b>(&self) -> Result<Player<'b>, FindingError> {
+        let busses = self.all_player_buses()?;
+        if let Some(bus_name) = busses.into_iter().next() {
             Player::for_pooled_connection(
                 Rc::clone(&self.connection),
                 bus_name.into(),
@@ -101,12 +97,65 @@ impl PlayerFinder {
         }
     }
 
-    fn active_player_bus(&self) -> Result<Option<String>, FindingError> {
-        // Right now, we just pick the first of the players. Is there some way to select this more
-        // intelligently?
-        Ok(self.all_player_buses()?.into_iter().next())
+    /// Try to find the "active" [`Player`] in the connection.
+    ///
+    /// This method will try to determine which player a user is most likely to use. First it will look for a player with
+    /// the playback status [`Playing`](PlaybackStatus::Playing), then for a [`Paused`](PlaybackStatus::Paused), then one with
+    /// track metadata, after that it will just return the first it finds. [`NoPlayerFound`](FindingError::NoPlayerFound) is returned
+    /// only if there is no player on the DBus.
+    pub fn find_active<'b>(&self) -> Result<Player<'b>, FindingError> {
+        let mut players: Vec<Player> = self.find_all()?;
+
+        match self.find_active_player_index(&players)? {
+            Some(index) => Ok(players.remove(index)),
+            None => Err(FindingError::NoPlayerFound),
+        }
     }
 
+    /// Finds the index of an "active" player. Follows the order mentioned in [`find_active`](Self::find_active).
+    fn find_active_player_index(&self, players: &[Player]) -> Result<Option<usize>, DBusError> {
+        if players.is_empty() {
+            return Ok(None);
+        } else if players.len() == 1 {
+            return Ok(Some(0));
+        }
+
+        let mut first_paused: Option<usize> = None;
+        let mut first_with_track: Option<usize> = None;
+
+        for (index, player) in players.iter().enumerate() {
+            let player_status = player.get_playback_status()?;
+
+            if player_status == PlaybackStatus::Playing {
+                return Ok(Some(index));
+            }
+
+            if first_paused.is_none() && player_status == PlaybackStatus::Paused {
+                first_paused.replace(index);
+            }
+
+            if first_with_track.is_none() && !player.get_metadata()?.is_empty() {
+                first_with_track.replace(index);
+            }
+        }
+
+        Ok(first_paused.or(first_with_track).or(Some(0)))
+    }
+
+    /// Find a [`Player`] by it's MPRIS [`Identity`][identity]. Returns [`NoPlayerFound`](FindingError::NoPlayerFound) if no direct match found.
+    ///
+    /// [identity]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:Identity
+    pub fn find_by_name<'b>(&self, name: &str) -> Result<Player<'b>, FindingError> {
+        let players = self.find_all()?;
+        for player in players {
+            if player.identity() == name {
+                return Ok(player);
+            }
+        }
+        Err(FindingError::NoPlayerFound)
+    }
+
+    /// Returns all of the MPRIS DBus paths
     fn all_player_buses(&self) -> Result<Vec<String>, DBusError> {
         let list_names = Message::new_method_call(
             "org.freedesktop.DBus",
@@ -123,9 +172,11 @@ impl PlayerFinder {
 
         let names: arg::Array<'_, &str, _> = reply.read1().map_err(DBusError::from)?;
 
-        Ok(names
+        let mut all_busses = names
             .filter(|name| name.starts_with(MPRIS2_PREFIX))
             .map(|str_ref| str_ref.to_owned())
-            .collect())
+            .collect::<Vec<String>>();
+        all_busses.sort_by_key(|a| a.to_lowercase());
+        Ok(all_busses)
     }
 }
