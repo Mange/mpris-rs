@@ -1,3 +1,3 @@
 [submodule "mpris-spec"]
 	path = mpris-spec
-	url = https://anongit.freedesktop.org/git/xdg/mpris-spec.git
+	url = https://gitlab.freedesktop.org/mpris/mpris-spec.git
