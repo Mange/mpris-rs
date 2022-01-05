@@ -299,7 +299,7 @@ impl<'a> ProgressTracker<'a> {
     pub fn force_refresh(&mut self) -> Result<(), ProgressError> {
         self.last_progress = Progress::from_player(self.player)?;
         if let Some(ref mut list) = self.track_list {
-            list.reload(&self.player)?;
+            list.reload(self.player)?;
         }
         Ok(())
     }
@@ -314,7 +314,7 @@ impl<'a> ProgressTracker<'a> {
 
     fn refresh_track_list(&mut self) -> bool {
         match self.track_list {
-            Some(ref mut list) => list.reload(&self.player).is_ok(),
+            Some(ref mut list) => list.reload(self.player).is_ok(),
             None => false,
         }
     }
