@@ -15,7 +15,7 @@ travis-ci = { repository = "Mange/mpris-rs", branch = "master" }
 maintenance = { status = "actively-developed" }
 
 [dependencies]
-dbus = "0.8.1"
+dbus = "0.9.5"
 failure = "0.1.5"
 failure_derive = "0.1.5"
 enum-kinds = "0.4.1"

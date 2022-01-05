@@ -26,7 +26,7 @@ pub(crate) const DEFAULT_TIMEOUT_MS: i32 = 500; // ms
 /// You can query this player about the currently playing media, or control it.
 ///
 /// **See:** [MPRIS2 MediaPlayer2.Player Specification][spec].
-/// 
+///
 /// [spec]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html
 #[derive(Debug)]
 pub struct Player<'a> {
@@ -126,9 +126,6 @@ impl<'a> Player<'a> {
     /// [bus_names]: https://specifications.freedesktop.org/mpris-spec/latest/#Bus-Name-Policy
     pub fn bus_name_player_name_part(&self) -> &str {
         self.bus_name()
-            .as_cstr()
-            .to_str()
-            .unwrap() // `BusName` is guaranteed to be valid ASCII/UTF-8
             .trim_start_matches(MPRIS2_PREFIX)
             .split('.') // Remove the "instance" part
             .next()
