@@ -296,7 +296,7 @@ pub(crate) enum MprisMessage {
     TrackListReplaced {
         unique_name: String,
         ids: Vec<TrackID>,
-        current_id: TrackID,
+        _current_id: TrackID,
     },
     TrackAdded {
         unique_name: String,
@@ -403,7 +403,7 @@ fn try_parse_tracklist_replaced(message: &Message) -> Option<MprisMessage> {
     Some(MprisMessage::TrackListReplaced {
         unique_name,
         ids: ids.into_iter().map(TrackID::from).collect(),
-        current_id: TrackID::from(current_id),
+        _current_id: TrackID::from(current_id),
     })
 }
 

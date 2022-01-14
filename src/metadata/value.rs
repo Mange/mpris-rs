@@ -339,7 +339,7 @@ impl<'a> From<&'a str> for Value {
 impl dbus::arg::Arg for Value {
     const ARG_TYPE: ArgType = ArgType::Variant;
     fn signature() -> dbus::Signature<'static> {
-        dbus::Signature::from_slice(b"v\0").unwrap()
+        dbus::Signature::from_slice("v").unwrap()
     }
 }
 

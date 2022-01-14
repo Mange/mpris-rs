@@ -26,7 +26,7 @@ pub(crate) const DEFAULT_TIMEOUT_MS: i32 = 500; // ms
 /// You can query this player about the currently playing media, or control it.
 ///
 /// **See:** [MPRIS2 MediaPlayer2.Player Specification][spec].
-/// 
+///
 /// [spec]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html
 #[derive(Debug)]
 pub struct Player<'a> {
@@ -70,7 +70,7 @@ impl<'a> Player<'a> {
         let identity = {
             let connection_path =
                 pooled_connection.with_path(bus_name.clone(), path.clone(), timeout_ms);
-            connection_path.get_identity()?
+            connection_path.identity()?
         };
 
         let unique_name = pooled_connection
@@ -126,9 +126,6 @@ impl<'a> Player<'a> {
     /// [bus_names]: https://specifications.freedesktop.org/mpris-spec/latest/#Bus-Name-Policy
     pub fn bus_name_player_name_part(&self) -> &str {
         self.bus_name()
-            .as_cstr()
-            .to_str()
-            .unwrap() // `BusName` is guaranteed to be valid ASCII/UTF-8
             .trim_start_matches(MPRIS2_PREFIX)
             .split('.') // Remove the "instance" part
             .next()
@@ -160,7 +157,7 @@ impl<'a> Player<'a> {
     ///
     /// [desktop_entry]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:DesktopEntry
     pub fn get_desktop_entry(&self) -> Result<Option<String>, DBusError> {
-        handle_optional_property(self.connection_path().get_desktop_entry())
+        handle_optional_property(self.connection_path().desktop_entry())
     }
 
     /// Returns the player's `SupportedMimeTypes` property.
@@ -170,7 +167,7 @@ impl<'a> Player<'a> {
     /// [mime_types]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:SupportedMimeTypes
     pub fn get_supported_mime_types(&self) -> Result<Vec<String>, DBusError> {
         self.connection_path()
-            .get_supported_mime_types()
+            .supported_mime_types()
             .map_err(|e| e.into())
     }
 
@@ -181,7 +178,7 @@ impl<'a> Player<'a> {
     /// [schemes]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:SupportedUriSchemes
     pub fn get_supported_uri_schemes(&self) -> Result<Vec<String>, DBusError> {
         self.connection_path()
-            .get_supported_uri_schemes()
+            .supported_uri_schemes()
             .map_err(|e| e.into())
     }
 
@@ -192,7 +189,7 @@ impl<'a> Player<'a> {
     /// [track_list]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:HasTrackList
     pub fn get_has_track_list(&self) -> Result<bool, DBusError> {
         self.connection_path()
-            .get_has_track_list()
+            .has_track_list()
             .map_err(|e| e.into())
     }
 
@@ -218,7 +215,7 @@ impl<'a> Player<'a> {
     /// media.
     pub fn get_position_in_microseconds(&self) -> Result<u64, DBusError> {
         self.connection_path()
-            .get_position()
+            .position()
             .map(|p| p as u64)
             .map_err(|e| e.into())
     }
@@ -285,7 +282,7 @@ impl<'a> Player<'a> {
     ///
     /// 1.0 would mean normal rate, while 2.0 would mean twice the playback speed.
     pub fn get_playback_rate(&self) -> Result<f64, DBusError> {
-        self.connection_path().get_rate().map_err(|e| e.into())
+        self.connection_path().rate().map_err(|e| e.into())
     }
 
     /// Gets the "Rate" setting, if the player indicates that it supports it.
@@ -341,9 +338,7 @@ impl<'a> Player<'a> {
     ///
     /// [min_rate]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:MinimumRate
     pub fn get_minimum_playback_rate(&self) -> Result<f64, DBusError> {
-        self.connection_path()
-            .get_minimum_rate()
-            .map_err(|e| e.into())
+        self.connection_path().minimum_rate().map_err(|e| e.into())
     }
 
     /// Gets the maximum allowed value for playback rate.
@@ -352,9 +347,7 @@ impl<'a> Player<'a> {
     ///
     /// [max_rate]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:MaximumRate
     pub fn get_maximum_playback_rate(&self) -> Result<f64, DBusError> {
-        self.connection_path()
-            .get_maximum_rate()
-            .map_err(|e| e.into())
+        self.connection_path().maximum_rate().map_err(|e| e.into())
     }
 
     /// Gets the minimum-maximum allowed value range for playback rate.
@@ -906,7 +899,7 @@ impl<'a> Player<'a> {
     ///
     /// [can_raise]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:CanRaise
     pub fn can_raise(&self) -> Result<bool, DBusError> {
-        self.connection_path().get_can_raise().map_err(|e| e.into())
+        self.connection_path().can_raise().map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can be asked to quit.
@@ -915,7 +908,7 @@ impl<'a> Player<'a> {
     ///
     /// [can_quit]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:CanQuit
     pub fn can_quit(&self) -> Result<bool, DBusError> {
-        self.connection_path().get_can_quit().map_err(|e| e.into())
+        self.connection_path().can_quit().map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can be asked to entrer fullscreen.
@@ -929,7 +922,7 @@ impl<'a> Player<'a> {
     ///
     /// [can_full]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:CanSetFullscreen
     pub fn can_set_fullscreen(&self) -> Result<bool, DBusError> {
-        handle_optional_property(self.connection_path().get_can_set_fullscreen())
+        handle_optional_property(self.connection_path().can_set_fullscreen())
             .map(|o| o.unwrap_or(false))
     }
 
@@ -939,9 +932,7 @@ impl<'a> Player<'a> {
     ///
     /// [can_control]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanControl
     pub fn can_control(&self) -> Result<bool, DBusError> {
-        self.connection_path()
-            .get_can_control()
-            .map_err(|e| e.into())
+        self.connection_path().can_control().map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can go to next or not.
@@ -950,9 +941,7 @@ impl<'a> Player<'a> {
     ///
     /// [can_next]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanGoNext
     pub fn can_go_next(&self) -> Result<bool, DBusError> {
-        self.connection_path()
-            .get_can_go_next()
-            .map_err(|e| e.into())
+        self.connection_path().can_go_next().map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can go to previous or not.
@@ -962,7 +951,7 @@ impl<'a> Player<'a> {
     /// [can_prev]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanGoPrevious
     pub fn can_go_previous(&self) -> Result<bool, DBusError> {
         self.connection_path()
-            .get_can_go_previous()
+            .can_go_previous()
             .map_err(|e| e.into())
     }
 
@@ -972,7 +961,7 @@ impl<'a> Player<'a> {
     ///
     /// [can_pause]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanPause
     pub fn can_pause(&self) -> Result<bool, DBusError> {
-        self.connection_path().get_can_pause().map_err(|e| e.into())
+        self.connection_path().can_pause().map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can play.
@@ -981,7 +970,7 @@ impl<'a> Player<'a> {
     ///
     /// [can_play]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanPlay
     pub fn can_play(&self) -> Result<bool, DBusError> {
-        self.connection_path().get_can_play().map_err(|e| e.into())
+        self.connection_path().can_play().map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can seek within the media.
@@ -990,7 +979,7 @@ impl<'a> Player<'a> {
     ///
     /// [can_seek]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanSeek
     pub fn can_seek(&self) -> Result<bool, DBusError> {
-        self.connection_path().get_can_seek().map_err(|e| e.into())
+        self.connection_path().can_seek().map_err(|e| e.into())
     }
 
     /// Queries the player to see if it can stop.
@@ -1073,7 +1062,7 @@ impl<'a> Player<'a> {
     ///
     /// [full]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:Fullscreen
     pub fn get_fullscreen(&self) -> Result<Option<bool>, DBusError> {
-        handle_optional_property(self.connection_path().get_fullscreen())
+        handle_optional_property(self.connection_path().fullscreen())
     }
 
     /// Asks the player to change fullscreen state.
@@ -1096,7 +1085,7 @@ impl<'a> Player<'a> {
     /// Query the player for current playback status.
     pub fn get_playback_status(&self) -> Result<PlaybackStatus, DBusError> {
         self.connection_path()
-            .get_playback_status()?
+            .playback_status()?
             .parse()
             .map_err(DBusError::from)
     }
@@ -1107,9 +1096,7 @@ impl<'a> Player<'a> {
     ///
     /// [shuffle]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Shuffle
     pub fn get_shuffle(&self) -> Result<bool, DBusError> {
-        self.connection_path()
-            .get_shuffle()
-            .map_err(DBusError::from)
+        self.connection_path().shuffle().map_err(DBusError::from)
     }
 
     /// Gets the "Shuffle" setting, if the player indicates that it supports it.
@@ -1160,7 +1147,7 @@ impl<'a> Player<'a> {
     /// [loop_status]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:LoopStatus
     pub fn get_loop_status(&self) -> Result<LoopStatus, DBusError> {
         self.connection_path()
-            .get_loop_status()?
+            .loop_status()?
             .parse()
             .map_err(DBusError::from)
     }
@@ -1215,7 +1202,7 @@ impl<'a> Player<'a> {
     ///
     /// [vol]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Volume
     pub fn get_volume(&self) -> Result<f64, DBusError> {
-        self.connection_path().get_volume().map_err(DBusError::from)
+        self.connection_path().volume().map_err(DBusError::from)
     }
 
     /// Gets the "Volume" setting, if the player indicates that it supports it.

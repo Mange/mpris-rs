@@ -15,13 +15,13 @@ travis-ci = { repository = "Mange/mpris-rs", branch = "master" }
 maintenance = { status = "actively-developed" }
 
 [dependencies]
-dbus = "0.8.1"
-failure = "0.1.5"
-failure_derive = "0.1.5"
-enum-kinds = "0.4.1"
+dbus = "0.9.5"
+failure = "0.1.8"
+failure_derive = "0.1.8"
+enum-kinds = "0.5.1"
 derive_is_enum_variant = "0.1.1"
-from_variants = "0.4.0"
+from_variants = "0.6.0"
 
 # For examples
 [dev-dependencies]
-termion = "1.5.1"
+termion = "1.5.6"

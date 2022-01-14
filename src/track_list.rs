@@ -383,10 +383,7 @@ impl TrackList {
             // one with the new. Only ids on the list will therefore be present on the new list.
             let new_cache: HashMap<TrackID, Metadata> = ids
                 .iter()
-                .flat_map(|id| match cache.remove(id) {
-                    Some(value) => Some((id.to_owned(), value)),
-                    None => None,
-                })
+                .flat_map(|id| cache.remove(id).map(|value| (id.to_owned(), value)))
                 .collect();
 
             *cache = new_cache;
