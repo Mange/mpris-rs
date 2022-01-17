@@ -3,7 +3,7 @@ use super::{
     TrackListError,
 };
 use crate::pooled_connection::MprisEvent;
-use failure::Fail;
+use thiserror::Error;
 
 /// Represents a change in [`Player`] state.
 ///
@@ -80,15 +80,15 @@ pub enum Event {
 }
 
 /// Errors that can occur while processing event streams.
-#[derive(Debug, Fail)]
+#[derive(Debug, Error)]
 pub enum EventError {
     /// Something went wrong with the D-Bus communication. See the [`DBusError`] type.
-    #[fail(display = "D-Bus communication failed")]
-    DBusError(#[cause] DBusError),
+    #[error("D-Bus communication failed: {}", 0)]
+    DBusError(#[from] DBusError),
 
     /// Something went wrong with the track list. See the [`TrackListError`] type.
-    #[fail(display = "TrackList could not be refreshed")]
-    TrackListError(#[cause] TrackListError),
+    #[error("TrackList could not be refreshed: {}", 0)]
+    TrackListError(#[from] TrackListError),
 }
 
 /// Iterator that blocks forever until the player has an [`Event`].
@@ -286,17 +286,5 @@ impl<'a> Iterator for PlayerEvents<'a> {
 
         let event = self.buffer.remove(0);
         Some(Ok(event))
-    }
-}
-
-impl From<TrackListError> for EventError {
-    fn from(error: TrackListError) -> EventError {
-        EventError::TrackListError(error)
-    }
-}
-
-impl From<DBusError> for EventError {
-    fn from(error: DBusError) -> EventError {
-        EventError::DBusError(error)
     }
 }

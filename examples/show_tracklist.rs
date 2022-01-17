@@ -1,4 +1,4 @@
-use failure::{Error, ResultExt};
+use anyhow::{Context, Result};
 use mpris::PlayerFinder;
 
 fn main() {
@@ -6,7 +6,7 @@ fn main() {
         Ok(_) => {}
         Err(error) => {
             println!("Error: {}", error);
-            for (i, cause) in error.iter_causes().enumerate() {
+            for (i, cause) in error.chain().skip(1).enumerate() {
                 print!("{}", "  ".repeat(i + 1));
                 println!("Caused by: {}", cause);
             }
@@ -15,7 +15,7 @@ fn main() {
     }
 }
 
-fn print_track_list() -> Result<(), Error> {
+fn print_track_list() -> Result<()> {
     let player_finder = PlayerFinder::new().context("Could not connect to D-Bus")?;
 
     let player = player_finder

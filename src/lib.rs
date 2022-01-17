@@ -26,7 +26,7 @@
 //! 2. Look at the [`PlayerFinder`] struct.
 //!
 
-use failure::Fail;
+use thiserror::Error;
 
 mod extensions;
 
@@ -84,10 +84,10 @@ pub enum LoopStatus {
 }
 
 /// [`PlaybackStatus`] had an invalid string value.
-#[derive(Fail, Debug)]
-#[fail(
-    display = "PlaybackStatus must be one of Playing, Paused, Stopped, but was {}",
-    _0
+#[derive(Debug, Error)]
+#[error(
+    "PlaybackStatus must be one of Playing, Paused, Stopped, but was {}",
+    0
 )]
 pub struct InvalidPlaybackStatus(String);
 
@@ -107,11 +107,8 @@ impl ::std::str::FromStr for PlaybackStatus {
 }
 
 /// [`LoopStatus`] had an invalid string value.
-#[derive(Fail, Debug)]
-#[fail(
-    display = "LoopStatus must be one of None, Track, Playlist, but was {}",
-    _0
-)]
+#[derive(Debug, Error)]
+#[error("LoopStatus must be one of None, Track, Playlist, but was {}", 0)]
 pub struct InvalidLoopStatus(String);
 
 impl ::std::str::FromStr for LoopStatus {
@@ -139,37 +136,25 @@ impl LoopStatus {
 
 /// Something went wrong when communicating with the D-Bus. This could either be an underlying
 /// D-Bus library problem, or that the other side did not conform to the expected protocols.
-#[derive(Fail, Debug)]
+#[derive(Debug, Error)]
 pub enum DBusError {
     /// An error occurred while talking to the D-Bus.
-    #[fail(display = "D-Bus call failed: {}", _0)]
-    TransportError(#[cause] dbus::Error),
+    #[error("D-Bus call failed: {}", 0)]
+    TransportError(#[from] dbus::Error),
 
     /// Failed to parse an enum from a string value received from the [`Player`]. This means that the
     /// [`Player`] replied with unexpected data.
-    #[fail(display = "Failed to parse enum value: {}", _0)]
+    #[error("Failed to parse enum value: {}", 0)]
     EnumParseError(String),
 
     /// A D-Bus method call did not pass arguments of the correct type. This means that the [`Player`]
     /// replied with unexpected data.
-    #[fail(display = "D-Bus call failed: {}", _0)]
-    TypeMismatchError(#[cause] dbus::arg::TypeMismatchError),
+    #[error("D-Bus call failed: {}", 0)]
+    TypeMismatchError(#[from] dbus::arg::TypeMismatchError),
 
     /// Some other unexpected error occurred.
-    #[fail(display = "Unexpected error: {}", _0)]
+    #[error("Unexpected error: {}", 0)]
     Miscellaneous(String),
-}
-
-impl From<dbus::Error> for DBusError {
-    fn from(error: dbus::Error) -> Self {
-        DBusError::TransportError(error)
-    }
-}
-
-impl From<dbus::arg::TypeMismatchError> for DBusError {
-    fn from(error: dbus::arg::TypeMismatchError) -> Self {
-        DBusError::TypeMismatchError(error)
-    }
 }
 
 impl From<InvalidPlaybackStatus> for DBusError {
