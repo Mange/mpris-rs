@@ -29,7 +29,7 @@ fn print_capabilities_for_all_players() -> Result<()> {
         .context("Could not fetch list of players")?
     {
         print_capabilities_for_player(player)?;
-        println!("");
+        println!();
     }
 
     Ok(())
@@ -42,7 +42,7 @@ fn print_capabilities_for_player(player: Player<'_>) -> Result<()> {
         player.unique_name()
     );
 
-    println!("");
+    println!();
     println!("\t─── MediaPlayer2 ───");
     print_value("CanQuit", player.can_quit());
     print_value("CanRaise", player.can_raise());
@@ -51,7 +51,7 @@ fn print_capabilities_for_player(player: Player<'_>) -> Result<()> {
     print_value("SupportedMimeTypes", player.get_supported_mime_types());
     print_value("SupportedUriSchemes", player.get_supported_uri_schemes());
 
-    println!("");
+    println!();
     println!("\t─── MediaPlayer2.Player ───");
     print_value("CanControl", player.can_control());
     print_value("CanGoNext", player.can_go_next());
@@ -71,7 +71,7 @@ fn print_capabilities_for_player(player: Player<'_>) -> Result<()> {
     print_value("MaximumRate", player.get_maximum_playback_rate());
     print_value("MinimumRate", player.get_minimum_playback_rate());
 
-    println!("");
+    println!();
     println!("\t─── MediaPlayer2.TrackList ───");
     if player.supports_track_lists() {
         print_value("CanEditTracks", player.can_edit_tracks());
@@ -131,7 +131,7 @@ where
     fn string_for_display(&self) -> Cow<'_, str> {
         let mut buf = String::new();
         for val in self {
-            if buf.len() == 0 {
+            if buf.is_empty() {
                 buf.push_str(&val.string_for_display());
             } else {
                 buf.push_str(&format!(

@@ -63,7 +63,7 @@ fn print_track_list(player: &Player<'_>) -> Result<()> {
 
     println!("Track list:\n");
     let iter = track_list
-        .metadata_iter(&player)
+        .metadata_iter(player)
         .context("Could not load metadata for tracks")?;
 
     for (index, metadata) in iter.enumerate() {

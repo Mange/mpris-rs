@@ -1,6 +1,3 @@
-use mpris;
-use termion;
-
 use std::borrow::Cow;
 use std::io::{stdout, Stdout, Write};
 use std::time::Duration;
@@ -125,10 +122,7 @@ impl Action {
     }
 
     fn should_exit(&self) -> bool {
-        match *self {
-            Action::Quit => true,
-            _ => false,
-        }
+        matches!(self, Action::Quit)
     }
 }
 
@@ -208,7 +202,7 @@ impl<'a> App<'a> {
             print_instructions(&mut self.screen, self.player);
             print_playback_info(&mut self.screen, progress);
             if let Some(tracks) = track_list {
-                let next_track = find_next_track(current_track_id, tracks, &self.player);
+                let next_track = find_next_track(current_track_id, tracks, self.player);
                 print_track_list(&mut self.screen, tracks, next_track);
             }
             print_progress_bar(&mut self.screen, progress, supports_position);
@@ -388,8 +382,7 @@ fn find_next_track(
                 Some(id) => id != current_id,
                 None => false,
             })
-            .skip(1) // Skip one more to get the next one
-            .next()
+            .nth(1) // Skip one more to get the next one
     } else {
         None
     }
@@ -461,7 +454,7 @@ fn main() {
 
     let mut app = App {
         player: &player,
-        progress_tracker: progress_tracker,
+        progress_tracker,
         screen: AlternateScreen::from(stdout),
         stdin: termion::async_stdin(),
     };
