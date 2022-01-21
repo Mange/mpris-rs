@@ -1,9 +1,9 @@
 use super::{DBusError, Metadata, Player};
-use failure::Fail;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::iter::{FromIterator, IntoIterator};
+use thiserror::Error;
 
 pub(crate) const NO_TRACK: &str = "/org/mpris/MediaPlayer2/TrackList/NoTrack";
 
@@ -49,16 +49,16 @@ pub struct TrackList {
 ///
 /// This is mostly [`DBusError`] with the extra possibility of borrow errors of the internal metadata
 /// cache.
-#[derive(Debug, Fail)]
+#[derive(Debug, Error)]
 pub enum TrackListError {
     /// Something went wrong with the D-Bus communication. See the [`DBusError`] type.
-    #[fail(display = "D-Bus communication failed")]
-    DBusError(#[cause] DBusError),
+    #[error("D-Bus communication failed: {}", 0)]
+    DBusError(#[from] DBusError),
 
     /// Something went wrong with the borrowing logic for the internal cache. Perhaps you have
     /// multiple borrowed references to the cache live at the same time, for example because of
     /// multiple iterations?
-    #[fail(display = "Could not borrow cache: {}", _0)]
+    #[error("Could not borrow cache: {}", 0)]
     BorrowError(String),
 }
 
@@ -422,12 +422,6 @@ impl Iterator for MetadataIter {
             }
             None => None,
         }
-    }
-}
-
-impl From<DBusError> for TrackListError {
-    fn from(error: DBusError) -> TrackListError {
-        TrackListError::DBusError(error)
     }
 }
 

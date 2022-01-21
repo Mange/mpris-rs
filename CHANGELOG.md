@@ -48,7 +48,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * `Progress` default values uses `checked_get_*` functions - [Harrison
   Thorne (harrisonthorne)][harrisonthorne]
 * Documentation was made easier to navigate - [Kanjirito][Kanjirito]
-
+* Use `thiserror` & `anyhow` instead of unmaintained `failure` - [fengalin][fengalin]
 
 ## [v2.0.0-rc2] - 2020-02-15
 
@@ -199,3 +199,4 @@ versions.
 [Kilobyte22]: https://github.com/Kilobyte22
 [harrisonthorne]: https://github.com/harrisonthorne
 [Kanjirito]: https://github.com/Kanjirito
+[fengalin]: https://github.com/fengalin

@@ -1,4 +1,4 @@
-use failure::{Error, ResultExt};
+use anyhow::{Context, Result};
 use mpris::{DBusError, Player, PlayerFinder};
 use std::borrow::Cow;
 
@@ -13,7 +13,7 @@ fn main() {
         Ok(_) => {}
         Err(error) => {
             println!("Error: {}", error);
-            for (i, cause) in error.iter_causes().enumerate() {
+            for (i, cause) in error.chain().skip(1).enumerate() {
                 print!("{}", "  ".repeat(i + 1));
                 println!("Caused by: {}", cause);
             }
@@ -22,27 +22,27 @@ fn main() {
     }
 }
 
-fn print_capabilities_for_all_players() -> Result<(), Error> {
+fn print_capabilities_for_all_players() -> Result<()> {
     for player in PlayerFinder::new()
         .context("Failed to connect to D-Bus")?
         .find_all()
         .context("Could not fetch list of players")?
     {
         print_capabilities_for_player(player)?;
-        println!("");
+        println!();
     }
 
     Ok(())
 }
 
-fn print_capabilities_for_player(player: Player<'_>) -> Result<(), Error> {
+fn print_capabilities_for_player(player: Player<'_>) -> Result<()> {
     println!(
         ">> Player: {} ({})",
         player.identity(),
         player.unique_name()
     );
 
-    println!("");
+    println!();
     println!("\t─── MediaPlayer2 ───");
     print_value("CanQuit", player.can_quit());
     print_value("CanRaise", player.can_raise());
@@ -51,7 +51,7 @@ fn print_capabilities_for_player(player: Player<'_>) -> Result<(), Error> {
     print_value("SupportedMimeTypes", player.get_supported_mime_types());
     print_value("SupportedUriSchemes", player.get_supported_uri_schemes());
 
-    println!("");
+    println!();
     println!("\t─── MediaPlayer2.Player ───");
     print_value("CanControl", player.can_control());
     print_value("CanGoNext", player.can_go_next());
@@ -71,7 +71,7 @@ fn print_capabilities_for_player(player: Player<'_>) -> Result<(), Error> {
     print_value("MaximumRate", player.get_maximum_playback_rate());
     print_value("MinimumRate", player.get_minimum_playback_rate());
 
-    println!("");
+    println!();
     println!("\t─── MediaPlayer2.TrackList ───");
     if player.supports_track_lists() {
         print_value("CanEditTracks", player.can_edit_tracks());
@@ -131,7 +131,7 @@ where
     fn string_for_display(&self) -> Cow<'_, str> {
         let mut buf = String::new();
         for val in self {
-            if buf.len() == 0 {
+            if buf.is_empty() {
                 buf.push_str(&val.string_for_display());
             } else {
                 buf.push_str(&format!(

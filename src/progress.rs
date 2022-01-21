@@ -1,5 +1,5 @@
-use failure::Fail;
 use std::time::{Duration, Instant};
+use thiserror::Error;
 
 use super::{DBusError, LoopStatus, PlaybackStatus, TrackList, TrackListError};
 use crate::extensions::DurationExtensions;
@@ -80,15 +80,15 @@ pub struct ProgressTick<'a> {
 }
 
 /// Errors that can occur while refreshing progress.
-#[derive(Debug, Fail)]
+#[derive(Debug, Error)]
 pub enum ProgressError {
     /// Something went wrong with the D-Bus communication. See the [`DBusError`] type.
-    #[fail(display = "D-Bus communication failed")]
-    DBusError(#[cause] DBusError),
+    #[error("D-Bus communication failed: {}", 0)]
+    DBusError(#[from] DBusError),
 
     /// Something went wrong with the track list. See the [`TrackListError`] type.
-    #[fail(display = "TrackList could not be refreshed")]
-    TrackListError(#[cause] TrackListError),
+    #[error("TrackList could not be refreshed: {}", 0)]
+    TrackListError(#[from] TrackListError),
 }
 
 impl<'a> ProgressTracker<'a> {
@@ -423,18 +423,6 @@ impl Progress {
             _ => 0.0,
         };
         Duration::from_millis(elapsed_ms as u64)
-    }
-}
-
-impl From<TrackListError> for ProgressError {
-    fn from(error: TrackListError) -> ProgressError {
-        ProgressError::TrackListError(error)
-    }
-}
-
-impl From<DBusError> for ProgressError {
-    fn from(error: DBusError) -> ProgressError {
-        ProgressError::DBusError(error)
     }
 }
 

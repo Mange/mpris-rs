@@ -16,12 +16,12 @@ maintenance = { status = "actively-developed" }
 
 [dependencies]
 dbus = "0.9.5"
-failure = "0.1.8"
-failure_derive = "0.1.8"
-enum-kinds = "0.5.1"
 derive_is_enum_variant = "0.1.1"
+enum-kinds = "0.5.1"
 from_variants = "0.6.0"
+thiserror = "1.0.30"
 
 # For examples
 [dev-dependencies]
+anyhow = "1.0.52"
 termion = "1.5.6"
