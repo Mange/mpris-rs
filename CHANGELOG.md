@@ -49,6 +49,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   Thorne (harrisonthorne)][harrisonthorne]
 * Documentation was made easier to navigate - [Kanjirito][Kanjirito]
 * Use `thiserror` & `anyhow` instead of unmaintained `failure` - [fengalin][fengalin]
+* Removed `Player` lifetime [Kanjirito][Kanjirito]
 
 ## [v2.0.0-rc2] - 2020-02-15
 

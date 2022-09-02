@@ -6,7 +6,7 @@ use dbus::ffidisp::{BusType, Connection};
 use dbus::{arg, Message};
 
 use super::DBusError;
-use crate::player::{Player, DEFAULT_TIMEOUT_MS, MPRIS2_PATH, MPRIS2_PREFIX};
+use crate::player::{Player, DEFAULT_TIMEOUT_MS, MPRIS2_PREFIX};
 use crate::pooled_connection::PooledConnection;
 use crate::PlaybackStatus;
 
@@ -59,15 +59,14 @@ impl PlayerFinder {
     }
 
     /// Find all available [`Player`]s in the connection.
-    pub fn find_all<'b>(&self) -> Result<Vec<Player<'b>>, FindingError> {
+    pub fn find_all(&self) -> Result<Vec<Player>, FindingError> {
         self.all_player_buses()
             .map_err(FindingError::from)?
             .into_iter()
             .map(|bus_name| {
                 Player::for_pooled_connection(
                     Rc::clone(&self.connection),
-                    bus_name.into(),
-                    MPRIS2_PATH.into(),
+                    bus_name,
                     DEFAULT_TIMEOUT_MS,
                 )
                 .map_err(FindingError::from)
@@ -76,16 +75,11 @@ impl PlayerFinder {
     }
 
     /// Return the first found [`Player`] regardless of state.
-    pub fn find_first<'b>(&self) -> Result<Player<'b>, FindingError> {
+    pub fn find_first(&self) -> Result<Player, FindingError> {
         let busses = self.all_player_buses()?;
         if let Some(bus_name) = busses.into_iter().next() {
-            Player::for_pooled_connection(
-                Rc::clone(&self.connection),
-                bus_name.into(),
-                MPRIS2_PATH.into(),
-                DEFAULT_TIMEOUT_MS,
-            )
-            .map_err(FindingError::from)
+            Player::for_pooled_connection(Rc::clone(&self.connection), bus_name, DEFAULT_TIMEOUT_MS)
+                .map_err(FindingError::from)
         } else {
             Err(FindingError::NoPlayerFound)
         }
@@ -97,7 +91,7 @@ impl PlayerFinder {
     /// the playback status [`Playing`](PlaybackStatus::Playing), then for a [`Paused`](PlaybackStatus::Paused), then one with
     /// track metadata, after that it will just return the first it finds. [`NoPlayerFound`](FindingError::NoPlayerFound) is returned
     /// only if there is no player on the DBus.
-    pub fn find_active<'b>(&self) -> Result<Player<'b>, FindingError> {
+    pub fn find_active(&self) -> Result<Player, FindingError> {
         let mut players: Vec<Player> = self.find_all()?;
 
         match self.find_active_player_index(&players)? {
@@ -139,7 +133,7 @@ impl PlayerFinder {
     /// Find a [`Player`] by it's MPRIS [`Identity`][identity]. Returns [`NoPlayerFound`](FindingError::NoPlayerFound) if no direct match found.
     ///
     /// [identity]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:Identity
-    pub fn find_by_name<'b>(&self, name: &str) -> Result<Player<'b>, FindingError> {
+    pub fn find_by_name(&self, name: &str) -> Result<Player, FindingError> {
         let players = self.find_all()?;
         for player in players {
             if player.identity() == name {

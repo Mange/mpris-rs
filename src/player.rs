@@ -29,52 +29,42 @@ pub(crate) const DEFAULT_TIMEOUT_MS: i32 = 500; // ms
 ///
 /// [spec]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html
 #[derive(Debug)]
-pub struct Player<'a> {
+pub struct Player {
     connection: Rc<PooledConnection>,
-    bus_name: BusName<'a>,
+    bus_name: String,
     unique_name: String,
     identity: String,
-    path: Path<'a>,
     timeout_ms: i32,
     has_tracklist_interface: bool,
 }
 
-impl<'a> Player<'a> {
+impl Player {
     /// Create a new [`Player`] using a D-Bus connection and address information.
     ///
     /// If no player is running on this bus name an [`Err`] will be returned.
-    pub fn new<B, P>(
+    pub fn new(
         connection: Connection,
-        bus_name: B,
-        path: P,
+        bus_name: String,
         timeout_ms: i32,
-    ) -> Result<Player<'a>, DBusError>
-    where
-        B: Into<BusName<'a>>,
-        P: Into<Path<'a>>,
-    {
-        Player::for_pooled_connection(
-            Rc::new(connection.into()),
-            bus_name.into(),
-            path.into(),
-            timeout_ms,
-        )
+    ) -> Result<Player, DBusError> {
+        Player::for_pooled_connection(Rc::new(connection.into()), bus_name, timeout_ms)
     }
 
     pub(crate) fn for_pooled_connection(
         pooled_connection: Rc<PooledConnection>,
-        bus_name: BusName<'a>,
-        path: Path<'a>,
+        bus_name: String,
         timeout_ms: i32,
-    ) -> Result<Player<'a>, DBusError> {
+    ) -> Result<Player, DBusError> {
+        let path: Path = MPRIS2_PATH.into();
+        let bus: BusName = bus_name.as_str().into();
         let identity = {
             let connection_path =
-                pooled_connection.with_path(bus_name.clone(), path.clone(), timeout_ms);
+                pooled_connection.with_path(bus.clone(), path.clone(), timeout_ms);
             connection_path.identity()?
         };
 
         let unique_name = pooled_connection
-            .determine_unique_name(&*bus_name)
+            .determine_unique_name(&bus_name)
             .ok_or_else(|| {
                 DBusError::Miscellaneous(String::from(
                     "Could not determine player's unique name. Did it exit during initialization?",
@@ -82,8 +72,7 @@ impl<'a> Player<'a> {
             })?;
 
         let has_tracklist_interface = {
-            let connection_path =
-                pooled_connection.with_path(bus_name.clone(), path.clone(), timeout_ms);
+            let connection_path = pooled_connection.with_path(bus, path, timeout_ms);
             has_tracklist_interface(connection_path).unwrap_or(false)
         };
 
@@ -92,7 +81,6 @@ impl<'a> Player<'a> {
             bus_name,
             unique_name,
             identity,
-            path,
             timeout_ms,
             has_tracklist_interface,
         })
@@ -114,7 +102,7 @@ impl<'a> Player<'a> {
     }
 
     /// Returns the player's D-Bus bus name.
-    pub fn bus_name(&self) -> &BusName<'_> {
+    pub fn bus_name(&self) -> &str {
         &self.bus_name
     }
 
@@ -531,7 +519,7 @@ impl<'a> Player<'a> {
     /// remain frozen until the next event is emitted and the iterator returns.
     ///
     /// See: [`track_progress`](Self::track_progress) for an alternative approach.
-    pub fn events(&self) -> Result<PlayerEvents<'_>, DBusError> {
+    pub fn events(&self) -> Result<PlayerEvents, DBusError> {
         PlayerEvents::new(self)
     }
 
@@ -1267,8 +1255,11 @@ impl<'a> Player<'a> {
     }
 
     fn connection_path(&self) -> ConnPath<'_, &Connection> {
-        self.connection
-            .with_path(self.bus_name.clone(), self.path.clone(), self.timeout_ms)
+        self.connection.with_path(
+            self.bus_name.as_str().into(),
+            MPRIS2_PATH.into(),
+            self.timeout_ms,
+        )
     }
 
     /// Blocks until player gets an event on the bus.

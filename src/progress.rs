@@ -34,7 +34,7 @@ pub struct Progress {
 /// Call the [`tick`](Self::tick) method to get the most current [`Progress`] data.
 #[derive(Debug)]
 pub struct ProgressTracker<'a> {
-    player: &'a Player<'a>,
+    player: &'a Player,
     track_list: Option<TrackList>,
     interval: Duration,
     last_tick: Instant,
@@ -102,7 +102,7 @@ impl<'a> ProgressTracker<'a> {
     /// # Errors
     ///
     /// Returns an error in case Player metadata or state retrieval over DBus fails.
-    pub fn new(player: &'a Player<'a>, interval_ms: u32) -> Result<Self, DBusError> {
+    pub fn new(player: &'a Player, interval_ms: u32) -> Result<Self, DBusError> {
         Ok(ProgressTracker {
             player,
             interval: Duration::from_millis(u64::from(interval_ms)),
@@ -321,7 +321,7 @@ impl<'a> ProgressTracker<'a> {
 }
 
 impl Progress {
-    pub(crate) fn from_player<'a>(player: &'a Player<'a>) -> Result<Progress, DBusError> {
+    pub(crate) fn from_player(player: &Player) -> Result<Progress, DBusError> {
         Ok(Progress {
             metadata: player.get_metadata()?,
             playback_status: player.get_playback_status()?,

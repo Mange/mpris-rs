@@ -101,7 +101,7 @@ pub enum EventError {
 #[derive(Debug)]
 pub struct PlayerEvents<'a> {
     /// [`Player`] to watch.
-    player: &'a Player<'a>,
+    player: &'a Player,
 
     /// Queued up events found after the last signal.
     buffer: Vec<Event>,
@@ -113,8 +113,8 @@ pub struct PlayerEvents<'a> {
     track_list: Option<TrackList>,
 }
 
-impl<'a> PlayerEvents<'a> {
-    pub(crate) fn new(player: &'a Player<'a>) -> Result<PlayerEvents<'a>, DBusError> {
+impl PlayerEvents<'_> {
+    pub(crate) fn new(player: &Player) -> Result<PlayerEvents, DBusError> {
         let progress = Progress::from_player(player)?;
         Ok(PlayerEvents {
             player,

@@ -19,7 +19,7 @@ fn main() {
     let finder = PlayerFinder::new().expect("Could not connect to D-Bus");
     let mut lines_drawn = 0;
     let mut all_running = false;
-    let mut players: Vec<Player<'_>> = Vec::new();
+    let mut players: Vec<Player> = Vec::new();
 
     println!(
         "

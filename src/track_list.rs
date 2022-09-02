@@ -293,7 +293,7 @@ impl TrackList {
     ///
     /// [`Metadata`] will be loaded from the provided player when not present in the metadata cache.
     /// If metadata loading fails, then a [`DBusError`] will be returned instead of the iterator.
-    pub fn metadata_iter(&self, player: &Player<'_>) -> Result<MetadataIter, TrackListError> {
+    pub fn metadata_iter(&self, player: &Player) -> Result<MetadataIter, TrackListError> {
         self.complete_cache(player)?;
         let metadata: HashMap<_, _> = self.metadata_cache.clone().into_inner();
         let ids = self.ids.clone();
@@ -310,7 +310,7 @@ impl TrackList {
     /// list.
     ///
     /// Cache for tracks that are no longer part of the player's tracklist will be removed.
-    pub fn reload(&mut self, player: &Player<'_>) -> Result<(), TrackListError> {
+    pub fn reload(&mut self, player: &Player) -> Result<(), TrackListError> {
         self.ids = player.get_track_list()?.ids;
         self.clear_extra_cache();
         Ok(())
@@ -320,7 +320,7 @@ impl TrackList {
     ///
     /// Cache will be replaced *after* the new metadata has been loaded, so on load errors the
     /// cache will still be maintained.
-    pub fn reload_cache(&self, player: &Player<'_>) -> Result<(), TrackListError> {
+    pub fn reload_cache(&self, player: &Player) -> Result<(), TrackListError> {
         let id_metadata = self
             .ids
             .iter()
@@ -337,7 +337,7 @@ impl TrackList {
     /// Fill in any holes in the cache so that each track on the list has a cached [`Metadata`] entry.
     ///
     /// If all tracks already have a cache entry, then this will do nothing.
-    pub fn complete_cache(&self, player: &Player<'_>) -> Result<(), TrackListError> {
+    pub fn complete_cache(&self, player: &Player) -> Result<(), TrackListError> {
         let ids: Vec<_> = self
             .ids_without_cache()
             .into_iter()
