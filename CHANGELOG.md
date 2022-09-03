@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   * `Player::has_playback_rate`, `Player::checked_get_playback_rate`,
     `Player::checked_set_playback_rate`
   * `Player::can_loop`, `Player::checked_get_loop_status`
+* `PlayerIter` that iterates over all of the players [Kanjirito][Kanjirito]
 
 ## Changed
 

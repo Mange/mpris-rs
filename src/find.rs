@@ -167,4 +167,48 @@ impl PlayerFinder {
         all_busses.sort_by_key(|a| a.to_lowercase());
         Ok(all_busses)
     }
+
+    /// Returns a [`PlayerIter`] iterator, or an [`DBusError`] if there was a problem with the D-Bus
+    ///
+    /// For more details see [`PlayerIter`] documentation
+    pub fn iter_players(&self) -> Result<PlayerIter, DBusError> {
+        let buses = self.all_player_buses()?;
+        Ok(PlayerIter::new(buses, self.connection.clone()))
+    }
+}
+
+/// An iterator that lazily iterates over all of the found [`Player`]s. Useful for efficiently searching for a specific player.
+///
+/// Created by calling [`PlayerFinder::iter_players`]
+///
+/// Note that this iterator will not keep checking what players are connected after it's been created. A player might quit or
+/// a new one might connect at a later time, this will result in an error or the player not being present respectively.
+/// If you want to make sure the data is "fresh" you'll either have to make a new PlayerIter whenever you want to get new data or
+/// use [`PlayerFinder::find_all`] which will immediately return a [`Vec`] with all the [`Player`]s that were connected at that point.
+#[derive(Debug)]
+pub struct PlayerIter {
+    buses: std::vec::IntoIter<String>,
+    connection: Rc<PooledConnection>,
+}
+
+impl PlayerIter {
+    fn new(buses: Vec<String>, connection: Rc<PooledConnection>) -> Self {
+        Self {
+            buses: buses.into_iter(),
+            connection,
+        }
+    }
+}
+
+impl Iterator for PlayerIter {
+    type Item = Result<Player, DBusError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let bus = self.buses.next()?;
+        Some(Player::for_pooled_connection(
+            self.connection.clone(),
+            bus,
+            DEFAULT_TIMEOUT_MS,
+        ))
+    }
 }

@@ -14,7 +14,7 @@
 //!
 //! # mpris
 //!
-//! `mpris` is an idiomatic library for dealing with MPRIS2-compatible media players over D-Bus.
+//! `mpris` is an idiomatic library for dealing with [MPRIS2][spec]-compatible media players over D-Bus.
 //!
 //! This would mostly apply to the Linux-ecosystem which is a heavy user of D-Bus.
 //!
@@ -25,6 +25,7 @@
 //! 1. Look at the examples under `examples/`.
 //! 2. Look at the [`PlayerFinder`] struct.
 //!
+//! [spec]: https://specifications.freedesktop.org/mpris-spec/latest/
 
 use thiserror::Error;
 
@@ -42,7 +43,7 @@ mod progress;
 mod track_list;
 
 pub use crate::event::{Event, EventError, PlayerEvents};
-pub use crate::find::{FindingError, PlayerFinder};
+pub use crate::find::{FindingError, PlayerFinder, PlayerIter};
 pub use crate::metadata::Metadata;
 pub use crate::metadata::Value as MetadataValue;
 pub use crate::metadata::ValueKind as MetadataValueKind;
