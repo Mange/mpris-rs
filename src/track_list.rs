@@ -52,13 +52,13 @@ pub struct TrackList {
 #[derive(Debug, Error)]
 pub enum TrackListError {
     /// Something went wrong with the D-Bus communication. See the [`DBusError`] type.
-    #[error("D-Bus communication failed: {}", 0)]
+    #[error("D-Bus communication failed: {0}")]
     DBusError(#[from] DBusError),
 
     /// Something went wrong with the borrowing logic for the internal cache. Perhaps you have
     /// multiple borrowed references to the cache live at the same time, for example because of
     /// multiple iterations?
-    #[error("Could not borrow cache: {}", 0)]
+    #[error("Could not borrow cache: {0}")]
     BorrowError(String),
 }
 

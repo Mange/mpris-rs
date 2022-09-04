@@ -86,10 +86,7 @@ pub enum LoopStatus {
 
 /// [`PlaybackStatus`] had an invalid string value.
 #[derive(Debug, Error)]
-#[error(
-    "PlaybackStatus must be one of Playing, Paused, Stopped, but was {}",
-    0
-)]
+#[error("PlaybackStatus must be one of Playing, Paused, Stopped, but was {0}")]
 pub struct InvalidPlaybackStatus(String);
 
 impl ::std::str::FromStr for PlaybackStatus {
@@ -109,7 +106,7 @@ impl ::std::str::FromStr for PlaybackStatus {
 
 /// [`LoopStatus`] had an invalid string value.
 #[derive(Debug, Error)]
-#[error("LoopStatus must be one of None, Track, Playlist, but was {}", 0)]
+#[error("LoopStatus must be one of None, Track, Playlist, but was {0}")]
 pub struct InvalidLoopStatus(String);
 
 impl ::std::str::FromStr for LoopStatus {
@@ -140,21 +137,21 @@ impl LoopStatus {
 #[derive(Debug, Error)]
 pub enum DBusError {
     /// An error occurred while talking to the D-Bus.
-    #[error("D-Bus call failed: {}", 0)]
+    #[error("D-Bus call failed: {0}")]
     TransportError(#[from] dbus::Error),
 
     /// Failed to parse an enum from a string value received from the [`Player`]. This means that the
     /// [`Player`] replied with unexpected data.
-    #[error("Failed to parse enum value: {}", 0)]
+    #[error("Failed to parse enum value: {0}")]
     EnumParseError(String),
 
     /// A D-Bus method call did not pass arguments of the correct type. This means that the [`Player`]
     /// replied with unexpected data.
-    #[error("D-Bus call failed: {}", 0)]
+    #[error("D-Bus call failed: {0}")]
     TypeMismatchError(#[from] dbus::arg::TypeMismatchError),
 
     /// Some other unexpected error occurred.
-    #[error("Unexpected error: {}", 0)]
+    #[error("Unexpected error: {0}")]
     Miscellaneous(String),
 }
 

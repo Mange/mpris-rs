@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Error on progress tracker for players that do not support shuffling. -
   [Stephan Henrichs (Kilobyte22)][Kilobyte22]
 * Events not added for streams - [Kanjirito][Kanjirito]
+* Incorrect error messages when using the `Display` trait [Kanjirito][Kanjirito]
 
 ## Added
 

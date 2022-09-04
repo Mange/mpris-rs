@@ -83,11 +83,11 @@ pub struct ProgressTick<'a> {
 #[derive(Debug, Error)]
 pub enum ProgressError {
     /// Something went wrong with the D-Bus communication. See the [`DBusError`] type.
-    #[error("D-Bus communication failed: {}", 0)]
+    #[error("D-Bus communication failed: {0}")]
     DBusError(#[from] DBusError),
 
     /// Something went wrong with the track list. See the [`TrackListError`] type.
-    #[error("TrackList could not be refreshed: {}", 0)]
+    #[error("TrackList could not be refreshed: {0}")]
     TrackListError(#[from] TrackListError),
 }
 

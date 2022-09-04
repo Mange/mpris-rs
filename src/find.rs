@@ -20,7 +20,7 @@ pub enum FindingError {
     NoPlayerFound,
 
     /// Finding failed due to an underlying [`DBusError`].
-    #[error("{}", 0)]
+    #[error("{0}")]
     DBusError(#[from] DBusError),
 }
 
