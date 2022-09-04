@@ -52,6 +52,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Documentation was made easier to navigate - [Kanjirito][Kanjirito]
 * Use `thiserror` & `anyhow` instead of unmaintained `failure` - [fengalin][fengalin]
 * Removed `Player` lifetime [Kanjirito][Kanjirito]
+* All `PlayerFinder` find methods switched to using `PlayerIter` [Kanjirito][Kanjirito]
 
 ## [v2.0.0-rc2] - 2020-02-15
 

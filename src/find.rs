@@ -60,27 +60,18 @@ impl PlayerFinder {
     }
 
     /// Find all available [`Player`]s in the connection.
+    ///
+    /// Will return an empty [`Vec`] and not [`NoPlayerFound`](FindingError::NoPlayerFound) if there are no players.
     pub fn find_all(&self) -> Result<Vec<Player>, FindingError> {
-        self.all_player_buses()
-            .map_err(FindingError::from)?
-            .into_iter()
-            .map(|bus_name| {
-                Player::for_pooled_connection(
-                    Rc::clone(&self.connection),
-                    bus_name,
-                    DEFAULT_TIMEOUT_MS,
-                )
-                .map_err(FindingError::from)
-            })
+        self.iter_players()?
+            .map(|x| x.map_err(FindingError::from))
             .collect()
     }
 
     /// Return the first found [`Player`] regardless of state.
     pub fn find_first(&self) -> Result<Player, FindingError> {
-        let busses = self.all_player_buses()?;
-        if let Some(bus_name) = busses.into_iter().next() {
-            Player::for_pooled_connection(Rc::clone(&self.connection), bus_name, DEFAULT_TIMEOUT_MS)
-                .map_err(FindingError::from)
+        if let Some(player) = self.iter_players()?.next() {
+            player.map_err(FindingError::from)
         } else {
             Err(FindingError::NoPlayerFound)
         }
@@ -93,51 +84,51 @@ impl PlayerFinder {
     /// track metadata, after that it will just return the first it finds. [`NoPlayerFound`](FindingError::NoPlayerFound) is returned
     /// only if there is no player on the DBus.
     pub fn find_active(&self) -> Result<Player, FindingError> {
-        let mut players: Vec<Player> = self.find_all()?;
+        let players: PlayerIter = self.iter_players()?;
 
-        match self.find_active_player_index(&players)? {
-            Some(index) => Ok(players.remove(index)),
+        match self.find_active_player(players)? {
+            Some(player) => Ok(player),
             None => Err(FindingError::NoPlayerFound),
         }
     }
 
     /// Finds the index of an "active" player. Follows the order mentioned in [`find_active`](Self::find_active).
-    fn find_active_player_index(&self, players: &[Player]) -> Result<Option<usize>, DBusError> {
-        if players.is_empty() {
+    fn find_active_player(&self, players: PlayerIter) -> Result<Option<Player>, DBusError> {
+        if players.len() == 0 {
             return Ok(None);
-        } else if players.len() == 1 {
-            return Ok(Some(0));
         }
 
-        let mut first_paused: Option<usize> = None;
-        let mut first_with_track: Option<usize> = None;
+        let mut first_paused: Option<Player> = None;
+        let mut first_with_track: Option<Player> = None;
+        let mut first_found: Option<Player> = None;
 
-        for (index, player) in players.iter().enumerate() {
+        for player in players {
+            let player = player?;
             let player_status = player.get_playback_status()?;
 
             if player_status == PlaybackStatus::Playing {
-                return Ok(Some(index));
+                return Ok(Some(player));
             }
 
             if first_paused.is_none() && player_status == PlaybackStatus::Paused {
-                first_paused.replace(index);
-            }
-
-            if first_with_track.is_none() && !player.get_metadata()?.is_empty() {
-                first_with_track.replace(index);
+                first_paused.replace(player);
+            } else if first_with_track.is_none() && !player.get_metadata()?.is_empty() {
+                first_with_track.replace(player);
+            } else if first_found.is_none() {
+                first_found.replace(player);
             }
         }
 
-        Ok(first_paused.or(first_with_track).or(Some(0)))
+        Ok(first_paused.or(first_with_track).or(first_found))
     }
 
     /// Find a [`Player`] by it's MPRIS [`Identity`][identity]. Returns [`NoPlayerFound`](FindingError::NoPlayerFound) if no direct match found.
     ///
     /// [identity]: https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:Identity
     pub fn find_by_name(&self, name: &str) -> Result<Player, FindingError> {
-        let players = self.find_all()?;
-        for player in players {
-            if player.identity() == name {
+        for player_result in self.iter_players()? {
+            let player = player_result?;
+            if player.identity().to_lowercase() == name.to_lowercase() {
                 return Ok(player);
             }
         }
