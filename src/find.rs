@@ -1,5 +1,6 @@
 use thiserror::Error;
 
+use std::iter::FusedIterator;
 use std::rc::Rc;
 
 use dbus::ffidisp::{BusType, Connection};
@@ -211,4 +212,13 @@ impl Iterator for PlayerIter {
             DEFAULT_TIMEOUT_MS,
         ))
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let size = self.buses.len();
+        (size, Some(size))
+    }
 }
+
+impl ExactSizeIterator for PlayerIter {}
+
+impl FusedIterator for PlayerIter {}
