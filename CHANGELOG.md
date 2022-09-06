@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
     `Player::checked_set_playback_rate`
   * `Player::can_loop`, `Player::checked_get_loop_status`
 * `PlayerIter` that iterates over all of the players [Kanjirito][Kanjirito]
+* `PlayerFinder.player_timeout_ms` field that changes the DBUS timeout value for
+  all new `Player`s [Kanjirito][Kanjirito]
 
 ## Changed
 

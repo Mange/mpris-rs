@@ -37,6 +37,7 @@ impl From<dbus::Error> for FindingError {
 #[derive(Debug)]
 pub struct PlayerFinder {
     connection: Rc<PooledConnection>,
+    player_timeout_ms: i32,
 }
 
 impl PlayerFinder {
@@ -56,7 +57,20 @@ impl PlayerFinder {
     pub fn for_connection(connection: Connection) -> Self {
         PlayerFinder {
             connection: Rc::new(connection.into()),
+            player_timeout_ms: DEFAULT_TIMEOUT_MS,
         }
+    }
+
+    /// Get the current timeout value that all [`Player`]s created through this finder will inherit
+    ///
+    /// Can be set with [`set_player_timeout_ms`][Self::set_player_timeout_ms]
+    pub fn player_timeout_ms(&self) -> i32 {
+        self.player_timeout_ms
+    }
+
+    /// Set the timeout value that all [`Player`]s created through this finder will inherit
+    pub fn set_player_timeout_ms(&mut self, timeout_ms: i32) {
+        self.player_timeout_ms = timeout_ms;
     }
 
     /// Find all available [`Player`]s in the connection.
@@ -165,7 +179,11 @@ impl PlayerFinder {
     /// For more details see [`PlayerIter`] documentation
     pub fn iter_players(&self) -> Result<PlayerIter, DBusError> {
         let buses = self.all_player_buses()?;
-        Ok(PlayerIter::new(buses, self.connection.clone()))
+        Ok(PlayerIter::new(
+            buses,
+            self.connection.clone(),
+            self.player_timeout_ms,
+        ))
     }
 }
 
@@ -181,13 +199,15 @@ impl PlayerFinder {
 pub struct PlayerIter {
     buses: std::vec::IntoIter<String>,
     connection: Rc<PooledConnection>,
+    timeout_ms: i32,
 }
 
 impl PlayerIter {
-    fn new(buses: Vec<String>, connection: Rc<PooledConnection>) -> Self {
+    fn new(buses: Vec<String>, connection: Rc<PooledConnection>, timeout_ms: i32) -> Self {
         Self {
             buses: buses.into_iter(),
             connection,
+            timeout_ms,
         }
     }
 }
@@ -200,7 +220,7 @@ impl Iterator for PlayerIter {
         Some(Player::for_pooled_connection(
             self.connection.clone(),
             bus,
-            DEFAULT_TIMEOUT_MS,
+            self.timeout_ms,
         ))
     }
 
