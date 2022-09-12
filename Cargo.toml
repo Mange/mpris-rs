@@ -1,7 +1,7 @@
 [package]
 name = "mpris"
 description = "Idiomatic MPRIS D-Bus interface library"
-version = "2.0.0-rc2"
+version = "2.0.0-rc3"
 license = "Apache-2.0"
 edition = "2018"
 authors = ["Magnus Bergmark <magnus.bergmark@gmail.com>"]

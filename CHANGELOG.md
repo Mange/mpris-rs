@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [v2.0.0-rc3] - 2022-09-12
+
 **Important:** Now using Rust 2018 edition.
 
-## Fixed
+### Fixed
 
 * Track change detection for some non-conforming players (e.g. Spotify). -
   [Stephan Henrichs (Kilobyte22)][Kilobyte22]
@@ -18,7 +22,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Events not added for streams - [Kanjirito][Kanjirito]
 * Incorrect error messages when using the `Display` trait [Kanjirito][Kanjirito]
 
-## Added
+### Added
 
 * `Player::can_shuffle` and `Player::checked_get_shuffle`. - [Stephan Henrichs
   (Kilobyte22)][Kilobyte22]
@@ -42,7 +46,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * `PlayerFinder.player_timeout_ms` field that changes the DBUS timeout value for
   all new `Player`s [Kanjirito][Kanjirito]
 
-## Changed
+### Changed
 
 * Now using Rust 2018 edition.
 * `Player::checked_set_shuffle` also checks `::can_shuffle`. - [Stephan
@@ -195,8 +199,9 @@ versions.
 
 ## 0.1.0 - 2017-12-29
 
-[Unreleased]: https://github.com/Mange/mpris-rs/compare/v2.0.0-rc2...HEAD
-[v2.0.0-rc1]: https://github.com/Mange/mpris-rs/compare/v2.0.0-rc1...v2.0.0-rc2
+[Unreleased]: https://github.com/Mange/mpris-rs/compare/v2.0.0-rc3...HEAD
+[v2.0.0-rc3]: https://github.com/Mange/mpris-rs/compare/v2.0.0-rc2...v2.0.0-rc3
+[v2.0.0-rc2]: https://github.com/Mange/mpris-rs/compare/v2.0.0-rc1...v2.0.0-rc2
 [v2.0.0-rc1]: https://github.com/Mange/mpris-rs/compare/v1.1.0...v2.0.0-rc1
 [v1.1.1]: https://github.com/Mange/mpris-rs/compare/v1.1.0...v1.1.1
 [v1.1.0]: https://github.com/Mange/mpris-rs/compare/v1.0.0...v1.1.0
