@@ -97,7 +97,7 @@ impl Action {
         }
     }
 
-    fn is_enabled(&self, player: &Player<'_>) -> bool {
+    fn is_enabled(&self, player: &Player) -> bool {
         match *self {
             Action::Quit => true,
             Action::PlayPause => player.can_pause().unwrap_or(false),
@@ -127,7 +127,7 @@ impl Action {
 }
 
 struct App<'a> {
-    player: &'a Player<'a>,
+    player: &'a Player,
     progress_tracker: ProgressTracker<'a>,
     stdin: termion::AsyncReader,
     screen: Screen,
@@ -219,7 +219,7 @@ impl<'a> App<'a> {
     }
 }
 
-fn print_instructions(screen: &mut Screen, player: &Player<'_>) {
+fn print_instructions(screen: &mut Screen, player: &Player) {
     let bold = termion::style::Bold;
     // Note: The NoBold variant enables double-underscore in Kitty terminal
     let nobold = termion::style::Reset;
@@ -270,11 +270,11 @@ fn control_player(result: Result<(), mpris::DBusError>) {
     result.expect("Could not control player");
 }
 
-fn toggle_shuffle(player: &Player<'_>) -> Result<(), mpris::DBusError> {
+fn toggle_shuffle(player: &Player) -> Result<(), mpris::DBusError> {
     player.set_shuffle(!player.get_shuffle()?)
 }
 
-fn cycle_loop_status(player: &Player<'_>) -> Result<(), mpris::DBusError> {
+fn cycle_loop_status(player: &Player) -> Result<(), mpris::DBusError> {
     let current_status = player.get_loop_status()?;
     let next_status = match current_status {
         LoopStatus::None => LoopStatus::Playlist,
@@ -284,7 +284,7 @@ fn cycle_loop_status(player: &Player<'_>) -> Result<(), mpris::DBusError> {
     player.set_loop_status(next_status)
 }
 
-fn change_volume(player: &Player<'_>, diff: f64) -> Result<(), mpris::DBusError> {
+fn change_volume(player: &Player, diff: f64) -> Result<(), mpris::DBusError> {
     let current_volume = player.get_volume()?;
     let new_volume = (current_volume + diff).max(0.0).min(1.0);
     player.set_volume(new_volume)
@@ -371,7 +371,7 @@ fn print_track_list(screen: &mut Screen, track_list: &TrackList, next_track: Opt
 fn find_next_track(
     current_track_id: Option<TrackID>,
     track_list: &TrackList,
-    player: &Player<'_>,
+    player: &Player,
 ) -> Option<Metadata> {
     if let Some(current_id) = current_track_id {
         track_list

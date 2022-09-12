@@ -58,7 +58,7 @@ fn run() -> Result<()> {
     Ok(())
 }
 
-fn print_track_list(player: &Player<'_>) -> Result<()> {
+fn print_track_list(player: &Player) -> Result<()> {
     let track_list = player.get_track_list()?;
 
     println!("Track list:\n");
@@ -79,7 +79,7 @@ fn print_track_list(player: &Player<'_>) -> Result<()> {
     Ok(())
 }
 
-fn select_track(player: &Player<'_>, lower_bound: usize) -> Result<Option<TrackID>> {
+fn select_track(player: &Player, lower_bound: usize) -> Result<Option<TrackID>> {
     let track_list = player
         .get_track_list()
         .context("Could not get track list for player")?;
@@ -105,7 +105,7 @@ fn select_track(player: &Player<'_>, lower_bound: usize) -> Result<Option<TrackI
     Ok(Some(track_id.clone()))
 }
 
-fn goto_track(player: &Player<'_>) -> Result<()> {
+fn goto_track(player: &Player) -> Result<()> {
     match select_track(player, 1) {
         Ok(Some(track_id)) => player.go_to(&track_id).map_err(Error::from),
         Ok(None) => Ok(()),
@@ -113,7 +113,7 @@ fn goto_track(player: &Player<'_>) -> Result<()> {
     }
 }
 
-fn remove_track(player: &Player<'_>) -> Result<()> {
+fn remove_track(player: &Player) -> Result<()> {
     match select_track(player, 1) {
         Ok(Some(track_id)) => player.remove_track(&track_id).map_err(Error::from),
         Ok(None) => Ok(()),
@@ -121,7 +121,7 @@ fn remove_track(player: &Player<'_>) -> Result<()> {
     }
 }
 
-fn add_track(player: &Player<'_>) -> Result<()> {
+fn add_track(player: &Player) -> Result<()> {
     println!("NOTE: To add local media, start with the \"file://\" protocol. E.x. \"file:///path/to/file.mp3\"");
     let uri = prompt_string("Enter URI (or nothing to cancel) > ")?;
     if uri.is_empty() {

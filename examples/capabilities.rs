@@ -35,7 +35,7 @@ fn print_capabilities_for_all_players() -> Result<()> {
     Ok(())
 }
 
-fn print_capabilities_for_player(player: Player<'_>) -> Result<()> {
+fn print_capabilities_for_player(player: Player) -> Result<()> {
     println!(
         ">> Player: {} ({})",
         player.identity(),

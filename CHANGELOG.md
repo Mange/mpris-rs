@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * Error on progress tracker for players that do not support shuffling. -
   [Stephan Henrichs (Kilobyte22)][Kilobyte22]
 * Events not added for streams - [Kanjirito][Kanjirito]
+* Incorrect error messages when using the `Display` trait [Kanjirito][Kanjirito]
 
 ## Added
 
@@ -37,6 +38,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   * `Player::has_playback_rate`, `Player::checked_get_playback_rate`,
     `Player::checked_set_playback_rate`
   * `Player::can_loop`, `Player::checked_get_loop_status`
+* `PlayerIter` that iterates over all of the players [Kanjirito][Kanjirito]
+* `PlayerFinder.player_timeout_ms` field that changes the DBUS timeout value for
+  all new `Player`s [Kanjirito][Kanjirito]
 
 ## Changed
 
@@ -49,6 +53,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   Thorne (harrisonthorne)][harrisonthorne]
 * Documentation was made easier to navigate - [Kanjirito][Kanjirito]
 * Use `thiserror` & `anyhow` instead of unmaintained `failure` - [fengalin][fengalin]
+* Removed `Player` lifetime [Kanjirito][Kanjirito]
+* All `PlayerFinder` find methods switched to using `PlayerIter` [Kanjirito][Kanjirito]
 
 ## [v2.0.0-rc2] - 2020-02-15
 

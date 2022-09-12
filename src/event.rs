@@ -83,11 +83,11 @@ pub enum Event {
 #[derive(Debug, Error)]
 pub enum EventError {
     /// Something went wrong with the D-Bus communication. See the [`DBusError`] type.
-    #[error("D-Bus communication failed: {}", 0)]
+    #[error("D-Bus communication failed: {0}")]
     DBusError(#[from] DBusError),
 
     /// Something went wrong with the track list. See the [`TrackListError`] type.
-    #[error("TrackList could not be refreshed: {}", 0)]
+    #[error("TrackList could not be refreshed: {0}")]
     TrackListError(#[from] TrackListError),
 }
 
@@ -101,7 +101,7 @@ pub enum EventError {
 #[derive(Debug)]
 pub struct PlayerEvents<'a> {
     /// [`Player`] to watch.
-    player: &'a Player<'a>,
+    player: &'a Player,
 
     /// Queued up events found after the last signal.
     buffer: Vec<Event>,
@@ -113,8 +113,8 @@ pub struct PlayerEvents<'a> {
     track_list: Option<TrackList>,
 }
 
-impl<'a> PlayerEvents<'a> {
-    pub(crate) fn new(player: &'a Player<'a>) -> Result<PlayerEvents<'a>, DBusError> {
+impl PlayerEvents<'_> {
+    pub(crate) fn new(player: &Player) -> Result<PlayerEvents, DBusError> {
         let progress = Progress::from_player(player)?;
         Ok(PlayerEvents {
             player,
