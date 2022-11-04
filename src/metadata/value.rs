@@ -90,6 +90,7 @@ impl Value {
     pub fn as_str_array(&self) -> Option<Vec<&str>> {
         match *self {
             Value::Array(ref vec) => Some(vec.iter().flat_map(Value::as_str).collect()),
+            Value::String(ref string) => Some(vec![string.as_ref()]),
             _ => None,
         }
     }
