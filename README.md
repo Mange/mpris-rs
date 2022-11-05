@@ -3,7 +3,7 @@
 > A Rust library for dealing with [MPRIS2][mpris2]-compatible players over
 > D-Bus.
 
-[![Crates.io][crate-badge]][crate] [![Documentation][docs-badge]][docs] [![Build Status][ci-badge]][ci] ![Actively developed][maintenance-badge]
+[![Crates.io][crate-badge]][crate] [![Documentation][docs-badge]][docs] ![Actively developed][maintenance-badge]
 
 **NOTE:** Until it is possible to mark a minimum Rust version in the crate
 manifest, this library is only officially supported for "the latest stable
@@ -31,15 +31,17 @@ or *if* something is playing.
 ## How to use
 
 ```rust
-use mpris::PlayerFinder;
+use mpris::Mpris;
 
 // Pauses currently playing media and prints metadata information about that
 // media.
 // If no player is running, exits with an error.
+#[async_std::main]
 fn main() {
-  let player = PlayerFinder::new()
-    .expect("Could not connect to D-Bus")
-    .find_active()
+  let mpris = Mpris::new()
+    .expect("Could not connect to D-Bus");
+
+  let player = mpris.current_player()
     .expect("Could not find any player");
 
   player.pause().expect("Could not pause");
@@ -53,7 +55,7 @@ See the `examples` directory for more examples.
 
 ## License
 
-Copyright 2017-2018 Magnus Bergmark
+Copyright 2017-2022 Magnus Bergmark
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -74,5 +76,3 @@ limitations under the License.
 [crate]: https://crates.io/crates/mpris
 [crate-badge]: https://img.shields.io/crates/v/mpris.svg
 [maintenance-badge]: https://img.shields.io/badge/maintenance-actively--developed-brightgreen.svg
-[ci-badge]: https://travis-ci.org/Mange/mpris-rs.svg?branch=master
-[ci]: https://travis-ci.org/Mange/mpris-rs

@@ -15,6 +15,8 @@ keywords = ["dbus", "mpris"]
 maintenance = { status = "actively-developed" }
 
 [dependencies]
+zbus = "3.4.0"
 
-# For examples
+# Example dependencies
 [dev-dependencies]
+async-std = { version = "1.12.0", features = ["attributes"] }
