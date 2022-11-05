@@ -248,4 +248,30 @@ mod tests {
             assert_eq!(val, Value::I32(42));
         }
     }
+
+    #[test]
+    fn from_hashmap_artist_string() {
+        use std::iter::FromIterator;
+
+        let metadata = Metadata::from(HashMap::from_iter(
+            vec![(String::from("xesam:artist"), Value::from("Agnes Obel"))].into_iter(),
+        ));
+
+        assert_eq!(metadata.artists(), Some(vec!["Agnes Obel"]));
+    }
+
+    #[test]
+    fn from_hashmap_artists_list() {
+        use std::iter::FromIterator;
+
+        let metadata = Metadata::from(HashMap::from_iter(
+            vec![(
+                String::from("xesam:artist"),
+                Value::from(vec![Value::from("Agnes Obel")]),
+            )]
+            .into_iter(),
+        ));
+
+        assert_eq!(metadata.artists(), Some(vec!["Agnes Obel"]));
+    }
 }
