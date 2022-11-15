@@ -8,8 +8,9 @@ use mpris::{
 };
 use termion::color;
 use termion::input::TermRead;
+
 use termion::raw::{IntoRawMode, RawTerminal};
-use termion::screen::AlternateScreen;
+use termion::screen::{AlternateScreen, IntoAlternateScreen};
 
 const REFRESH_INTERVAL: u32 = 100; // ms
 
@@ -450,12 +451,16 @@ fn main() {
         .track_progress(REFRESH_INTERVAL)
         .expect("Could not determine progress of player");
 
-    let stdout = stdout().into_raw_mode().unwrap();
+    let screen = stdout()
+        .into_raw_mode()
+        .expect("Failed to initialize terminal raw mode")
+        .into_alternate_screen()
+        .expect("Failed to enter alternative screen");
 
     let mut app = App {
         player: &player,
         progress_tracker,
-        screen: AlternateScreen::from(stdout),
+        screen,
         stdin: termion::async_stdin(),
     };
 

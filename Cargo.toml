@@ -1,9 +1,10 @@
 [package]
 name = "mpris"
 description = "Idiomatic MPRIS D-Bus interface library"
-version = "2.0.0-rc3"
+version = "2.0.0"
 license = "Apache-2.0"
 edition = "2018"
+rust-version = "1.54.0"
 authors = ["Magnus Bergmark <magnus.bergmark@gmail.com>"]
 repository = "https://github.com/Mange/mpris-rs"
 readme = "README.md"
@@ -15,13 +16,13 @@ travis-ci = { repository = "Mange/mpris-rs", branch = "master" }
 maintenance = { status = "actively-developed" }
 
 [dependencies]
-dbus = "0.9.5"
+dbus = "0.9.6"
 derive_is_enum_variant = "0.1.1"
 enum-kinds = "0.5.1"
-from_variants = "0.6.0"
-thiserror = "1.0.30"
+from_variants = "1.0.0"
+thiserror = "1.0.37"
 
 # For examples
 [dev-dependencies]
-anyhow = "1.0.52"
-termion = "1.5.6"
+anyhow = "1.0.66"
+termion = "2.0.1"

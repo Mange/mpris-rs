@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 Nothing yet.
 
+## [v2.0.0] - 2022-11-15
+
+### Breaking changes
+
+* Minimum supported Rust version is now 1.54.0.
+
 ## [v2.0.0-rc3] - 2022-09-12
 
 **Important:** Now using Rust 2018 edition.
@@ -199,7 +205,8 @@ versions.
 
 ## 0.1.0 - 2017-12-29
 
-[Unreleased]: https://github.com/Mange/mpris-rs/compare/v2.0.0-rc3...HEAD
+[Unreleased]: https://github.com/Mange/mpris-rs/compare/v2.0.0...HEAD
+[v2.0.0]: https://github.com/Mange/mpris-rs/compare/v2.0.0-rc3...v2.0.0
 [v2.0.0-rc3]: https://github.com/Mange/mpris-rs/compare/v2.0.0-rc2...v2.0.0-rc3
 [v2.0.0-rc2]: https://github.com/Mange/mpris-rs/compare/v2.0.0-rc1...v2.0.0-rc2
 [v2.0.0-rc1]: https://github.com/Mange/mpris-rs/compare/v1.1.0...v2.0.0-rc1
