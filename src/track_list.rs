@@ -150,6 +150,12 @@ impl TrackID {
     }
 }
 
+impl AsRef<str> for TrackID {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
 impl From<Vec<TrackID>> for TrackList {
     fn from(ids: Vec<TrackID>) -> Self {
         TrackList::new(ids)
