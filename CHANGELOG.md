@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+* Add extra check for `Player::get_track_list()`. Without this,
+  `Player::track_progress()` would fail for Spotify. -
+  [Mihai Fufezan (fufexan)][fufexan]
 
 ## [v2.0.0] - 2022-11-15
 
@@ -218,3 +222,4 @@ versions.
 [harrisonthorne]: https://github.com/harrisonthorne
 [Kanjirito]: https://github.com/Kanjirito
 [fengalin]: https://github.com/fengalin
+[fufexan]: https://github.com/fufexan

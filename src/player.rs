@@ -389,10 +389,10 @@ impl Player {
     /// **Note:** It's more expensive to rebuild this each time rather than trying to keep the same
     /// [`TrackList`] updated. See [`TrackList::reload`].
     ///
-    /// See [`get_track_list`](Self::get_track_list) and [`supports_track_lists`](Self::supports_track_lists)
-    /// if you want to manually handle compatibility checks.
+    /// See [`get_track_list`](Self::get_track_list), [`supports_track_lists`](Self::supports_track_lists) and
+    /// [`get_has_track_list`](Self::get_has_track_list) if you want to manually handle compatibility checks.
     pub fn checked_get_track_list(&self) -> Result<Option<TrackList>, DBusError> {
-        if self.supports_track_lists() {
+        if self.supports_track_lists() && self.get_has_track_list()? {
             self.get_track_list().map(Some)
         } else {
             Ok(None)
