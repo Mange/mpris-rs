@@ -1,8 +1,10 @@
 use zbus::Connection;
 
+mod metadata;
 mod player;
 mod proxies;
 
+pub use metadata::Metadata;
 pub use player::Player;
 
 pub struct Mpris {

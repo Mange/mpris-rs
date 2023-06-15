@@ -4,7 +4,7 @@ use zbus::{names::BusName, zvariant::Value, Connection};
 
 use crate::{
     proxies::{DBusProxy, MediaPlayer2Proxy, PlayerProxy},
-    Mpris,
+    Metadata, Mpris,
 };
 
 pub(crate) const MPRIS2_PREFIX: &str = "org.mpris.MediaPlayer2.";
@@ -47,8 +47,8 @@ impl<'conn> Player<'conn> {
         Ok(self.mp2_proxy.identity().await?)
     }
 
-    pub async fn metadata(&self) -> Result<HashMap<String, Value>, Box<dyn std::error::Error>> {
-        Ok(self.player_proxy.metadata().await?)
+    pub async fn metadata(&self) -> Result<Metadata, Box<dyn std::error::Error>> {
+        Ok(self.player_proxy.metadata().await?.into())
     }
 
     pub fn bus_name(&self) -> &str {
