@@ -17,12 +17,7 @@ impl<'a> Player<'a> {
         mpris: &'a Mpris,
         bus_name: String,
     ) -> Result<Player<'a>, Box<dyn std::error::Error>> {
-        Ok(Player {
-            proxy: MprisPlayerProxy::builder(&mpris.connection)
-                .destination(bus_name)?
-                .build()
-                .await?,
-        })
+        Player::new_from_connection(mpris.connection.clone(), bus_name).await
     }
 
     pub(crate) async fn new_from_connection(
@@ -40,12 +35,16 @@ impl<'a> Player<'a> {
     pub async fn identity(&self) -> Result<String, Box<dyn std::error::Error>> {
         Ok(self.proxy.identity().await?)
     }
+
+    pub fn bus_name(&self) -> &str {
+        self.proxy.bus_name()
+    }
 }
 
 impl<'a> std::fmt::Debug for Player<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Player")
-            .field("bus_name", &self.proxy.inner().destination().to_string())
+            .field("bus_name", &self.bus_name())
             .finish()
     }
 }
@@ -57,7 +56,7 @@ pub(crate) async fn all(
     let proxy = DBusProxy::new(&connection).await?;
     let names = proxy.list_names().await?;
 
-    let mut players = Vec::with_capacity(names.len());
+    let mut players = Vec::new();
     for name in names.into_iter() {
         if name.starts_with(MPRIS2_PREFIX) {
             players.push(Player::new_from_connection(connection.clone(), name).await?);

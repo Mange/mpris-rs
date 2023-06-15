@@ -16,3 +16,9 @@ pub(crate) trait DBus {
 pub(crate) trait MprisPlayer {
     async fn identity(&self) -> zbus::Result<String>;
 }
+
+impl MprisPlayerProxy<'_> {
+    pub fn bus_name(&self) -> &str {
+        self.inner().destination().as_str()
+    }
+}
