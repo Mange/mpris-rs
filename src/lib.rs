@@ -3,7 +3,7 @@ use zbus::Connection;
 mod player;
 mod proxies;
 
-use player::Player;
+pub use player::Player;
 
 pub struct Mpris {
     connection: Connection,

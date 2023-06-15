@@ -1,43 +1,58 @@
-use zbus::Connection;
+use std::collections::HashMap;
+
+use zbus::{names::BusName, zvariant::Value, Connection};
 
 use crate::{
-    proxies::{DBusProxy, MprisPlayerProxy},
+    proxies::{DBusProxy, MediaPlayer2Proxy, PlayerProxy},
     Mpris,
 };
 
 pub(crate) const MPRIS2_PREFIX: &str = "org.mpris.MediaPlayer2.";
 // pub(crate) const MPRIS2_PATH: &str = "/org/mpris/MediaPlayer2";
 
-pub struct Player<'a> {
-    proxy: MprisPlayerProxy<'a>, // Lifetime is for the connection, which we own.
+pub struct Player<'conn> {
+    mp2_proxy: MediaPlayer2Proxy<'conn>,
+    player_proxy: PlayerProxy<'conn>,
 }
 
-impl<'a> Player<'a> {
-    pub async fn new(
-        mpris: &'a Mpris,
-        bus_name: String,
-    ) -> Result<Player<'a>, Box<dyn std::error::Error>> {
+impl<'conn> Player<'conn> {
+    pub async fn new<B>(
+        mpris: &'conn Mpris,
+        bus_name: BusName<'static>,
+    ) -> Result<Player<'conn>, Box<dyn std::error::Error>> {
         Player::new_from_connection(mpris.connection.clone(), bus_name).await
     }
 
     pub(crate) async fn new_from_connection(
         connection: Connection,
-        bus_name: String,
-    ) -> Result<Player<'a>, Box<dyn std::error::Error>> {
+        bus_name: BusName<'static>,
+    ) -> Result<Player<'conn>, Box<dyn std::error::Error>> {
+        let mp2_proxy = MediaPlayer2Proxy::builder(&connection)
+            .destination(bus_name.clone())?
+            .build()
+            .await?;
+
+        let player_proxy = PlayerProxy::builder(&connection)
+            .destination(bus_name.clone())?
+            .build()
+            .await?;
+
         Ok(Player {
-            proxy: MprisPlayerProxy::builder(&connection)
-                .destination(bus_name)?
-                .build()
-                .await?,
+            mp2_proxy,
+            player_proxy,
         })
     }
 
     pub async fn identity(&self) -> Result<String, Box<dyn std::error::Error>> {
-        Ok(self.proxy.identity().await?)
+        Ok(self.mp2_proxy.identity().await?)
+    }
+
+    pub async fn metadata(&self) -> Result<HashMap<String, Value>, Box<dyn std::error::Error>> {
+        Ok(self.player_proxy.metadata().await?)
     }
 
     pub fn bus_name(&self) -> &str {
-        self.proxy.bus_name()
+        self.mp2_proxy.bus_name()
     }
 }
 
@@ -59,7 +74,9 @@ pub(crate) async fn all(
     let mut players = Vec::new();
     for name in names.into_iter() {
         if name.starts_with(MPRIS2_PREFIX) {
-            players.push(Player::new_from_connection(connection.clone(), name).await?);
+            if let Ok(bus_name) = name.try_into() {
+                players.push(Player::new_from_connection(connection.clone(), bus_name).await?);
+            }
         }
     }
 
