@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [v2.0.1] - 2023-06-15
+
 ### Fixed
 
 * Add extra check for `Player::get_track_list()`. Without this,
@@ -209,7 +213,8 @@ versions.
 
 ## 0.1.0 - 2017-12-29
 
-[Unreleased]: https://github.com/Mange/mpris-rs/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/Mange/mpris-rs/compare/v2.0.1...HEAD
+[v2.0.1]: https://github.com/Mange/mpris-rs/compare/v2.0.0...v2.0.1
 [v2.0.0]: https://github.com/Mange/mpris-rs/compare/v2.0.0-rc3...v2.0.0
 [v2.0.0-rc3]: https://github.com/Mange/mpris-rs/compare/v2.0.0-rc2...v2.0.0-rc3
 [v2.0.0-rc2]: https://github.com/Mange/mpris-rs/compare/v2.0.0-rc1...v2.0.0-rc2
