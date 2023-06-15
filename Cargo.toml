@@ -14,6 +14,11 @@ keywords = ["dbus", "mpris"]
 [badges]
 maintenance = { status = "actively-developed" }
 
+[features]
+# Enable zbus' tight tokio integration; in case you want to use this crate in a
+# Tokio-based app.
+tokio = ["zbus/tokio"]
+
 [dependencies]
 zbus = "3.4.0"
 
