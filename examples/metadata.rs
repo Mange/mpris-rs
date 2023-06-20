@@ -24,7 +24,9 @@ async fn print_metadata(player: Player<'_>) -> Result<(), Box<dyn Error>> {
         player.identity().await?,
         player.bus_name()
     );
+
     let metadata = player.metadata().await?;
     println!("Metadata:\n{:#?}", metadata);
+
     Ok(())
 }

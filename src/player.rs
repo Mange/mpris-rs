@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
-use zbus::{names::BusName, zvariant::Value, Connection};
+use zbus::{names::BusName, Connection};
 
 use crate::{
+    metadata::MetadataValue,
     proxies::{DBusProxy, MediaPlayer2Proxy, PlayerProxy},
     Metadata, Mpris,
 };
@@ -48,7 +49,16 @@ impl<'conn> Player<'conn> {
     }
 
     pub async fn metadata(&self) -> Result<Metadata, Box<dyn std::error::Error>> {
-        Ok(self.player_proxy.metadata().await?.into())
+        Ok(self.raw_metadata().await?.into())
+    }
+
+    pub async fn raw_metadata(
+        &self,
+    ) -> Result<HashMap<String, MetadataValue>, Box<dyn std::error::Error>> {
+        let data = self.player_proxy.metadata().await?;
+        let raw: HashMap<String, MetadataValue> =
+            data.into_iter().map(|(k, v)| (k, v.into())).collect();
+        Ok(raw)
     }
 
     pub fn bus_name(&self) -> &str {
