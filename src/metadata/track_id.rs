@@ -4,7 +4,9 @@ use zbus::zvariant::{OwnedValue, Value};
 
 use super::MetadataValue;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(transparent))]
 pub struct TrackID(String);
 
 impl TryFrom<&str> for TrackID {
@@ -63,5 +65,31 @@ impl<'a> TryFrom<Value<'a>> for TrackID {
             Value::ObjectPath(path) => path.as_str().try_into(),
             _ => Err(()),
         }
+    }
+}
+
+impl Deref for TrackID {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[cfg(all(test, feature = "serde"))]
+mod serde_tests {
+    use super::*;
+    use serde_test::{assert_de_tokens, assert_tokens, Token};
+
+    #[test]
+    fn test_serialization() {
+        let track_id = TrackID("/foo/bar".to_owned());
+        assert_tokens(&track_id, &[Token::String("/foo/bar")]);
+    }
+
+    #[test]
+    fn test_deserialization() {
+        let track_id = TrackID("/foo/bar".to_owned());
+        assert_de_tokens(&track_id, &[Token::String("/foo/bar")]);
     }
 }

@@ -2,7 +2,8 @@ use std::{collections::HashMap, time::Duration};
 
 use super::{MetadataValue, TrackID};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Metadata {
     pub album_artists: Option<Vec<String>>,
     pub album_name: Option<String>,

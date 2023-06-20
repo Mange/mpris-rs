@@ -18,10 +18,14 @@ maintenance = { status = "actively-developed" }
 # Enable zbus' tight tokio integration; in case you want to use this crate in a
 # Tokio-based app.
 tokio = ["zbus/tokio"]
+# Enable serde support for metadata
+serde = ["dep:serde"]
 
 [dependencies]
 zbus = "3.4.0"
+serde = { version = "1.0.164", optional = true }
 
 # Example dependencies
 [dev-dependencies]
 async-std = { version = "1.12.0", features = ["attributes"] }
+serde_test = { version = "1.0.164" }

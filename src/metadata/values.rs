@@ -6,7 +6,8 @@ use zbus::zvariant::Value;
 *
 * See https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/
 */
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum MetadataValue {
     Boolean(bool),
     Float(f64),
