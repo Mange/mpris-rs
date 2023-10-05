@@ -12,7 +12,7 @@ use std::time::Duration;
 ///
 /// [metadata_map]: https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Mapping:Metadata_Map
 /// [metadata_guidelines]: https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Metadata {
     values: HashMap<String, Value>,
 }
