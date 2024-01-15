@@ -26,3 +26,7 @@ thiserror = "1.0.37"
 [dev-dependencies]
 anyhow = "1.0.66"
 termion = "2.0.1"
+
+[features]
+default = []
+dbus-vendored = ["dbus/vendored"]
