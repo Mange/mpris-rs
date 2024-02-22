@@ -1,13 +1,13 @@
 use dbus::arg::ArgType;
-use derive_is_enum_variant::is_enum_variant;
 use enum_kinds::EnumKind;
 use from_variants::FromVariants;
 use std::collections::HashMap;
+use strum::EnumIs;
 
 /// Holds a dynamically-typed metadata value.
 ///
 /// You will need to type-check this at runtime in order to use the value.
-#[derive(Debug, PartialEq, Clone, EnumKind, is_enum_variant, FromVariants)]
+#[derive(Debug, PartialEq, Clone, EnumKind, EnumIs, FromVariants)]
 #[enum_kind(ValueKind)]
 pub enum Value {
     /// Value is a string.
@@ -480,7 +480,7 @@ mod tests {
         let message = send_value_over_dbus(42.0f64);
 
         let float: Value = message.get1().unwrap();
-        assert!(float.is_f64());
+        assert!(float.is_f_64());
         assert_eq!(float.as_f64(), Some(42.0));
     }
 
