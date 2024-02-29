@@ -17,9 +17,9 @@ maintenance = { status = "actively-developed" }
 
 [dependencies]
 dbus = "0.9.6"
-derive_is_enum_variant = "0.1.1"
 enum-kinds = "0.5.1"
 from_variants = "1.0.0"
+strum = { version = "0.26.1", features = ["derive"] }
 thiserror = "1.0.37"
 
 # For examples
