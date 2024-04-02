@@ -390,6 +390,11 @@ impl Value {
     pub fn is_map(&self) -> bool {
         matches!(self, Self::Map(_))
     }
+
+    /// Returns true if `self` is a Unsupported
+    pub fn is_unsupported(&self) -> bool {
+        matches!(self, Self::Unsupported)
+    }
 }
 
 impl<'a> From<&'a str> for Value {
