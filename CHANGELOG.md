@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
-Nothing yet.
+### Removed
+
+- Removed `derive_is_enum_variant` dependency. - [poly000][poly000]
 
 ## [v2.0.1] - 2023-06-15
 
@@ -228,3 +230,4 @@ versions.
 [Kanjirito]: https://github.com/Kanjirito
 [fengalin]: https://github.com/fengalin
 [fufexan]: https://github.com/fufexan
+[poly000]: https://github.com/poly000
