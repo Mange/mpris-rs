@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
-* Add extra check for `Player::get_track_list()`. Without this,
+- Add extra check for `Player::get_track_list()`. Without this,
   `Player::track_progress()` would fail for Spotify. -
   [Mihai Fufezan (fufexan)][fufexan]
 
@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Breaking changes
 
-* Minimum supported Rust version is now 1.54.0.
+- Minimum supported Rust version is now 1.54.0.
 
 ## [v2.0.0-rc3] - 2022-09-12
 
@@ -31,50 +31,50 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Fixed
 
-* Track change detection for some non-conforming players (e.g. Spotify). -
+- Track change detection for some non-conforming players (e.g. Spotify). -
   [Stephan Henrichs (Kilobyte22)][Kilobyte22]
-* Error on progress tracker for players that do not support shuffling. -
+- Error on progress tracker for players that do not support shuffling. -
   [Stephan Henrichs (Kilobyte22)][Kilobyte22]
-* Events not added for streams - [Kanjirito][Kanjirito]
-* Incorrect error messages when using the `Display` trait [Kanjirito][Kanjirito]
+- Events not added for streams - [Kanjirito][Kanjirito]
+- Incorrect error messages when using the `Display` trait [Kanjirito][Kanjirito]
 
 ### Added
 
-* `Player::can_shuffle` and `Player::checked_get_shuffle`. - [Stephan Henrichs
+- `Player::can_shuffle` and `Player::checked_get_shuffle`. - [Stephan Henrichs
   (Kilobyte22)][Kilobyte22]
-* Iterator methods to `Metadata`:
-  * `impl IntoIterator`
-  * `iter()`
-  * `keys()`
-* `Player::bus_name_player_name_part` - [Koen Bolhuis
+- Iterator methods to `Metadata`:
+  - `impl IntoIterator`
+  - `iter()`
+  - `keys()`
+- `Player::bus_name_player_name_part` - [Koen Bolhuis
   (InputUsername)](https://github.com/InputUsername)
-* `Metadata::as_hashmap(&self)` which returns a simple borrowed hashmap.
-* More `Player::has_*`, `Player::can_*`, and `Player::checked_*` methods -
+- `Metadata::as_hashmap(&self)` which returns a simple borrowed hashmap.
+- More `Player::has_*`, `Player::can_*`, and `Player::checked_*` methods -
   [Harrison Thorne (harrisonthorne)][harrisonthorne]
-  * `Player::has_volume`, `Player::checked_get_volume`,
+  - `Player::has_volume`, `Player::checked_get_volume`,
     `Player::checked_set_volume`
-  * `Player::has_position`, `Player::checked_get_position`,
+  - `Player::has_position`, `Player::checked_get_position`,
     `Player::checked_set_position`
-  * `Player::has_playback_rate`, `Player::checked_get_playback_rate`,
+  - `Player::has_playback_rate`, `Player::checked_get_playback_rate`,
     `Player::checked_set_playback_rate`
-  * `Player::can_loop`, `Player::checked_get_loop_status`
-* `PlayerIter` that iterates over all of the players [Kanjirito][Kanjirito]
-* `PlayerFinder.player_timeout_ms` field that changes the DBUS timeout value for
+  - `Player::can_loop`, `Player::checked_get_loop_status`
+- `PlayerIter` that iterates over all of the players [Kanjirito][Kanjirito]
+- `PlayerFinder.player_timeout_ms` field that changes the DBUS timeout value for
   all new `Player`s [Kanjirito][Kanjirito]
 
 ### Changed
 
-* Now using Rust 2018 edition.
-* `Player::checked_set_shuffle` also checks `::can_shuffle`. - [Stephan
+- Now using Rust 2018 edition.
+- `Player::checked_set_shuffle` also checks `::can_shuffle`. - [Stephan
   Henrichs (Kilobyte22)][Kilobyte22]
-* `Player::checked_set_loop_status` also checks `::can_loop` - [Harrison Thorne
+- `Player::checked_set_loop_status` also checks `::can_loop` - [Harrison Thorne
   (harrisonthorne)][harrisonthorne]
-* `Progress` default values uses `checked_get_*` functions - [Harrison
+- `Progress` default values uses `checked_get_*` functions - [Harrison
   Thorne (harrisonthorne)][harrisonthorne]
-* Documentation was made easier to navigate - [Kanjirito][Kanjirito]
-* Use `thiserror` & `anyhow` instead of unmaintained `failure` - [fengalin][fengalin]
-* Removed `Player` lifetime [Kanjirito][Kanjirito]
-* All `PlayerFinder` find methods switched to using `PlayerIter` [Kanjirito][Kanjirito]
+- Documentation was made easier to navigate - [Kanjirito][Kanjirito]
+- Use `thiserror` & `anyhow` instead of unmaintained `failure` - [fengalin][fengalin]
+- Removed `Player` lifetime [Kanjirito][Kanjirito]
+- All `PlayerFinder` find methods switched to using `PlayerIter` [Kanjirito][Kanjirito]
 
 ## [v2.0.0-rc2] - 2020-02-15
 
@@ -158,7 +158,7 @@ versions.
 - `MetadataValue` type, for dynamically types metadata values. This will
   replace the raw DBus values in `Metadata` in version 2.0.
 - `Player::get_metadata_hash` which returns a `Result<HashMap<String,
-  MetadataValue>, DBusError>`.
+MetadataValue>, DBusError>`.
 - `Metadata::rest_hash` which converts values in the `rest` hash into
   `MetadataValue`s, where possible. This is closer to how `Metadata` will work
   in 2.0.
@@ -170,7 +170,7 @@ versions.
 ### Changed
 
 - `Metadata` can now be constructed with empty metadata; `track_id` will then be the empty string.
-  * Some players (like VLC) without any tracks on its play queue emits empty
+  - Some players (like VLC) without any tracks on its play queue emits empty
     metadata, which would cause this library to return an error instead of an
     empty metadata.
 - `Metadata` now implements `Default`.
@@ -224,7 +224,6 @@ versions.
 [v1.1.1]: https://github.com/Mange/mpris-rs/compare/v1.1.0...v1.1.1
 [v1.1.0]: https://github.com/Mange/mpris-rs/compare/v1.0.0...v1.1.0
 [v1.0.0]: https://github.com/Mange/mpris-rs/compare/v0.1.0...v1.0.0
-
 [Kilobyte22]: https://github.com/Kilobyte22
 [harrisonthorne]: https://github.com/harrisonthorne
 [Kanjirito]: https://github.com/Kanjirito
