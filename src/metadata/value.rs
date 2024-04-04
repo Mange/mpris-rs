@@ -1,5 +1,4 @@
 use dbus::arg::ArgType;
-use derive_is_enum_variant::is_enum_variant;
 use enum_kinds::EnumKind;
 use from_variants::FromVariants;
 use std::collections::HashMap;
@@ -7,7 +6,7 @@ use std::collections::HashMap;
 /// Holds a dynamically-typed metadata value.
 ///
 /// You will need to type-check this at runtime in order to use the value.
-#[derive(Debug, PartialEq, Clone, EnumKind, is_enum_variant, FromVariants)]
+#[derive(Debug, PartialEq, Clone, EnumKind, FromVariants)]
 #[enum_kind(ValueKind)]
 pub enum Value {
     /// Value is a string.
@@ -328,6 +327,73 @@ impl Value {
             Value::Array(val) => Some(val),
             _ => None,
         }
+    }
+}
+
+impl Value {
+    /// Returns true if `self` is a String
+    pub fn is_string(&self) -> bool {
+        matches!(self, Self::String(_))
+    }
+
+    /// Returns true if `self` is an I16
+    pub fn is_i16(&self) -> bool {
+        matches!(self, Self::I16(_))
+    }
+
+    /// Returns true if `self` is an I32
+    pub fn is_i32(&self) -> bool {
+        matches!(self, Self::I32(_))
+    }
+
+    /// Returns true if `self` is an I64
+    pub fn is_i64(&self) -> bool {
+        matches!(self, Self::I64(_))
+    }
+
+    /// Returns true if `self` is a U8
+    pub fn is_u8(&self) -> bool {
+        matches!(self, Self::U8(_))
+    }
+
+    /// Returns true if `self` is a U16
+    pub fn is_u16(&self) -> bool {
+        matches!(self, Self::U16(_))
+    }
+
+    /// Returns true if `self` is a U32
+    pub fn is_u32(&self) -> bool {
+        matches!(self, Self::U32(_))
+    }
+
+    /// Returns true if `self` is a U64
+    pub fn is_u64(&self) -> bool {
+        matches!(self, Self::U64(_))
+    }
+
+    /// Returns true if `self` is an F64
+    pub fn is_f64(&self) -> bool {
+        matches!(self, Self::F64(_))
+    }
+
+    /// Returns true if `self` is a Bool
+    pub fn is_bool(&self) -> bool {
+        matches!(self, Self::Bool(_))
+    }
+
+    /// Returns true if `self` is an Array
+    pub fn is_array(&self) -> bool {
+        matches!(self, Self::Array(_))
+    }
+
+    /// Returns true if `self` is a Map
+    pub fn is_map(&self) -> bool {
+        matches!(self, Self::Map(_))
+    }
+
+    /// Returns true if `self` is a Unsupported
+    pub fn is_unsupported(&self) -> bool {
+        matches!(self, Self::Unsupported)
     }
 }
 
