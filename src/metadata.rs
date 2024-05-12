@@ -116,6 +116,7 @@ impl Metadata {
     /// > The duration of the track in microseconds.
     pub fn length_in_microseconds(&self) -> Option<u64> {
         match self.get("mpris:length") {
+            Some(Value::String(len)) => len.parse().ok(),
             Some(Value::I64(len)) => Some(*len as u64),
             Some(Value::U64(len)) => Some(*len),
             Some(_) => None,
