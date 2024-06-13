@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+
+- `Player::bus_name_trimmed()` which returns the player's bus name without the
+  MPRIS2 prefix - [Kanjirito][Kanjirito]
+
+### Deprecated
+
+- `Player::bus_name_player_name_part()` is now deprecated and will be removed
+  in the next major release. See the method's documentation and [#81][#81] for
+  details and workarounds.
+
 ### Removed
 
 - Removed `derive_is_enum_variant` dependency. - [poly000][poly000]
@@ -230,3 +241,4 @@ MetadataValue>, DBusError>`.
 [fengalin]: https://github.com/fengalin
 [fufexan]: https://github.com/fufexan
 [poly000]: https://github.com/poly000
+[#81]: https://github.com/Mange/mpris-rs/issues/81
