@@ -111,13 +111,48 @@ impl Player {
     ///
     /// See: [MPRIS2 specification about bus names][bus_names].
     ///
+    /// **Deprecation information:** The MPRIS2 specification doesn't specify how the unique instance
+    /// identifier part of the bus name should look, therefore every player can ignore the example
+    /// and implement it in its own way. This method was trying to guess the instance part and was
+    /// not always successful. See [this issue][issue] for the relevant discussion.
+    /// In the case when [`identity`][Self::identity] is not able to differentiate the players so
+    /// you need to filter out players by their bus names you should filter the results of [`PlayerFinder`][crate::find::PlayerFinder].
+    /// For example:
+    /// ```no_run
+    /// use mpris::PlayerFinder;
+    /// let finder = PlayerFinder::new().unwrap();
+    /// for player in finder
+    ///     .iter_players()
+    ///     .unwrap()
+    ///     .map(|p| p.unwrap())
+    ///     .filter(|p| p.bus_name_trimmed().starts_with("mpv"))
+    /// {
+    ///     // Do something with only mpv instances
+    /// }
+    ///```
+    ///
     /// [bus_names]: https://specifications.freedesktop.org/mpris-spec/latest/#Bus-Name-Policy
+    /// [issue]: https://github.com/Mange/mpris-rs/issues/81
+    #[deprecated(
+        since = "2.1.0",
+        note = "See documentation for explanation, use `bus_name_trimmed` instead"
+    )]
     pub fn bus_name_player_name_part(&self) -> &str {
         self.bus_name()
             .trim_start_matches(MPRIS2_PREFIX)
             .split('.') // Remove the "instance" part
             .next()
             .unwrap()
+    }
+
+    /// Returns the player name part of the player's D-Bus bus name with the MPRIS2 prefix trimmed.
+    ///
+    /// Examples:
+    /// - `org.mpris.MediaPlayer2.io.github.celluloid_player.Celluloid` -> `io.github.celluloid_player.Celluloid`
+    /// - `org.mpris.MediaPlayer2.Spotify.` -> `Spotify`
+    /// - `org.mpris.MediaPlayer2.mpv.instance123` -> `mpv.instance123`
+    pub fn bus_name_trimmed(&self) -> &str {
+        self.bus_name().trim_start_matches(MPRIS2_PREFIX)
     }
 
     /// Returns the player's unique D-Bus bus name (usually something like `:1.1337`).
