@@ -394,7 +394,7 @@ impl std::fmt::Debug for Player {
         f.debug_struct("Player")
             .field("bus_name", &self.bus_name())
             .field("track_list", &self.track_list_proxy.is_some())
-            .field("playlist_proxy", &self.playlist_proxy.is_some())
-            .finish()
+            .field("playlist", &self.playlist_proxy.is_some())
+            .finish_non_exhaustive()
     }
 }

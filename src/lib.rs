@@ -1,4 +1,17 @@
-use std::fmt::Display;
+// #![warn(missing_docs)]
+#![deny(
+    missing_debug_implementations,
+    missing_copy_implementations,
+    trivial_casts,
+    trivial_numeric_casts,
+    unsafe_code,
+    unreachable_pub,
+    unstable_features,
+    unused_import_braces,
+    unused_qualifications
+)]
+
+use std::fmt::{Debug, Display};
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -29,6 +42,7 @@ pub(crate) const MPRIS2_PREFIX: &str = "org.mpris.MediaPlayer2.";
 
 type PlayerFuture = Pin<Box<dyn Future<Output = Result<Player, MprisError>> + Send>>;
 
+#[derive(Clone)]
 pub struct Mpris {
     connection: Connection,
     dbus_proxy: DBusProxy<'static>,
@@ -51,6 +65,14 @@ impl Mpris {
             connection,
             dbus_proxy,
         })
+    }
+
+    pub fn get_connection(&self) -> Connection {
+        self.connection.clone()
+    }
+
+    pub fn get_executor(&self) -> &'static zbus::Executor {
+        self.connection.executor()
     }
 
     pub async fn find_first(&self) -> Result<Option<Player>, MprisError> {
@@ -133,6 +155,14 @@ impl Mpris {
     }
 }
 
+impl Debug for Mpris {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Mpris")
+            .field("connection", &"zbus::Connection")
+            .finish_non_exhaustive()
+    }
+}
+
 pub struct PlayerStream {
     futures: Vec<PlayerFuture>,
 }
@@ -176,6 +206,14 @@ impl Stream for PlayerStream {
 impl FusedStream for PlayerStream {
     fn is_terminated(&self) -> bool {
         self.futures.is_empty()
+    }
+}
+
+impl Debug for PlayerStream {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PlayerStream")
+            .field("players_left", &self.futures.len())
+            .finish()
     }
 }
 
