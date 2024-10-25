@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use zbus::proxy;
-use zbus::zvariant::{ObjectPath, OwnedObjectPath, Value};
+use zbus::zvariant::{ObjectPath, OwnedObjectPath, OwnedValue, Value};
 
 #[proxy(
     default_service = "org.freedesktop.DBus",
@@ -215,4 +215,67 @@ pub(crate) trait Playlists {
     /// PlaylistCount property
     #[zbus(property)]
     fn playlist_count(&self) -> zbus::Result<u32>;
+}
+
+#[proxy(
+    interface = "org.mpris.MediaPlayer2.TrackList",
+    default_path = "/org/mpris/MediaPlayer2",
+    gen_blocking = false
+)]
+pub trait TrackList {
+    /// AddTrack method
+    fn add_track(
+        &self,
+        uri: &str,
+        after_track: &OwnedObjectPath,
+        set_as_current: bool,
+    ) -> zbus::Result<()>;
+
+    /// GetTracksMetadata method
+    fn get_tracks_metadata(
+        &self,
+        track_ids: &[&OwnedObjectPath],
+    ) -> zbus::Result<Vec<HashMap<String, OwnedValue>>>;
+
+    /// GoTo method
+    fn go_to(&self, track_id: &OwnedObjectPath) -> zbus::Result<()>;
+
+    /// RemoveTrack method
+    fn remove_track(&self, track_id: &OwnedObjectPath) -> zbus::Result<()>;
+
+    /// TrackAdded signal
+    #[zbus(signal)]
+    fn track_added(
+        &self,
+        metadata: HashMap<&str, Value<'_>>,
+        after_track: ObjectPath<'_>,
+    ) -> zbus::Result<()>;
+
+    /// TrackListReplaced signal
+    #[zbus(signal)]
+    fn track_list_replaced(
+        &self,
+        track_ids: Vec<ObjectPath<'_>>,
+        current_track: ObjectPath<'_>,
+    ) -> zbus::Result<()>;
+
+    /// TrackMetadataChanged signal
+    #[zbus(signal)]
+    fn track_metadata_changed(
+        &self,
+        track_id: ObjectPath<'_>,
+        metadata: HashMap<&str, Value<'_>>,
+    ) -> zbus::Result<()>;
+
+    /// TrackRemoved signal
+    #[zbus(signal)]
+    fn track_removed(&self, track_id: ObjectPath<'_>) -> zbus::Result<()>;
+
+    /// CanEditTracks property
+    #[zbus(property)]
+    fn can_edit_tracks(&self) -> zbus::Result<bool>;
+
+    /// Tracks property
+    #[zbus(property(emits_changed_signal = "invalidates"))]
+    fn tracks(&self) -> zbus::Result<Vec<OwnedObjectPath>>;
 }

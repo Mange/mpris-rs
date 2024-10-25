@@ -5,7 +5,7 @@ use zbus::{names::BusName, Connection};
 
 use crate::{
     metadata::MetadataValue,
-    proxies::{MediaPlayer2Proxy, PlayerProxy, PlaylistsProxy},
+    proxies::{MediaPlayer2Proxy, PlayerProxy, PlaylistsProxy, TrackListProxy},
     LoopStatus, Metadata, Mpris, MprisDuration, MprisError, PlaybackStatus, Playlist,
     PlaylistOrdering, TrackID, MPRIS2_PREFIX,
 };
@@ -15,6 +15,7 @@ pub struct Player {
     mp2_proxy: MediaPlayer2Proxy<'static>,
     player_proxy: PlayerProxy<'static>,
     playlist_proxy: Option<PlaylistsProxy<'static>>,
+    track_list_proxy: Option<TrackListProxy<'static>>,
 }
 
 impl Player {
@@ -26,18 +27,25 @@ impl Player {
         connection: Connection,
         bus_name: BusName<'static>,
     ) -> Result<Player, MprisError> {
-        let (mp2_proxy, player_proxy, playlist_proxy) = try_join!(
+        let (mp2_proxy, player_proxy, playlist_proxy, track_list_proxy) = try_join!(
             MediaPlayer2Proxy::new(&connection, bus_name.clone()),
             PlayerProxy::new(&connection, bus_name.clone()),
             PlaylistsProxy::new(&connection, bus_name.clone()),
+            TrackListProxy::new(&connection, bus_name.clone()),
         )?;
 
         let playlist = playlist_proxy.playlist_count().await.is_ok();
+        let track_list = track_list_proxy.can_edit_tracks().await.is_ok();
         Ok(Player {
             bus_name,
             mp2_proxy,
             player_proxy,
             playlist_proxy: if playlist { Some(playlist_proxy) } else { None },
+            track_list_proxy: if track_list {
+                Some(track_list_proxy)
+            } else {
+                None
+            },
         })
     }
 
@@ -47,6 +55,10 @@ impl Player {
 
     pub fn supports_playlist_interface(&self) -> bool {
         self.playlist_proxy.is_some()
+    }
+
+    pub fn supports_track_list_interface(&self) -> bool {
+        self.track_list_proxy.is_some()
     }
 
     pub async fn metadata(&self) -> Result<Metadata, MprisError> {
@@ -298,12 +310,84 @@ impl Player {
     pub async fn playlist_count(&self) -> Result<u32, MprisError> {
         Ok(self.check_playlist_support()?.playlist_count().await?)
     }
+
+    fn check_track_list_support(&self) -> Result<&TrackListProxy, MprisError> {
+        match &self.track_list_proxy {
+            Some(proxy) => Ok(proxy),
+            None => Err(MprisError::Unsupported),
+        }
+    }
+
+    pub async fn can_edit_tracks(&self) -> Result<bool, MprisError> {
+        Ok(self.check_track_list_support()?.can_edit_tracks().await?)
+    }
+
+    pub async fn tracks(&self) -> Result<Vec<TrackID>, MprisError> {
+        let result = self.check_track_list_support()?.tracks().await?;
+        let mut track_ids = Vec::with_capacity(result.len());
+        for r in result {
+            track_ids.push(TrackID::try_from(r)?);
+        }
+        Ok(track_ids)
+    }
+
+    pub async fn add_track(
+        &self,
+        url: &str,
+        after_track: Option<&TrackID>,
+        set_as_current: bool,
+    ) -> Result<(), MprisError> {
+        let after = if let Some(track_id) = after_track {
+            track_id
+        } else {
+            &TrackID::no_track()
+        };
+        Ok(self
+            .check_track_list_support()?
+            .add_track(url, after.as_ref(), set_as_current)
+            .await?)
+    }
+
+    pub async fn remove_track(&self, track_id: &TrackID) -> Result<(), MprisError> {
+        Ok(self
+            .check_track_list_support()?
+            .remove_track(track_id.as_ref())
+            .await?)
+    }
+
+    pub async fn go_to(&self, track_id: &TrackID) -> Result<(), MprisError> {
+        Ok(self
+            .check_track_list_support()?
+            .go_to(track_id.as_ref())
+            .await?)
+    }
+
+    pub async fn get_tracks_metadata(
+        &self,
+        tracks: &[TrackID],
+    ) -> Result<Vec<Metadata>, MprisError> {
+        let result = self
+            .check_track_list_support()?
+            .get_tracks_metadata(&tracks.iter().map(|t| t.as_ref()).collect::<Vec<_>>())
+            .await?;
+
+        let mut metadata = Vec::with_capacity(tracks.len());
+        for meta in result {
+            let raw: HashMap<String, MetadataValue> = meta
+                .into_iter()
+                .map(|(k, v)| (k, MetadataValue::from(v)))
+                .collect();
+            metadata.push(Metadata::try_from(raw)?);
+        }
+        Ok(metadata)
+    }
 }
 
 impl std::fmt::Debug for Player {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Player")
             .field("bus_name", &self.bus_name())
+            .field("track_list", &self.track_list_proxy.is_some())
             .field("playlist_proxy", &self.playlist_proxy.is_some())
             .finish()
     }
