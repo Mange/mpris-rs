@@ -129,7 +129,11 @@ macro_rules! gen_metadata_struct {
 
 gen_metadata_struct!(
     #[derive(Debug, Clone, Default, PartialEq)]
-    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+    #[cfg_attr(feature = "serde",
+               derive(serde::Serialize, serde::Deserialize),
+               serde(into = "RawMetadata", try_from = "RawMetadata")
+               )
+    ]
     struct Metadata {
         "xesam:albumArtist" => album_artists: Vec<String>,
         "xesam:album" => album_name: String,
