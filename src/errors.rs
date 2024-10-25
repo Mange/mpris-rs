@@ -80,8 +80,19 @@ pub enum MprisError {
     /// The player doesn't implement the required interface/method/signal
     Unsupported,
 
+    /// One of the given arguments has an invalid value
+    InvalidArgument(String),
+
     /// Some other unexpected error occurred.
     Miscellaneous(String),
+}
+
+impl MprisError {
+    pub(crate) fn track_id_is_no_track() -> Self {
+        Self::InvalidArgument(
+            "/org/mpris/MediaPlayer2/TrackList/NoTrack is not a valid value".to_owned(),
+        )
+    }
 }
 
 impl From<zbus::Error> for MprisError {

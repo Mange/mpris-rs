@@ -349,6 +349,9 @@ impl Player {
     }
 
     pub async fn remove_track(&self, track_id: &TrackID) -> Result<(), MprisError> {
+        if track_id.is_no_track() {
+            return Err(MprisError::track_id_is_no_track());
+        }
         Ok(self
             .check_track_list_support()?
             .remove_track(track_id.as_ref())
@@ -356,6 +359,9 @@ impl Player {
     }
 
     pub async fn go_to(&self, track_id: &TrackID) -> Result<(), MprisError> {
+        if track_id.is_no_track() {
+            return Err(MprisError::track_id_is_no_track());
+        }
         Ok(self
             .check_track_list_support()?
             .go_to(track_id.as_ref())
