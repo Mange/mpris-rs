@@ -10,6 +10,7 @@ use crate::{
     PlaylistOrdering, TrackID, MPRIS2_PREFIX,
 };
 
+#[derive(Clone)]
 pub struct Player {
     bus_name: BusName<'static>,
     mp2_proxy: MediaPlayer2Proxy<'static>,

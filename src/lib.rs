@@ -1,4 +1,5 @@
 // #![warn(missing_docs)]
+#![warn(clippy::print_stdout)]
 #![deny(
     missing_debug_implementations,
     missing_copy_implementations,
@@ -11,6 +12,7 @@
     unused_qualifications
 )]
 
+use std::collections::VecDeque;
 use std::fmt::{Debug, Display};
 use std::future::Future;
 use std::pin::Pin;
@@ -151,33 +153,32 @@ impl Mpris {
 
     pub async fn into_stream(&self) -> Result<PlayerStream, MprisError> {
         let buses = self.all_player_bus_names().await?;
-        Ok(PlayerStream::new(&self.connection, buses))
+        Ok(PlayerStream::new(self.connection.clone(), buses))
     }
 }
 
 impl Debug for Mpris {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Mpris")
-            .field("connection", &"zbus::Connection")
+            .field("connection", &format_args!("Connection {{ .. }}"))
             .finish_non_exhaustive()
     }
 }
 
 pub struct PlayerStream {
-    futures: Vec<PlayerFuture>,
+    connection: Connection,
+    buses: VecDeque<BusName<'static>>,
+    cur_future: Option<PlayerFuture>,
 }
 
 impl PlayerStream {
-    pub fn new(connection: &Connection, buses: Vec<BusName<'static>>) -> Self {
-        let mut futures: Vec<PlayerFuture> = Vec::with_capacity(buses.len());
-        for fut in buses
-            .into_iter()
-            .rev()
-            .map(|bus_name| Box::pin(Player::new_from_connection(connection.clone(), bus_name)))
-        {
-            futures.push(fut);
+    pub fn new(connection: Connection, buses: Vec<BusName<'static>>) -> Self {
+        let buses = VecDeque::from(buses);
+        Self {
+            connection,
+            buses,
+            cur_future: None,
         }
-        Self { futures }
     }
 }
 
@@ -185,34 +186,50 @@ impl Stream for PlayerStream {
     type Item = Result<Player, MprisError>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        match self.futures.last_mut() {
-            Some(last) => match last.as_mut().poll(cx) {
-                Poll::Ready(result) => {
-                    self.futures.pop();
-                    Poll::Ready(Some(result))
-                }
-                Poll::Pending => Poll::Pending,
-            },
-            None => Poll::Ready(None),
+        loop {
+            match self.cur_future.as_mut() {
+                Some(fut) => match fut.as_mut().poll(cx) {
+                    Poll::Ready(player) => {
+                        self.cur_future = None;
+                        self.buses.pop_front();
+                        return Poll::Ready(Some(player));
+                    }
+                    Poll::Pending => return Poll::Pending,
+                },
+                None => match self.buses.front() {
+                    Some(bus) => {
+                        self.cur_future = Some(Box::pin(Player::new_from_connection(
+                            self.connection.clone(),
+                            bus.clone(),
+                        )))
+                    }
+                    None => return Poll::Ready(None),
+                },
+            }
         }
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let l = self.futures.len();
+        let l = self.buses.len();
         (l, Some(l))
     }
 }
 
 impl FusedStream for PlayerStream {
     fn is_terminated(&self) -> bool {
-        self.futures.is_empty()
+        self.buses.is_empty()
     }
 }
 
 impl Debug for PlayerStream {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PlayerStream")
-            .field("players_left", &self.futures.len())
+            .field("connection", &format_args!("Connection {{ .. }}"))
+            .field("buses", &self.buses)
+            .field(
+                "cur_future",
+                &self.cur_future.as_ref().map(|_| &self.buses[0]),
+            )
             .finish()
     }
 }
