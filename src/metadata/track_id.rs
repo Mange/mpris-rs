@@ -37,6 +37,12 @@ impl TrackID {
     }
 }
 
+impl AsRef<OwnedObjectPath> for TrackID {
+    fn as_ref(&self) -> &OwnedObjectPath {
+        &self.0
+    }
+}
+
 fn check_start<T>(s: T) -> Result<T, InvalidTrackID>
 where
     T: Deref<Target = str>,

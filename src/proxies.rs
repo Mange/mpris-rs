@@ -98,7 +98,7 @@ pub(crate) trait Player {
     fn seek(&self, offset: i64) -> zbus::Result<()>;
 
     /// SetPosition method
-    fn set_position(&self, track_id: &ObjectPath<'_>, position: i64) -> zbus::Result<()>;
+    fn set_position(&self, track_id: &OwnedObjectPath, position: i64) -> zbus::Result<()>;
 
     /// Stop method
     fn stop(&self) -> zbus::Result<()>;

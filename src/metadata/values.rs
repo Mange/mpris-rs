@@ -1,4 +1,4 @@
-use zbus::zvariant::Value;
+use zbus::zvariant::{OwnedValue, Value};
 
 use crate::errors::InvalidMetadataValue;
 
@@ -42,6 +42,12 @@ impl MetadataValue {
             MetadataValue::UnsignedInt(i) => Some(i),
             _ => None,
         }
+    }
+}
+
+impl From<OwnedValue> for MetadataValue {
+    fn from(value: OwnedValue) -> Self {
+        Self::from(Value::from(value))
     }
 }
 

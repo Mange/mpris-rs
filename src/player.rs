@@ -192,7 +192,7 @@ impl Player {
     ) -> Result<(), MprisError> {
         Ok(self
             .player_proxy
-            .set_position(&track_id.as_object_path(), position.into())
+            .set_position(track_id.as_ref(), position.into())
             .await?)
     }
 
