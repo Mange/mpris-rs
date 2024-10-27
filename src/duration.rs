@@ -16,16 +16,27 @@ const MAX: u64 = i64::MAX as u64;
 pub struct MprisDuration(u64);
 
 impl MprisDuration {
-    pub fn new_from_u64(value: u64) -> Self {
-        Self(value.clamp(0, MAX))
+    pub fn new_from_u64(micros: u64) -> Self {
+        Self(micros.clamp(0, MAX))
     }
 
-    pub fn new_from_i64(value: i64) -> Self {
-        Self(value.clamp(0, i64::MAX) as u64)
+    pub fn new_from_i64(micros: i64) -> Self {
+        Self(micros.clamp(0, i64::MAX) as u64)
+    }
+
+    pub fn new_from_duration(duration: Duration) -> Self {
+        Self(duration.as_micros().clamp(0, MAX as u128) as u64)
     }
 
     pub fn new_max() -> Self {
         Self(MAX)
+    }
+    pub fn as_u64(&self) -> u64 {
+        self.0
+    }
+
+    pub fn as_i64(&self) -> i64 {
+        self.0 as i64
     }
 }
 
@@ -108,6 +119,38 @@ macro_rules! impl_math {
 
             fn $method(self, rhs: &u64) -> Self::Output {
                 Self::$method(self, *rhs)
+            }
+        }
+
+        impl $trait<MprisDuration> for MprisDuration {
+            type Output = Self;
+
+            fn $method(self, rhs: MprisDuration) -> Self::Output {
+                Self::$method(self, rhs.as_u64())
+            }
+        }
+
+        impl $trait<&MprisDuration> for MprisDuration {
+            type Output = Self;
+
+            fn $method(self, rhs: &MprisDuration) -> Self::Output {
+                Self::$method(self, rhs.as_u64())
+            }
+        }
+
+        impl $trait<Duration> for MprisDuration {
+            type Output = Self;
+
+            fn $method(self, rhs: Duration) -> Self::Output {
+                Self::$method(self, rhs.as_micros().clamp(0, MAX as u128) as u64)
+            }
+        }
+
+        impl $trait<&Duration> for MprisDuration {
+            type Output = Self;
+
+            fn $method(self, rhs: &Duration) -> Self::Output {
+                Self::$method(self, rhs.as_micros().clamp(0, MAX as u128) as u64)
             }
         }
     };
@@ -197,53 +240,80 @@ mod mrpis_duration_tests {
         assert!(MprisDuration::try_from(MetadataValue::Strings(vec![])).is_err());
         assert!(MprisDuration::try_from(MetadataValue::Unsupported).is_err());
     }
+}
 
-    #[test]
-    fn math() {
-        assert_eq!(
-            MprisDuration::new_from_u64(1) * 10,
-            MprisDuration::new_from_u64(10)
-        );
-        #[allow(clippy::erasing_op)]
-        {
+#[cfg(test)]
+mod ops_tests {
+    use super::*;
+
+    macro_rules! gen_ops_tests {
+        ($type:expr) => {
             assert_eq!(
-                MprisDuration::new_from_u64(1) * 0,
+                MprisDuration::new_from_u64(1) * $type(10_u64),
+                MprisDuration::new_from_u64(10)
+            );
+            #[allow(clippy::erasing_op)]
+            {
+                assert_eq!(
+                    MprisDuration::new_from_u64(1) * $type(0_u64),
+                    MprisDuration::new_from_u64(0)
+                );
+            }
+            assert_eq!(
+                MprisDuration::new_max() * $type(2_u64),
+                MprisDuration::new_max()
+            );
+
+            assert_eq!(
+                MprisDuration::new_from_u64(0) / $type(1_u64),
                 MprisDuration::new_from_u64(0)
             );
-        }
-        assert_eq!(MprisDuration::new_max() * 2, MprisDuration::new_max());
+            assert_eq!(
+                MprisDuration::new_from_u64(10) / $type(3_u64),
+                MprisDuration::new_from_u64(10 / 3)
+            );
+            assert_eq!(
+                MprisDuration::new_max() / $type(MAX),
+                MprisDuration::new_from_u64(1)
+            );
+            assert_eq!(
+                MprisDuration::new_from_u64(1) / $type(MAX),
+                MprisDuration::new_from_u64(0)
+            );
 
-        assert_eq!(
-            MprisDuration::new_from_u64(0) / 1,
-            MprisDuration::new_from_u64(0)
-        );
-        assert_eq!(
-            MprisDuration::new_from_u64(10) / 3,
-            MprisDuration::new_from_u64(10 / 3)
-        );
-        assert_eq!(
-            MprisDuration::new_max() / MAX,
-            MprisDuration::new_from_u64(1)
-        );
-        assert_eq!(
-            MprisDuration::new_from_u64(1) / MAX,
-            MprisDuration::new_from_u64(0)
-        );
+            assert_eq!(
+                MprisDuration::new_from_u64(0) + $type(1_u64),
+                MprisDuration::new_from_u64(1)
+            );
+            assert_eq!(
+                MprisDuration::new_max() + $type(1_u64),
+                MprisDuration::new_max()
+            );
 
-        assert_eq!(
-            MprisDuration::new_from_u64(0) + 1,
-            MprisDuration::new_from_u64(1)
-        );
-        assert_eq!(MprisDuration::new_max() + 1, MprisDuration::new_max());
+            assert_eq!(
+                MprisDuration::new_from_u64(0) - $type(1_u64),
+                MprisDuration::new_from_u64(0)
+            );
+            assert_eq!(
+                MprisDuration::new_from_u64(10) - $type(1_u64),
+                MprisDuration::new_from_u64(9)
+            );
+        };
+    }
 
-        assert_eq!(
-            MprisDuration::new_from_u64(0) - 1,
-            MprisDuration::new_from_u64(0)
-        );
-        assert_eq!(
-            MprisDuration::new_from_u64(10) - 1,
-            MprisDuration::new_from_u64(9)
-        );
+    #[test]
+    fn u64() {
+        gen_ops_tests!(u64::from);
+    }
+
+    #[test]
+    fn mpris_duration() {
+        gen_ops_tests!(MprisDuration::new_from_u64);
+    }
+
+    #[test]
+    fn duration() {
+        gen_ops_tests!(Duration::from_micros);
     }
 }
 
