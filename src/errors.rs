@@ -1,44 +1,19 @@
 use std::fmt::Display;
 
-/// [`PlaybackStatus`][crate::PlaybackStatus] had an invalid string value.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct InvalidPlaybackStatus(pub(crate) String);
+pub use zbus::Error;
 
-/// [`LoopStatus`][crate::LoopStatus] had an invalid string value.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct InvalidLoopStatus(pub(crate) String);
+macro_rules! generate_error {
+    ($error:ident, $source:ident) => {
+        #[doc=concat!("Error for when [`",
+                            stringify!($source),
+                            "`](crate::",
+                            stringify!($source),
+                            ") ",
+                            "failed to be created."
+                        )]
+        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        pub struct $error(pub(crate) String);
 
-/// [`TrackID`][crate::metadata::TrackID] had an invalid ObjectPath.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct InvalidTrackID(pub(crate) String);
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct InvalidMprisDuration(pub(crate) String);
-
-impl InvalidMprisDuration {
-    pub(crate) fn new_too_big() -> Self {
-        Self("can't create MprisDuration, value too big".to_string())
-    }
-
-    pub(crate) fn new_negative() -> Self {
-        Self("can't create MprisDuration, value is negative".to_string())
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct InvalidMetadataValue(pub(crate) String);
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct InvalidMetadata(pub(crate) String);
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct InvalidPlaylist(pub(crate) String);
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct InvalidPlaylistOrdering(pub(crate) String);
-
-macro_rules! impl_display {
-    ($error:ty) => {
         impl Display for $error {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(f, "{}", self.0)
@@ -59,19 +34,29 @@ macro_rules! impl_display {
     };
 }
 
-impl_display!(InvalidPlaybackStatus);
-impl_display!(InvalidLoopStatus);
-impl_display!(InvalidTrackID);
-impl_display!(InvalidMprisDuration);
-impl_display!(InvalidMetadataValue);
-impl_display!(InvalidMetadata);
-impl_display!(InvalidPlaylist);
-impl_display!(InvalidPlaylistOrdering);
+generate_error!(InvalidPlaybackStatus, PlaybackStatus);
+generate_error!(InvalidLoopStatus, LoopStatus);
+generate_error!(InvalidTrackID, TrackID);
+generate_error!(InvalidMprisDuration, MprisDuration);
+generate_error!(InvalidMetadataValue, MetadataValue);
+generate_error!(InvalidMetadata, Metadata);
+generate_error!(InvalidPlaylist, Playlist);
+generate_error!(InvalidPlaylistOrdering, PlaylistOrdering);
+
+impl InvalidMprisDuration {
+    pub(crate) fn new_too_big() -> Self {
+        Self("can't create MprisDuration, value too big".to_string())
+    }
+
+    pub(crate) fn new_negative() -> Self {
+        Self("can't create MprisDuration, value is negative".to_string())
+    }
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum MprisError {
     /// An error occurred while talking to the D-Bus.
-    DbusError(zbus::Error),
+    DbusError(Error),
 
     /// Failed to parse an enum from a string value received from the [`Player`][crate::Player].
     /// This means that the [`Player`][crate::Player] replied with unexpected data.
@@ -95,10 +80,10 @@ impl MprisError {
     }
 }
 
-impl From<zbus::Error> for MprisError {
-    fn from(value: zbus::Error) -> Self {
+impl From<Error> for MprisError {
+    fn from(value: Error) -> Self {
         match value {
-            zbus::Error::InterfaceNotFound | zbus::Error::Unsupported => Self::Unsupported,
+            Error::InterfaceNotFound | Error::Unsupported => Self::Unsupported,
             _ => todo!(),
         }
     }
