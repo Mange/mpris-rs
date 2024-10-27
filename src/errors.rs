@@ -2,15 +2,18 @@ use std::fmt::Display;
 
 pub use zbus::Error;
 
+#[rustfmt::skip]
 macro_rules! generate_error {
     ($error:ident, $source:ident) => {
-        #[doc=concat!("Error for when [`",
-                            stringify!($source),
-                            "`](crate::",
-                            stringify!($source),
-                            ") ",
-                            "failed to be created."
-                        )]
+        #[doc=concat!(
+            "Error for when [`",
+            stringify!($source),
+            "`](crate::",
+            stringify!($source),
+            ") ",
+            "failed to be created."
+            )
+        ]
         #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct $error(pub(crate) String);
 
