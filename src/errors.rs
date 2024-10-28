@@ -87,7 +87,7 @@ impl From<Error> for MprisError {
     fn from(value: Error) -> Self {
         match value {
             Error::InterfaceNotFound | Error::Unsupported => Self::Unsupported,
-            _ => todo!(),
+            _ => Self::DbusError(value),
         }
     }
 }
