@@ -11,6 +11,7 @@ type RawMetadata = HashMap<String, MetadataValue>;
 /// The generated things are:
 /// - `Metadata::new()`
 /// - `Metadata::is_empty()`
+/// - `Metadata::is_valid()'
 /// - `Metadata::get_metadata_key()` which lets you get the key for a given field as a str
 /// - `TryFrom<HashMap<String, MetadataValue>> for Metadata`
 /// - `Metadata::from_raw_lossy()` which is similar to the above but wrong types just get discarded
@@ -60,7 +61,15 @@ macro_rules! gen_metadata_struct {
                 && self.$others_name.is_empty()
             }
 
-            pub fn get_metadata_key(&self, field: &str) -> Option<&str> {
+            pub fn is_valid(&self) -> bool {
+                if self.is_empty() {
+                    true
+                } else {
+                    self.track_id.is_some()
+                }
+            }
+
+            pub fn get_metadata_key(field: &str) -> Option<&str> {
                 match field {
                     $(stringify!($field) => Some($key)),*,
                     _ => None
@@ -245,6 +254,16 @@ mod metadata_tests {
 
         m.others.remove("test");
         assert!(m.is_empty());
+    }
+
+    #[test]
+    fn is_valid() {
+        let mut meta = Metadata::new();
+        assert!(meta.is_valid());
+        meta.album_name = Some(String::from("Album Name"));
+        assert!(!meta.is_valid());
+        meta.track_id = Some(TrackID::no_track());
+        assert!(meta.is_valid());
     }
 
     #[test]

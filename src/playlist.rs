@@ -37,7 +37,7 @@ impl Playlist {
         self.icon.as_deref()
     }
 
-    pub fn get_id(&self) -> ObjectPath {
+    pub fn get_id(&self) -> ObjectPath<'_> {
         self.id.as_ref()
     }
 
@@ -113,21 +113,20 @@ impl PlaylistOrdering {
             PlaylistOrdering::UserDefined => "User",
         }
     }
+    pub fn as_str(&self) -> &str {
+        match self {
+            PlaylistOrdering::Alphabetical => "Alphabetical",
+            PlaylistOrdering::CreationDate => "CreationDate",
+            PlaylistOrdering::ModifiedDate => "ModifiedDate",
+            PlaylistOrdering::LastPlayDate => "LastPlayDate",
+            PlaylistOrdering::UserDefined => "UserDefined",
+        }
+    }
 }
 
 impl std::fmt::Display for PlaylistOrdering {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                PlaylistOrdering::Alphabetical => "Alphabetical",
-                PlaylistOrdering::CreationDate => "CreationDate",
-                PlaylistOrdering::ModifiedDate => "ModifiedDate",
-                PlaylistOrdering::LastPlayDate => "LastPlayDate",
-                PlaylistOrdering::UserDefined => "UserDefined",
-            }
-        )
+        write!(f, "{}", self.as_str())
     }
 }
 
@@ -182,7 +181,7 @@ mod playlist_ordering_tests {
     }
 
     #[test]
-    fn disaply() {
+    fn display() {
         assert_eq!(&PlaylistOrdering::Alphabetical.to_string(), "Alphabetical");
         assert_eq!(&PlaylistOrdering::CreationDate.to_string(), "CreationDate");
         assert_eq!(&PlaylistOrdering::LastPlayDate.to_string(), "LastPlayDate");

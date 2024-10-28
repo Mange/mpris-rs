@@ -32,7 +32,7 @@ impl TrackID {
         self.0.as_str()
     }
 
-    pub fn as_object_path(&self) -> ObjectPath {
+    pub fn as_object_path(&self) -> ObjectPath<'_> {
         self.0.as_ref()
     }
 }
