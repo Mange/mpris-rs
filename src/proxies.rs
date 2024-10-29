@@ -52,6 +52,15 @@ pub(crate) trait MediaPlayer2 {
     /// SupportedUriSchemes property
     #[zbus(property)]
     fn supported_uri_schemes(&self) -> zbus::Result<Vec<String>>;
+
+    #[zbus(property)]
+    fn fullscreen(&self) -> zbus::Result<bool>;
+
+    #[zbus(property)]
+    fn set_fullscreen(&self, value: bool) -> zbus::Result<()>;
+
+    #[zbus(property)]
+    fn can_set_fullscreen(&self) -> zbus::Result<bool>;
 }
 
 impl MediaPlayer2Proxy<'_> {
@@ -102,9 +111,6 @@ pub(crate) trait Player {
 
     /// Stop method
     fn stop(&self) -> zbus::Result<()>;
-
-    /// StopAfterCurrent method
-    fn stop_after_current(&self) -> zbus::Result<()>;
 
     /// Seeked signal
     #[zbus(signal)]

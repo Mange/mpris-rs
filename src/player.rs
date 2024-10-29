@@ -6,8 +6,8 @@ use zbus::{names::BusName, Connection};
 use crate::{
     metadata::MetadataValue,
     proxies::{MediaPlayer2Proxy, PlayerProxy, PlaylistsProxy, TrackListProxy},
-    LoopStatus, Metadata, Mpris, MprisDuration, MprisError, PlaybackStatus, Playlist,
-    PlaylistOrdering, TrackID, MPRIS2_PREFIX,
+    LoopStatus, Metadata, MprisDuration, MprisError, PlaybackStatus, Playlist, PlaylistOrdering,
+    TrackID, MPRIS2_PREFIX,
 };
 
 #[derive(Clone)]
@@ -20,11 +20,7 @@ pub struct Player {
 }
 
 impl Player {
-    pub async fn new(mpris: &Mpris, bus_name: BusName<'static>) -> Result<Player, MprisError> {
-        Player::new_from_connection(mpris.connection.clone(), bus_name).await
-    }
-
-    pub(crate) async fn new_from_connection(
+    pub async fn new(
         connection: Connection,
         bus_name: BusName<'static>,
     ) -> Result<Player, MprisError> {
@@ -130,6 +126,18 @@ impl Player {
         Ok(self.mp2_proxy.supported_uri_schemes().await?)
     }
 
+    pub async fn get_fullscreen(&self) -> Result<bool, MprisError> {
+        Ok(self.mp2_proxy.fullscreen().await?)
+    }
+
+    pub async fn set_fullscreen(&self, value: bool) -> Result<(), MprisError> {
+        Ok(self.mp2_proxy.set_fullscreen(value).await?)
+    }
+
+    pub async fn can_set_fullscreen(&self) -> Result<bool, MprisError> {
+        Ok(self.mp2_proxy.can_set_fullscreen().await?)
+    }
+
     pub async fn can_control(&self) -> Result<bool, MprisError> {
         Ok(self.player_proxy.can_control().await?)
     }
@@ -174,10 +182,6 @@ impl Player {
         Ok(self.player_proxy.stop().await?)
     }
 
-    pub async fn stop_after_current(&self) -> Result<(), MprisError> {
-        Ok(self.player_proxy.stop_after_current().await?)
-    }
-
     pub async fn seek(&self, offset_in_microseconds: i64) -> Result<(), MprisError> {
         Ok(self.player_proxy.seek(offset_in_microseconds).await?)
     }
@@ -203,6 +207,9 @@ impl Player {
         track_id: &TrackID,
         position: MprisDuration,
     ) -> Result<(), MprisError> {
+        if track_id.is_no_track() {
+            return Err(MprisError::track_id_is_no_track());
+        }
         Ok(self
             .player_proxy
             .set_position(track_id.as_ref(), position.into())
@@ -241,6 +248,9 @@ impl Player {
     }
 
     pub async fn set_playback_rate(&self, rate: f64) -> Result<(), MprisError> {
+        if rate == 0.0 {
+            return Err(MprisError::InvalidArgument("rate can't be 0.0".to_string()));
+        }
         Ok(self.player_proxy.set_rate(rate).await?)
     }
 
@@ -334,7 +344,7 @@ impl Player {
 
     pub async fn add_track(
         &self,
-        url: &str,
+        uri: &str,
         after_track: Option<&TrackID>,
         set_as_current: bool,
     ) -> Result<(), MprisError> {
@@ -345,7 +355,7 @@ impl Player {
         };
         Ok(self
             .check_track_list_support()?
-            .add_track(url, after.as_ref(), set_as_current)
+            .add_track(uri, after.as_ref(), set_as_current)
             .await?)
     }
 

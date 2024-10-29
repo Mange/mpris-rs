@@ -79,9 +79,7 @@ impl Mpris {
 
     pub async fn find_first(&self) -> Result<Option<Player>, MprisError> {
         match self.all_player_bus_names().await?.into_iter().next() {
-            Some(bus) => Ok(Some(
-                Player::new_from_connection(self.connection.clone(), bus).await?,
-            )),
+            Some(bus) => Ok(Some(Player::new(self.connection.clone(), bus).await?)),
             None => Ok(None),
         }
     }
@@ -132,7 +130,7 @@ impl Mpris {
         let bus_names = self.all_player_bus_names().await?;
         let mut players = Vec::with_capacity(bus_names.len());
         for player_name in bus_names {
-            players.push(Player::new_from_connection(self.connection.clone(), player_name).await?);
+            players.push(Player::new(self.connection.clone(), player_name).await?);
         }
         Ok(players)
     }
@@ -198,10 +196,8 @@ impl Stream for PlayerStream {
                 },
                 None => match self.buses.front() {
                     Some(bus) => {
-                        self.cur_future = Some(Box::pin(Player::new_from_connection(
-                            self.connection.clone(),
-                            bus.clone(),
-                        )))
+                        self.cur_future =
+                            Some(Box::pin(Player::new(self.connection.clone(), bus.clone())))
                     }
                     None => return Poll::Ready(None),
                 },
