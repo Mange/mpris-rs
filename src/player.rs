@@ -30,7 +30,7 @@ use crate::{
 /// async fn main() {
 ///     let mpris = Mpris::new().await.unwrap();
 ///     let vlc = mpris
-///         .find_by_name("VLC media player")
+///         .find_by_name("VLC media player", false)
 ///         .await
 ///         .unwrap()
 ///         .unwrap();

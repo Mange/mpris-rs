@@ -224,19 +224,28 @@ impl Mpris {
         Ok(first_paused.or(first_with_track).or(first_found))
     }
 
-    /// Looks for a [`Player`] by it's MPRIS [`Identity`][identity] (case insensitive).
+    /// Looks for a [`Player`] by it's MPRIS [`Identity`][identity].
     ///
     /// See also [`Player::identity()`].
     ///
     /// [identity]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:Identity
-    pub async fn find_by_name(&self, name: &str) -> Result<Option<Player>, MprisError> {
+    pub async fn find_by_name(
+        &self,
+        name: &str,
+        case_sensitive: bool,
+    ) -> Result<Option<Player>, MprisError> {
         let mut players = self.into_stream().await?;
         if players.is_terminated() {
             return Ok(None);
         }
         while let Some(player) = players.try_next().await? {
-            if player.identity().await?.to_lowercase() == name.to_lowercase() {
+            let identity = player.identity().await?;
+            if case_sensitive {
+                if identity == name {
+                    return Ok(Some(player));
+                }
+            } else if identity.to_lowercase() == name.to_lowercase() {
                 return Ok(Some(player));
             }
         }
