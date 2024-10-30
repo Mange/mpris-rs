@@ -1152,7 +1152,7 @@ impl Player {
         let result = self.check_track_list_support()?.tracks().await?;
         let mut track_ids = Vec::with_capacity(result.len());
         for r in result {
-            track_ids.push(TrackID::try_from(r)?);
+            track_ids.push(TrackID::from(r));
         }
         Ok(track_ids)
     }

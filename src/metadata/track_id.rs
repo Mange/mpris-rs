@@ -12,13 +12,16 @@ use crate::errors::InvalidTrackID;
 /// > multiple times in the tracklist, this must be unique within the scope of the tracklist.
 ///
 /// This type is checked on creation. It must be a [valid D-Bus object path][object_path] and it
-/// can't begin with `"/org/mpris"` besides the special [`NO_TRACK`][Self::NO_TRACK] value which you can get by
-/// using [`no_track()`](Self::no_track).
+/// _technically_ can't begin with `"/org/mpris"` besides the special [`NO_TRACK`][Self::NO_TRACK]
+/// value but most players don't follow this rule so it is ignored. [`is_valid()`][Self::is_valid]
+/// will still check for it.
 ///
 /// See [this link for the details][track_id].
 ///
-/// [track_id]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Simple-Type:Track_Id
-/// [object_path]: https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling-object-path
+/// [track_id]:
+/// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Simple-Type:Track_Id
+/// [object_path]:
+/// https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling-object-path
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(into = "String", try_from = "String"))]
@@ -48,6 +51,25 @@ impl TrackID {
         self.as_str() == Self::NO_TRACK
     }
 
+    /// Checks if [`TrackID`] is valid.
+    ///
+    /// This also checks if the object path doesn't start with `/org/mpris` which gets ignored on
+    /// creation.
+    /// ```
+    /// use mpris::TrackID;
+    ///
+    /// // Object path that follows the extra rule
+    /// let track = TrackID::try_from("/valid/path").expect("won't panic");
+    /// assert!(track.is_valid());
+    ///
+    /// // Will be created but is _technically_ not valid
+    /// let wrong_track = TrackID::try_from("/org/mpris/wrong").expect("won't panic");
+    /// assert!(!wrong_track.is_valid());
+    /// ```
+    pub fn is_valid(&self) -> bool {
+        check_start(self.deref()).is_ok()
+    }
+
     /// Gets the D-Bus object path value as a &[`str`].
     pub fn as_str(&self) -> &str {
         self.0.as_str()
@@ -71,7 +93,7 @@ where
 {
     if s.starts_with("/org/mpris") && s.deref() != TrackID::NO_TRACK {
         Err(InvalidTrackID::from(
-            "TrackID can't start with \"/org/mpris\"",
+            r#"TrackID can't start with "/org/mpris""#,
         ))
     } else {
         Ok(s)
@@ -94,7 +116,7 @@ impl TryFrom<&str> for TrackID {
     type Error = InvalidTrackID;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match OwnedObjectPath::try_from(check_start(value)?) {
+        match OwnedObjectPath::try_from(value) {
             Ok(o) => Ok(Self(o)),
             Err(e) => {
                 if let zbus::zvariant::Error::Message(s) = e {
@@ -113,7 +135,7 @@ impl TryFrom<String> for TrackID {
     type Error = InvalidTrackID;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        match OwnedObjectPath::try_from(check_start(value)?) {
+        match OwnedObjectPath::try_from(value) {
             Ok(o) => Ok(Self(o)),
             Err(e) => {
                 if let zbus::zvariant::Error::Message(s) = e {
@@ -156,28 +178,21 @@ impl TryFrom<Value<'_>> for TrackID {
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         match value {
             Value::Str(s) => Self::try_from(s.as_str()),
-            Value::ObjectPath(path) => Self::try_from(path),
+            Value::ObjectPath(path) => Ok(Self::from(path)),
             _ => Err(InvalidTrackID::from("not a String or ObjectPath")),
         }
     }
 }
 
-impl TryFrom<OwnedObjectPath> for TrackID {
-    type Error = InvalidTrackID;
-
-    fn try_from(value: OwnedObjectPath) -> Result<Self, Self::Error> {
-        match check_start(value.as_str()) {
-            Ok(_) => Ok(Self(value)),
-            Err(e) => Err(e),
-        }
+impl From<OwnedObjectPath> for TrackID {
+    fn from(value: OwnedObjectPath) -> Self {
+        Self(value)
     }
 }
 
-impl TryFrom<ObjectPath<'_>> for TrackID {
-    type Error = InvalidTrackID;
-
-    fn try_from(value: ObjectPath) -> Result<Self, Self::Error> {
-        Ok(Self(check_start(value)?.into()))
+impl From<ObjectPath<'_>> for TrackID {
+    fn from(value: ObjectPath) -> Self {
+        Self(value.into())
     }
 }
 
@@ -268,38 +283,28 @@ mod tests {
         assert!(TrackID::try_from("//some/path").is_err());
         assert!(TrackID::try_from("/some.path").is_err());
         assert!(TrackID::try_from("path").is_err());
-        assert!(TrackID::try_from("/org/mpris").is_err());
 
         assert!(TrackID::try_from("".to_string()).is_err());
         assert!(TrackID::try_from("//some/path".to_string()).is_err());
         assert!(TrackID::try_from("/some.path".to_string()).is_err());
         assert!(TrackID::try_from("path".to_string()).is_err());
-        assert!(TrackID::try_from("/org/mpris".to_string()).is_err());
     }
 
     #[test]
     fn from_object_path() {
         assert_eq!(
-            TrackID::try_from(ObjectPath::from_str_unchecked("/valid/path")),
-            Ok(TrackID(OwnedObjectPath::from(
-                ObjectPath::from_str_unchecked("/valid/path")
+            TrackID::from(ObjectPath::from_str_unchecked("/valid/path")),
+            TrackID(OwnedObjectPath::from(ObjectPath::from_str_unchecked(
+                "/valid/path"
             )))
         );
         assert_eq!(
-            TrackID::try_from(OwnedObjectPath::from(ObjectPath::from_str_unchecked(
+            TrackID::from(OwnedObjectPath::from(ObjectPath::from_str_unchecked(
                 "/valid/path"
             ))),
-            Ok(TrackID(OwnedObjectPath::from(
-                ObjectPath::from_str_unchecked("/valid/path")
+            TrackID(OwnedObjectPath::from(ObjectPath::from_str_unchecked(
+                "/valid/path"
             )))
-        );
-
-        assert!(TrackID::try_from(ObjectPath::from_str_unchecked("/org/mpris")).is_err());
-        assert!(
-            TrackID::try_from(OwnedObjectPath::from(ObjectPath::from_str_unchecked(
-                "/org/mpris"
-            )))
-            .is_err()
         );
     }
 
@@ -327,6 +332,13 @@ mod tests {
                 .is_err()
         );
         assert!(TrackID::try_from(MetadataValue::Unsupported).is_err());
+    }
+
+    #[test]
+    fn is_valid() {
+        assert!(TrackID::try_from("/regular/path").unwrap().is_valid());
+        assert!(!TrackID::try_from("/org/mpris").unwrap().is_valid());
+        assert!(!TrackID::try_from("/org/mpris/invalid/path").unwrap().is_valid());
     }
 }
 
