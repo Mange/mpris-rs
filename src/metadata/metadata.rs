@@ -3,7 +3,8 @@ use std::{collections::HashMap, iter::FusedIterator};
 use super::{MetadataValue, TrackID};
 use crate::{errors::InvalidMetadata, MprisDuration};
 
-type RawMetadata = HashMap<String, MetadataValue>;
+/// The type of the metadata returned from [`Player::raw_metadata()`][crate::Player::raw_metadata].
+pub type RawMetadata = HashMap<String, MetadataValue>;
 
 /// Macro that auto implements useful things for Metadata without needing to repeat the fields every time
 /// while preserving documentation for the fields
@@ -42,13 +43,17 @@ macro_rules! gen_metadata_struct {
             $(
             $(#[$field_meta])*
             #[doc=""]
-            #[doc=stringify!($key)]
-            pub $field: Option<$type>
+            #[doc=concat!("The `", stringify!($key), "` field from the guidelines.")]
+                pub $field: Option<$type>
             ),*,
+            /// The rest of the metadata not specified in the guidelines.
             pub $others_name: RawMetadata,
         }
 
         impl $name {
+            /// Creates a new empty [`Metadata`].
+            ///
+            /// Same as using `Metadata::default()`.
             pub fn new() -> Self {
                 Self {
                     $($field: None),*,
@@ -56,11 +61,15 @@ macro_rules! gen_metadata_struct {
                 }
             }
 
+            /// Checks if it contains any metadata.
             pub fn is_empty(&self) -> bool {
                 $(self.$field.is_none())&&*
                 && self.$others_name.is_empty()
             }
 
+            /// Checks if it's valid.
+            ///
+            /// See [here][Self#validity] for the requirements.
             pub fn is_valid(&self) -> bool {
                 if self.is_empty() {
                     true
@@ -69,6 +78,16 @@ macro_rules! gen_metadata_struct {
                 }
             }
 
+            /// Gets the field name as specified in the [guide] for the given [`Metadata`] field.
+            ///
+            /// Returns [`None`] if such a [`Metadata`] field doesn't exist.
+            /// ```
+            /// use mpris::Metadata;
+            ///
+            /// assert_eq!(Metadata::get_metadata_key("lyrics"), Some("xesam:asText"));
+            /// assert_eq!(Metadata::get_metadata_key("invalid_field"), None);
+            /// ```
+            /// [guide]: https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/
             pub fn get_metadata_key(field: &str) -> Option<&str> {
                 match field {
                     $(stringify!($field) => Some($key)),*,
@@ -76,6 +95,42 @@ macro_rules! gen_metadata_struct {
                 }
             }
 
+            /// Lossily converts from [`RawMetadata`] into [`Metadata`]
+            ///
+            /// Similar to <code>[TryFrom]<[RawMetadata]></code> but the requirements mentioned
+            /// [here][Self#validity] are not checked so it can't fail. If a field mentioned in the
+            /// [guidelines] has the wrong type it will be turned into [`None`]. This is useful when
+            /// used together with [`Player::raw_metadata()`][crate::Player::raw_metadata] in the
+            /// case your player doesn't follow the [guidelines] and for example sends over some
+            /// data in the wrong type.
+            /// ```no_run
+            /// use mpris::{Metadata, Mpris};
+            ///
+            /// async_std::task::block_on(async {
+            ///     let mpris = Mpris::new().await.unwrap();
+            ///     let player = mpris.find_first().await.unwrap().unwrap();
+            ///     let meta = Metadata::from_raw_lossy(player.raw_metadata().await.unwrap());
+            /// })
+            /// ```
+            ///
+            /// ```
+            /// use std::collections::HashMap;
+            /// use mpris::{Metadata, metadata::RawMetadata};
+            ///
+            /// let mut raw_meta: RawMetadata = HashMap::new();
+            /// // Wrong type for title
+            /// raw_meta.insert(String::from("xesam:title"), 0_u64.into());
+            /// raw_meta.insert(String::from("xesam:comment"), String::from("Some comment").into());
+            /// let wrong_meta = Metadata::from_raw_lossy(raw_meta);
+            ///
+            /// // Creates fine even though the field had the wrong type and track_id is not present
+            /// assert!(!wrong_meta.is_valid());
+            /// assert!(wrong_meta.track_id.is_none());
+            /// // Wrong value got turned into None
+            /// assert!(wrong_meta.title.is_none())
+            /// ```
+            ///
+            /// [guidelines]: https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/
             pub fn from_raw_lossy(mut raw: RawMetadata) -> Self {
                 Self {
                     $($field: raw.remove($key).and_then(|v| <$type>::try_from(v).ok())),*,
@@ -137,39 +192,142 @@ macro_rules! gen_metadata_struct {
 }}
 
 gen_metadata_struct!(
+    /// A struct that represents metadata for a track.
+    ///
+    /// It follows the [MPRIS v2 metadata guidelines][guide]. It can be obtained from
+    /// [`Player::metadata()`][crate::Player::metadata] but it can also be created from any
+    /// [`RawMetadata`] that meets the requirements mentioned below. The metadata fields included in
+    /// the guidelines are assigned to struct fields for easier access and are type checked while
+    /// all other metadata fields are held in the [`others`][Self::others] field as [`RawMetadata`].
+    ///
+    /// # Validity
+    ///
+    /// For [`Metadata`] to be valid it has to be empty or it needs to at least contain the
+    /// `"mpris:trackid"` field ([`track_id`][Metadata::track_id]) which has to be a valid
+    /// [`TrackID`]. All the other fields are optional but they need to be the right type.
+    /// <code>[TryFrom]<[RawMetadata]></code> will fail if these requirements are not met. The
+    /// [`others`][Self::others] field is not checked in any way.
+    ///
+    /// ```
+    /// use std::collections::HashMap;
+    /// use mpris::{Metadata, TrackID, metadata::RawMetadata};
+    ///
+    /// let mut raw_meta: RawMetadata = HashMap::new();
+    ///
+    /// // Empty is valid
+    /// assert!(Metadata::try_from(raw_meta.clone()).is_ok());
+    ///
+    /// // Adding any fields without adding track_id will fail
+    /// raw_meta.insert(String::from("some_field"), String::from("Some value").into());
+    /// assert!(Metadata::try_from(raw_meta.clone()).is_err());
+    ///
+    /// // A valid track_id is present but a field from the guidelines has a wrong type
+    /// raw_meta.insert(
+    ///     String::from("mpris:trackid"),
+    ///     TrackID::try_from("/valid/path").unwrap().into(),
+    /// );
+    /// raw_meta.insert(String::from("xesam:trackNumber"), String::new().into());
+    /// assert!(Metadata::try_from(raw_meta.clone()).is_err());
+    ///
+    /// // If we remove the invalid type it will be valid
+    /// raw_meta.remove("xesam:trackNumber");
+    /// assert!(Metadata::try_from(raw_meta).is_ok());
+    /// ```
+    ///
+    /// # Miscellaneous features
+    ///
+    /// - Can be turned into [`RawMetadata`] using <code>[Into]<[RawMetadata]></code>
+    /// - Implements [`IntoIterator`], see [`MetadataIter`] for details
+    /// - Can be lossily converted from [`RawMetadata`] by using
+    ///   [`from_raw_lossy()`][Self::from_raw_lossy]
+    ///
+    /// [guide]: https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/
+    /// [object_path]: https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling-object-path
     #[derive(Debug, Clone, Default, PartialEq)]
     #[cfg_attr(feature = "serde",
                derive(serde::Serialize, serde::Deserialize),
-               serde(into = "RawMetadata", try_from = "RawMetadata")
-               )
-    ]
+               serde(into = "RawMetadata", try_from = "RawMetadata"))]
     struct Metadata {
+        /// The album artist(s).
         "xesam:albumArtist" => album_artists: Vec<String>,
+        /// The album name.
         "xesam:album" => album_name: String,
+        /// The location of an image representing the track or album. Clients should not assume this
+        /// will continue to exist when the media player stops giving out the URL.
         "mpris:artUrl" => art_url: String,
+        /// The track artist(s).
         "xesam:artist" => artists: Vec<String>,
+        /// The speed of the music, in beats per minute.
         "xesam:audioBPM" => audio_bpm: u64,
+        /// An automatically-generated rating, based on things such as how often it has been played.
+        /// This should be in the range 0.0 to 1.0.
         "xesam:autoRating" => auto_rating: f64,
+        /// A (list of) freeform comment(s).
         "xesam:comment" => comments: Vec<String>,
+        /// The composer(s) of the track.
         "xesam:composer" => composers: Vec<String>,
+        /// When the track was created. Usually only the year component will be useful.
         "xesam:contentCreated" => content_created: String,
+        /// The disc number on the album that this track is from.
         "xesam:discNumber" => disc_number: u64,
+        /// When the track was first played.
         "xesam:firstUsed" => first_used: String,
+        /// The genre(s) of the track.
         "xesam:genre" => genres: Vec<String>,
+        /// When the track was last played.
         "xesam:lastUsed" => last_used: String,
+        /// The duration of the track in microseconds.
         "mpris:length" => length: MprisDuration,
+        /// The lyricist(s) of the track.
         "xesam:lyricist" => lyricists: Vec<String>,
+        /// The track lyrics.
         "xesam:asText" => lyrics: String,
+        /// The track title.
         "xesam:title" => title: String,
+        /// A unique identity for this track within the context of an MPRIS object.
         "mpris:trackid" => track_id: TrackID,
+        /// The track number on the album disc.
         "xesam:trackNumber" => track_number: u64,
+        /// The location of the media file.
         "xesam:url" => url: String,
+        /// The number of times the track has been played.
         "xesam:useCount" => use_count: u64,
+        /// A user-specified rating. This should be in the range 0.0 to 1.0.
         "xesam:userRating" => user_rating: f64,
         others,
     }
 );
 
+/// [`Iterator`] over the fields of [`Metadata`].
+///
+/// Yields the field name as a [`String`] and <code>[Option]<[MetadataValue]></code> containing the
+/// value if present. The [`RawMetadata`] from the [`others`][Metadata::others] field is also
+/// included and values from it will always be <code>[Some]\([MetadataValue]\)</code>.
+/// ```
+/// use mpris::Metadata;
+///
+/// let meta = Metadata::new();
+/// for (field, value) in meta {
+///     // Do something   
+/// }
+/// ```
+/// **Note**: the field names from this iterator are the actual field names of the [`Metadata`]
+/// struct. If you want the field names from the [guidelines] you can use
+/// [`get_metadata_key()`][Metadata::get_metadata_key] together with this iterator:
+/// ```
+/// use mpris::Metadata;
+///
+/// let meta = Metadata::new();
+/// for (field, value) in meta {
+///     let field_key = match Metadata::get_metadata_key(&field) {
+///         Some(s) => s.to_string(),
+///         None => field,
+///     };
+///     // Do something
+/// }
+/// ```
+///
+/// [guidelines]: https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/
 #[derive(Debug)]
 pub struct MetadataIter {
     values: std::vec::IntoIter<(&'static str, Option<MetadataValue>)>,

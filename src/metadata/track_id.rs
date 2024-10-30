@@ -5,33 +5,55 @@ use zbus::zvariant::{ObjectPath, OwnedObjectPath, OwnedValue, Value};
 use super::MetadataValue;
 use crate::errors::InvalidTrackID;
 
-const NO_TRACK: &str = "/org/mpris/MediaPlayer2/TrackList/NoTrack";
-
+/// A struct that represents a valid MPRIS Track_Id.
+///
+/// > Unique track identifier.
+/// > If the media player implements the TrackList interface and allows the same track to appear
+/// > multiple times in the tracklist, this must be unique within the scope of the tracklist.
+///
+/// This type is checked on creation. It must be a [valid D-Bus object path][object_path] and it
+/// can't begin with `"/org/mpris"` besides the special [`NO_TRACK`][Self::NO_TRACK] value which you can get by
+/// using [`no_track()`](Self::no_track).
+///
+/// See [this link for the details][track_id].
+///
+/// [track_id]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Simple-Type:Track_Id
+/// [object_path]: https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling-object-path
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(into = "String", try_from = "String"))]
 pub struct TrackID(OwnedObjectPath);
 
 impl TrackID {
+    /// The special "NoTrack" value
+    pub const NO_TRACK: &str = "/org/mpris/MediaPlayer2/TrackList/NoTrack";
+
+    /// Tries to create a new [`TrackID`]
+    ///
+    /// This is the same as using <code>[TryFrom]<[String]></code>
     pub fn new(id: String) -> Result<Self, InvalidTrackID> {
         Self::try_from(id)
     }
 
+    /// Creates a [`TrackID`] with the special [`NO_TRACK`][Self::NO_TRACK] value.
     pub fn no_track() -> Self {
         // We know it's a valid path so it's safe to skip the check
         Self(OwnedObjectPath::from(
-            ObjectPath::from_static_str_unchecked(NO_TRACK),
+            ObjectPath::from_static_str_unchecked(Self::NO_TRACK),
         ))
     }
 
+    /// Checks if [`TrackID`] is the special [`NO_TRACK`][Self::NO_TRACK] value.
     pub fn is_no_track(&self) -> bool {
-        self.as_str() == NO_TRACK
+        self.as_str() == Self::NO_TRACK
     }
 
+    /// Gets the D-Bus object path value as a &[`str`].
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
 
+    /// Creates a borrowed [`ObjectPath`] for this [`TrackID`].
     pub fn as_object_path(&self) -> ObjectPath<'_> {
         self.0.as_ref()
     }
@@ -47,7 +69,7 @@ fn check_start<T>(s: T) -> Result<T, InvalidTrackID>
 where
     T: Deref<Target = str>,
 {
-    if s.starts_with("/org/mpris") && s.deref() != NO_TRACK {
+    if s.starts_with("/org/mpris") && s.deref() != TrackID::NO_TRACK {
         Err(InvalidTrackID::from(
             "TrackID can't start with \"/org/mpris\"",
         ))
@@ -193,7 +215,7 @@ mod tests {
     fn no_track() {
         let track = TrackID::no_track();
         let manual = TrackID(OwnedObjectPath::from(
-            ObjectPath::from_static_str_unchecked(NO_TRACK),
+            ObjectPath::from_static_str_unchecked(TrackID::NO_TRACK),
         ));
 
         assert!(track.is_no_track());
@@ -208,7 +230,7 @@ mod tests {
         assert!(check_start("").is_ok());
         assert!(check_start("/org/mpris").is_err());
         assert!(check_start("/org/mpris/more/path").is_err());
-        assert!(check_start(NO_TRACK).is_ok());
+        assert!(check_start(TrackID::NO_TRACK).is_ok());
     }
 
     #[test]

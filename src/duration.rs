@@ -7,6 +7,38 @@ use crate::{errors::InvalidMprisDuration, metadata::MetadataValue};
 
 const MAX: u64 = i64::MAX as u64;
 
+/// A Mpris specific version of [`Duration`].
+///
+/// Contains a time duration in microseconds that's a non-negative [`i64`]. Technically the MPRIS
+/// spec allows for time durations to be negative even though a song can't have a negative
+/// length/position but this type doesn't allow them.
+///
+/// ## Creation
+///
+/// The simplest way to create this type is to create a [`Duration`] and covert it into it.
+/// ```
+/// use std::time::Duration;
+/// use mpris::MprisDuration;
+///
+/// let m_dur = MprisDuration::new_from_duration(Duration::from_secs(10));
+/// ```
+///
+/// All of the [`TryFrom`] implementations for [`MprisDuration`] will fail if the value can't be
+/// losslessly converted to a valid [`MprisDuration`]. In case you just want to create a valid
+/// [`MprisDuration`] and don't are about about being lossless you can use the `new_from_*` methods.
+/// ```
+/// use std::time::Duration;
+/// use mpris::MprisDuration;
+///
+/// let m_dur = MprisDuration::new_from_i64(-42_i64);
+/// assert_eq!(m_dur.as_u64(), 0);
+///
+/// let dur_big = MprisDuration::new_from_duration(Duration::from_secs(u64::MAX));
+/// assert_eq!(dur_big.as_i64(), i64::MAX)
+/// ```
+/// ## Ops
+/// [`MprisDuration`] implements [`Add`], [`Sub`], [`Mul`] and [`Div`] for itself, [`Duration`] and
+/// [`u64`]. The values will stay valid.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord, Default)]
 #[cfg_attr(
     feature = "serde",
@@ -16,25 +48,41 @@ const MAX: u64 = i64::MAX as u64;
 pub struct MprisDuration(u64);
 
 impl MprisDuration {
+    /// Lossily creates a new valid [`MprisDuration`] from a [`u64`].
+    ///
+    /// If the value is too big it will be reduced to [`i64::MAX`]. If you want a lossless
+    /// conversion that can fail you should use [`TryFrom<u64>`].
     pub fn new_from_u64(micros: u64) -> Self {
         Self(micros.clamp(0, MAX))
     }
 
+    /// Lossily creates a new valid [`MprisDuration`] from a [`i64`].
+    ///
+    /// Negative values will be changed to `0`. If you want a lossless conversion that can fail you
+    /// should use [`TryFrom<i64>`].
     pub fn new_from_i64(micros: i64) -> Self {
         Self(micros.clamp(0, i64::MAX) as u64)
     }
 
+    /// Lossily creates a new valid [`MprisDuration`] from a [`Duration`].
+    ///
+    /// If [`Duration`]'s values as microseconds is too big it will be reduced to [`i64::MAX`]. If
+    /// you want a lossless conversion that can fail you should use [`TryFrom<Duration>`].
     pub fn new_from_duration(duration: Duration) -> Self {
         Self(duration.as_micros().clamp(0, MAX as u128) as u64)
     }
 
+    /// Creates a new [`MprisDuration`] with the biggest possible value
     pub fn new_max() -> Self {
         Self(MAX)
     }
+
+    /// Returns a [`u64`] equal to the [`MprisDuration`]'s value as microseconds
     pub fn as_u64(&self) -> u64 {
         self.0
     }
 
+    /// Returns a [`i64`] equal to the [`MprisDuration`]'s value as microseconds
     pub fn as_i64(&self) -> i64 {
         self.0 as i64
     }

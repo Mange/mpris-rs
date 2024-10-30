@@ -1,3 +1,5 @@
+//! The module containing all of the errors.
+
 use std::fmt::Display;
 
 pub use zbus::Error;
@@ -56,19 +58,25 @@ impl InvalidMprisDuration {
     }
 }
 
+/// The main error type for this library, created when when interacting with a
+/// [`Player`](crate::Player).
+///
+/// This enum contains variants for all of the various ways that something can go wrong. The 2
+/// errors you'll encounter the most are [`DbusError`](Self::DbusError) and
+/// [`ParseError`](Self::ParseError).
 #[derive(Debug, PartialEq, Clone)]
 pub enum MprisError {
     /// An error occurred while talking to the D-Bus.
     DbusError(Error),
 
-    /// Failed to parse an enum from a string value received from the [`Player`][crate::Player].
-    /// This means that the [`Player`][crate::Player] replied with unexpected data.
+    /// Failed to parse a string received from the [`Player`][crate::Player]. This means that the
+    /// [`Player`][crate::Player] replied with unexpected data.
     ParseError(String),
 
-    /// The player doesn't implement the required interface/method/signal
+    /// The player doesn't implement the required interface/method/signal.
     Unsupported,
 
-    /// One of the given arguments has an invalid value
+    /// One of the given arguments has an invalid value.
     InvalidArgument(String),
 
     /// Some other unexpected error occurred.

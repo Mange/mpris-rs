@@ -2,14 +2,17 @@ use zbus::zvariant::{OwnedValue, Value};
 
 use crate::errors::InvalidMetadataValue;
 
-/*
-* Subset of DBus data types that are commonly used in MPRIS metadata, and a boolean variant as it
-* seems likely to be used in some custom metadata.
-*
-* See https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/
-*/
+/// Subset of [DBus data types][dbus_types] that are commonly used in MPRIS metadata.
+///
+/// See [this link][meta_spec] for examples of metadata values.
+///
+/// Note that 16-bit and 32-bit integers get turned into their 64-bit version for convenience.
+///
+/// [dbus_types]: https://dbus.freedesktop.org/doc/dbus-specification.html#type-system
+/// [meta_spec]: https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[allow(missing_docs)]
 pub enum MetadataValue {
     Boolean(bool),
     Float(f64),
@@ -21,12 +24,33 @@ pub enum MetadataValue {
 }
 
 impl MetadataValue {
+    /// Tries to turn itself into a non-empty [`String`]
+    ///
+    /// Will succeed if it's a non-empty [`String`](Self::String) variant or a [`Strings`](Self::Strings)
+    /// variant which only contains 1 non-empty [`String`]
     pub fn into_nonempty_string(self) -> Option<String> {
         String::try_from(self)
             .ok()
             .and_then(|s| if s.is_empty() { None } else { Some(s) })
     }
 
+    /// Tries to turn itself into a [`i64`]
+    ///
+    /// Will succeed if it's a [`SignedInt`](Self::SignedInt) or a
+    /// [`UnsignedInt`](Self::UnsignedInt) variant. Note that in the second case it will change the
+    /// value so that it fits into a [`i64`]. If you don't want the value to get changed you should
+    /// use the [`TryInto<i64>`] method.
+    /// ```
+    /// use mpris::MetadataValue;
+    ///
+    /// let m = MetadataValue::UnsignedInt(u64::MAX);
+    /// // into_i64 decreases the number so that it fits
+    /// assert_eq!(m.into_i64(), Some(i64::MAX));
+    ///
+    /// let m = MetadataValue::UnsignedInt(u64::MAX);
+    /// // TryFrom fails if it's too big
+    /// assert!(i64::try_from(m).is_err());
+    /// ```
     pub fn into_i64(self) -> Option<i64> {
         match self {
             MetadataValue::SignedInt(i) => Some(i),
@@ -35,6 +59,23 @@ impl MetadataValue {
         }
     }
 
+    /// Tries to turn itself into a [`u64`]
+    ///
+    /// Will succeed if it's a [`UnsignedInt`](Self::UnsignedInt) or a
+    /// [`SignedInt`](Self::SignedInt) variant. Note that in the second case it will change the
+    /// value to `0` if it's negative. If you don't want the value to get changed you should use the
+    /// [`TryInto<u64>`] method.
+    /// ```
+    /// use mpris::MetadataValue;
+    ///
+    /// let m = MetadataValue::SignedInt(-1);
+    /// // into_u64 changes negative numbers to 0
+    /// assert_eq!(m.into_u64(), Some(0));
+    ///
+    /// let m = MetadataValue::SignedInt(-1);
+    /// // TryFrom fails if it's negative
+    /// assert!(u64::try_from(m).is_err());
+    /// ```
     pub fn into_u64(self) -> Option<u64> {
         match self {
             MetadataValue::SignedInt(i) if i < 0 => Some(0),

@@ -1,5 +1,4 @@
-// #![warn(missing_docs)]
-#![warn(clippy::print_stdout)]
+#![warn(clippy::print_stdout, missing_docs, clippy::todo)]
 #![deny(
     missing_debug_implementations,
     missing_copy_implementations,
@@ -11,6 +10,81 @@
     unused_import_braces,
     unused_qualifications
 )]
+
+//!
+//! # mpris
+//!
+//! `mpris` is a library for dealing with [MPRIS2][spec]-compatible media players over D-Bus.
+//!
+//! This would mostly apply to the Linux-ecosystem which is a heavy user of D-Bus.
+//!
+//! ## Getting started
+//!
+//! Some hints on how to use this library:
+//!
+//! 1. Look at the examples under `examples/` in the repo
+//! 2. Look at the [`Mpris`] struct
+//! 3. Get the first player and make it start playing:
+//! ```no_run
+//! use mpris::Mpris;
+//!
+//! #[async_std::main]
+//! async fn main() {
+//!     let mpris = Mpris::new().await.expect("couldn't connect to D-Bus");
+//!     let player = match mpris.find_first().await {
+//!         Ok(result) => match result {
+//!             Some(player) => player,
+//!             None => {
+//!                 println!("No player found");
+//!                 return;
+//!             }
+//!         },
+//!         Err(err) => {
+//!             println!("Error occured: {:?}", err);
+//!             return;
+//!         }
+//!     };
+//!     match player.play().await {
+//!         Ok(_) => println!("Made the player play"),
+//!         Err(err) => println!("Error occured: {:?}", err),
+//!     }
+//! }
+//! ```
+//!
+//! ## Runtime compatibility
+//!
+//! The examples will be using [`async_std`][std] but this library does not require a specific
+//! runtime. When used with a runtime that isn't [`Tokio`][tokio] it will spawn a thread for the
+//! background tasks. If you want to prevent that you should "tick" the internal executor with your
+//! runtime like this:
+//!
+//! ```no_run
+//! use mpris::Mpris;
+//! use zbus::connection::Builder;
+//!
+//! #[async_std::main]
+//! async fn main() {
+//!     let conn = Builder::session()
+//!         .unwrap()
+//!         .internal_executor(false) // The important part
+//!         .build()
+//!         .await
+//!         .unwrap();
+//!     let c = conn.clone();
+//!     async_std::task::spawn(async move {
+//!         loop {
+//!             c.executor().tick().await;
+//!         }
+//!     });
+//!     let mpris = Mpris::new_from_connection(conn).await.unwrap();
+//!
+//!     // The rest of your code here
+//! }
+//! ```
+//!
+//! [spec]: https://specifications.freedesktop.org/mpris-spec/latest/
+//! [std]: https://docs.rs/async-std/latest/async_std/
+//! [tokio]: https://docs.rs/tokio/latest/tokio/
 
 use std::collections::VecDeque;
 use std::fmt::{Debug, Display};
@@ -26,7 +100,7 @@ use zbus::{
 
 mod duration;
 pub mod errors;
-mod metadata;
+pub mod metadata;
 mod player;
 mod playlist;
 mod proxies;
@@ -35,8 +109,10 @@ use errors::*;
 
 use crate::proxies::DBusProxy;
 pub use duration::MprisDuration;
+#[doc(inline)]
 pub use errors::MprisError;
-pub use metadata::{Metadata, MetadataIter, MetadataValue, TrackID};
+#[doc(inline)]
+pub use metadata::{Metadata, MetadataValue, TrackID};
 pub use player::Player;
 pub use playlist::{Playlist, PlaylistOrdering};
 
@@ -44,6 +120,20 @@ pub(crate) const MPRIS2_PREFIX: &str = "org.mpris.MediaPlayer2.";
 
 type PlayerFuture = Pin<Box<dyn Future<Output = Result<Player, MprisError>> + Send>>;
 
+/// The main struct of the library. Used to find [`Player`]s on a D-Bus connection.
+///
+/// All find methods first sort alphabetically by the players' [well known Bus Name][busname] and if
+/// any of the [`Player`]s fails to initialize they will immediately return with an [`Err`]. If you
+/// want to get all of the [`Player`]s even if one fails to initialize you should use
+/// [`into_stream()`][Self::into_stream] and handle the errors.
+///
+/// # Find methods return types
+/// - <code>[Ok]\([Some]\([Player]\)\)</code>: No error happened and a [`Player`] was found
+/// - <code>[Ok]\([None]\)</code>: No error happened but no [`Player`] was found
+/// - <code>[Err]\([MprisError]\)</code>: Error occurred while searching, most likely while
+///   communicating with the D-Bus server
+///
+/// [busname]: https://dbus.freedesktop.org/doc/dbus-tutorial.html#bus-names
 #[derive(Clone)]
 pub struct Mpris {
     connection: Connection,
@@ -51,6 +141,10 @@ pub struct Mpris {
 }
 
 impl Mpris {
+    /// Creates a new [`Mpris`] struct by connecting to the session D-Bus server.
+    ///
+    /// Use [`new_from_connection`](Self::new_from_connection) if you want to provide the D-Bus
+    /// connection yourself.
     pub async fn new() -> Result<Self, MprisError> {
         let connection = Connection::session().await?;
         let dbus_proxy = DBusProxy::new(&connection).await?;
@@ -61,6 +155,12 @@ impl Mpris {
         })
     }
 
+    /// Creates a new [`Mpris`] struct with the given connection.
+    ///
+    /// See [here](crate#runtime-compatibility) for why you would want to use a custom
+    /// [`Connection`].
+    ///
+    /// Use [`new`](Self::new) if you don't have a need to provide the D-Bus connection yourself.
     pub async fn new_from_connection(connection: Connection) -> Result<Self, MprisError> {
         let dbus_proxy = DBusProxy::new(&connection).await?;
         Ok(Self {
@@ -69,14 +169,19 @@ impl Mpris {
         })
     }
 
+    /// Gets the [`Connection`] that is used.
     pub fn get_connection(&self) -> Connection {
         self.connection.clone()
     }
 
-    pub fn get_executor(&self) -> &'static zbus::Executor {
+    // Will be used later
+    #[allow(dead_code)]
+    /// Gets the internal executor for the [`Connection`]. Can be used to spawn tasks.
+    pub(crate) fn get_executor(&self) -> &'static zbus::Executor {
         self.connection.executor()
     }
 
+    /// Returns the first found [`Player`] regardless of state.
     pub async fn find_first(&self) -> Result<Option<Player>, MprisError> {
         match self.all_player_bus_names().await?.into_iter().next() {
             Some(bus) => Ok(Some(Player::new(self.connection.clone(), bus).await?)),
@@ -84,6 +189,12 @@ impl Mpris {
         }
     }
 
+    /// Tries to find the "active" [`Player`] in the connection.
+    ///
+    /// This method will try to determine which player a user is most likely to use. First it will
+    /// look for a player with the playback status [`Playing`](PlaybackStatus::Playing), then for a
+    /// [`Paused`](PlaybackStatus::Paused), then one with any track metadata, after that it will
+    /// just return the first it finds.
     pub async fn find_active(&self) -> Result<Option<Player>, MprisError> {
         let mut players = self.into_stream().await?;
         if players.is_terminated() {
@@ -113,6 +224,12 @@ impl Mpris {
         Ok(first_paused.or(first_with_track).or(first_found))
     }
 
+    /// Looks for a [`Player`] by it's MPRIS [`Identity`][identity] (case insensitive).
+    ///
+    /// See also [`Player::identity()`].
+    ///
+    /// [identity]:
+    /// https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:Identity
     pub async fn find_by_name(&self, name: &str) -> Result<Option<Player>, MprisError> {
         let mut players = self.into_stream().await?;
         if players.is_terminated() {
@@ -126,6 +243,9 @@ impl Mpris {
         Ok(None)
     }
 
+    /// Finds all available [`Player`]s in the connection.
+    ///
+    /// Will return an empty [`Vec`] if there are no players.
     pub async fn all_players(&self) -> Result<Vec<Player>, MprisError> {
         let bus_names = self.all_player_bus_names().await?;
         let mut players = Vec::with_capacity(bus_names.len());
@@ -135,6 +255,7 @@ impl Mpris {
         Ok(players)
     }
 
+    /// Gets all of the BusNames that start with the [`MPRIS2_PREFIX`]
     async fn all_player_bus_names(&self) -> Result<Vec<BusName<'static>>, MprisError> {
         let mut names: Vec<BusName> = self
             .dbus_proxy
@@ -149,6 +270,9 @@ impl Mpris {
         Ok(names)
     }
 
+    /// Creates a [`PlayerStream`] which implements the [`Stream`] trait.
+    ///
+    /// For more details see [`PlayerStream`]'s documentation.
     pub async fn into_stream(&self) -> Result<PlayerStream, MprisError> {
         let buses = self.all_player_bus_names().await?;
         Ok(PlayerStream::new(self.connection.clone(), buses))
@@ -163,6 +287,32 @@ impl Debug for Mpris {
     }
 }
 
+/// Lazily returns the [`Player`]s on the connection.
+///
+/// Implements the [`Stream`] trait which is the async version of [`Iterator`]. It is recommended to
+/// use the [`futures_util`] or [`futures_lite`][lite] crate which provide useful traits for streams.
+///
+/// Note that [`PlayerStream`] will only yield the [`Player`]s that were present when it was created.
+///
+/// ```no_run
+/// use futures_util::StreamExt;
+/// use mpris::Mpris;
+///
+/// #[async_std::main]
+/// async fn main() {
+///     let mpris = Mpris::new().await.unwrap();
+///     let mut stream = mpris.into_stream().await.unwrap();
+///
+///     while let Some(result) = stream.next().await {
+///         match result {
+///             Ok(player) => {}, // Do something with Player
+///             Err(err) => {}, // Deal with the error
+///         }
+///     }
+/// }
+/// ```
+///
+/// [lite]: https://docs.rs/futures-lite/latest/futures_lite/
 pub struct PlayerStream {
     connection: Connection,
     buses: VecDeque<BusName<'static>>,
@@ -170,6 +320,10 @@ pub struct PlayerStream {
 }
 
 impl PlayerStream {
+    /// Creates a new [`PlayerStream`].
+    ///
+    /// There should be no need to use this directly and instead you should use
+    /// [`Mpris::into_stream`].
     pub fn new(connection: Connection, buses: Vec<BusName<'static>>) -> Self {
         let buses = VecDeque::from(buses);
         Self {
@@ -230,12 +384,13 @@ impl Debug for PlayerStream {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
-/// The [`Player`]'s playback status
+/// The [`Player`]'s playback status.
 ///
 /// See: [MPRIS2 specification about `PlaybackStatus`][playback_status]
 ///
-/// [playback_status]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Enum:Playback_Status
+/// [playback_status]:
+/// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Enum:Playback_Status
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum PlaybackStatus {
     /// A track is currently playing.
     Playing,
@@ -259,6 +414,7 @@ impl ::std::str::FromStr for PlaybackStatus {
 }
 
 impl PlaybackStatus {
+    /// Returns it's value as a <code>&[str]</code>
     pub fn as_str(&self) -> &str {
         match self {
             PlaybackStatus::Playing => "Playing",
@@ -274,20 +430,21 @@ impl Display for PlaybackStatus {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 /// A [`Player`]'s looping status.
 ///
 /// See: [MPRIS2 specification about `Loop_Status`][loop_status]
 ///
-/// [loop_status]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Enum:Loop_Status
+/// [loop_status]:
+/// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Enum:Loop_Status
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
 pub enum LoopStatus {
-    /// The playback will stop when there are no more tracks to play
+    /// The playback will stop when there are no more tracks to play.
     None,
 
-    /// The current track will start again from the begining once it has finished playing
+    /// The current track will start again from the beginning once it has finished playing.
     Track,
 
-    /// The playback loops through a list of tracks
+    /// The playback loops through a list of tracks.
     Playlist,
 }
 
@@ -305,6 +462,7 @@ impl ::std::str::FromStr for LoopStatus {
 }
 
 impl LoopStatus {
+    /// Returns it's value as a <code>&[str]</code>
     pub fn as_str(&self) -> &str {
         match self {
             LoopStatus::None => "None",

@@ -4,6 +4,25 @@ use zbus::zvariant::{ObjectPath, OwnedObjectPath};
 
 use crate::{InvalidPlaylist, InvalidPlaylistOrdering};
 
+/// A data structure describing a playlist.
+///
+/// It represents a [Playlist][playlist] type from the [MediaPlayer2.Playlists][interface] interface.
+/// It contains:
+/// - the unique id of the playlist: a [valid D-Bus object path][object_path] which, unlike
+///   [`TrackID`][crate::TrackID], is not tied to the player's current track list and should
+///   stay the same even if the playlist gets edited
+/// - the name of the playlist
+/// - an optional icon url
+///
+/// It can be obtain from [`Player::active_playlist()`][crate::Player::active_playlist] and
+/// [`Player::get_playlists()`][crate::Player::get_playlists].
+///
+/// **Note**: currently the name and icon url will not get updated if they get changed. If they
+/// need to be up to date you should fetch the playlists again.
+///
+/// [interface]: https://specifications.freedesktop.org/mpris-spec/latest/Playlists_Interface.html
+/// [playlist]: https://specifications.freedesktop.org/mpris-spec/latest/Playlists_Interface.html#Struct:Playlist
+/// [object_path]: https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling-object-path
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Playlist {
@@ -11,6 +30,7 @@ pub struct Playlist {
         feature = "serde",
         serde(serialize_with = "serialize_owned_object_path")
     )]
+    /// Unique playlist identifier
     id: OwnedObjectPath,
     name: String,
     #[cfg_attr(feature = "serde", serde(default))]
@@ -18,29 +38,55 @@ pub struct Playlist {
 }
 
 impl Playlist {
+    /// Tries to create a new [`Playlist`].
+    ///
+    /// The MPRIS spec does not provide a way to create new playlists so you can't use this to
+    /// create a new one but creating [`Playlist`] manually is useful for example when you save the
+    /// id to a file and use that to quickly change to a playlist without the need to fetch them
+    /// first.
+    ///
+    /// Will return [`Err`] if the given `id` is not a valid Object Path. See the [struct
+    /// documentation for details][Playlist].
+    ///
+    /// **Note**: the icon [`String`] should be a valid url but it is not actually checked
+    ///
+    /// See also [`new_from_object_path()`][Self::new_from_object_path]
     pub fn new(id: String, name: String, icon: Option<String>) -> Result<Self, InvalidPlaylist> {
         match OwnedObjectPath::try_from(id) {
             Ok(o) => Ok(Self { id: o, name, icon }),
             Err(e) => Err(InvalidPlaylist::from(e.to_string())),
         }
     }
-
+    /// Creates a new [`Playlist`]
+    ///
+    /// Almost the same as [`new()`][Self::new] but uses a [`OwnedObjectPath`] instead of a
+    /// [`String`] so it can't fail.
     pub fn new_from_object_path(id: OwnedObjectPath, name: String, icon: Option<String>) -> Self {
         Self { id, name, icon }
     }
 
+    /// Gets the name of the playlist
+    ///
+    /// **Note**: as mentioned in the struct documentation this value might not be correct if the
+    /// player changed the name of this playlist.
     pub fn get_name(&self) -> &str {
         &self.name
     }
 
+    /// Gets the icon url if present
+    ///
+    /// **Note**: as mentioned in the struct documentation this value might not be correct if the
+    /// player changed the icon of this playlist.
     pub fn get_icon(&self) -> Option<&str> {
         self.icon.as_deref()
     }
 
+    /// Gets the `id` as a borrowed [`ObjectPath`]
     pub fn get_id(&self) -> ObjectPath<'_> {
         self.id.as_ref()
     }
 
+    /// Gets the `id` as a &[`str`]
     pub fn get_id_as_str(&self) -> &str {
         self.id.as_str()
     }
@@ -83,7 +129,7 @@ impl From<(OwnedObjectPath, String, String)> for Playlist {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-/// Specifies the ordering of returned playlists
+/// Specifies the ordering of returned playlists.
 pub enum PlaylistOrdering {
     /// Alphabetical ordering by name, ascending.
     Alphabetical, /* Alphabetical */
@@ -104,6 +150,9 @@ pub enum PlaylistOrdering {
 }
 
 impl PlaylistOrdering {
+    /// Returns the string value that's used on the D-Bus.
+    ///
+    /// See [`as_str()`][Self::as_str()] if you want the name of the enum variant.
     pub fn as_str_value(&self) -> &str {
         match self {
             PlaylistOrdering::Alphabetical => "Alphabetical",
@@ -113,6 +162,10 @@ impl PlaylistOrdering {
             PlaylistOrdering::UserDefined => "User",
         }
     }
+
+    /// Returns the name of the enum variant as a <code>&[str]</code>
+    ///
+    /// See [`as_str_value()`][Self::as_str_value] if you want the actual D-Bus value.
     pub fn as_str(&self) -> &str {
         match self {
             PlaylistOrdering::Alphabetical => "Alphabetical",
