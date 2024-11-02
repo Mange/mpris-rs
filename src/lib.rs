@@ -1,4 +1,4 @@
-#![warn(clippy::print_stdout, missing_docs, clippy::todo)]
+#![warn(clippy::print_stdout, missing_docs, clippy::todo, clippy::unwrap_used)]
 #![deny(
     missing_debug_implementations,
     missing_copy_implementations,

@@ -1,1 +1,2 @@
 allow-private-module-inception = true
+allow-unwrap-in-tests = true

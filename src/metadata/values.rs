@@ -250,7 +250,7 @@ impl TryFrom<MetadataValue> for String {
             MetadataValue::String(v) => Ok(v),
             MetadataValue::Strings(mut v) => {
                 if v.len() == 1 {
-                    Ok(v.pop().unwrap())
+                    Ok(v.pop().expect("length was checked to be 1"))
                 } else {
                     Err(InvalidMetadataValue::from(
                         "MetadataValue::Strings contains more than 1 String",
