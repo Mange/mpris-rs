@@ -338,7 +338,9 @@ mod tests {
     fn is_valid() {
         assert!(TrackID::try_from("/regular/path").unwrap().is_valid());
         assert!(!TrackID::try_from("/org/mpris").unwrap().is_valid());
-        assert!(!TrackID::try_from("/org/mpris/invalid/path").unwrap().is_valid());
+        assert!(!TrackID::try_from("/org/mpris/invalid/path")
+            .unwrap()
+            .is_valid());
     }
 }
 

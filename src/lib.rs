@@ -11,7 +11,6 @@
     unused_qualifications
 )]
 
-//!
 //! # mpris
 //!
 //! `mpris` is a library for dealing with [MPRIS2][spec]-compatible media players over D-Bus.
@@ -125,7 +124,7 @@ type PlayerFuture = Pin<Box<dyn Future<Output = Result<Player, MprisError>> + Se
 /// All find methods first sort alphabetically by the players' [well known Bus Name][busname] and if
 /// any of the [`Player`]s fails to initialize they will immediately return with an [`Err`]. If you
 /// want to get all of the [`Player`]s even if one fails to initialize you should use
-/// [`into_stream()`][Self::into_stream] and handle the errors.
+/// [`stream_players()`][Self::stream_players] and handle the errors.
 ///
 /// # Find methods return types
 /// - <code>[Ok]\([Some]\([Player]\)\)</code>: No error happened and a [`Player`] was found
@@ -137,7 +136,7 @@ type PlayerFuture = Pin<Box<dyn Future<Output = Result<Player, MprisError>> + Se
 #[derive(Clone)]
 pub struct Mpris {
     connection: Connection,
-    dbus_proxy: DBusProxy<'static>,
+    pub(crate) dbus_proxy: DBusProxy<'static>,
 }
 
 impl Mpris {
@@ -174,6 +173,11 @@ impl Mpris {
         self.connection.clone()
     }
 
+    /// Gets a reference to the [`Connection`] that is used.
+    pub fn get_connection_ref(&self) -> &Connection {
+        &self.connection
+    }
+
     // Will be used later
     #[allow(dead_code)]
     /// Gets the internal executor for the [`Connection`]. Can be used to spawn tasks.
@@ -184,7 +188,7 @@ impl Mpris {
     /// Returns the first found [`Player`] regardless of state.
     pub async fn find_first(&self) -> Result<Option<Player>, MprisError> {
         match self.all_player_bus_names().await?.into_iter().next() {
-            Some(bus) => Ok(Some(Player::new(self.connection.clone(), bus).await?)),
+            Some(bus) => Ok(Some(Player::new(self, bus).await?)),
             None => Ok(None),
         }
     }
@@ -196,7 +200,7 @@ impl Mpris {
     /// [`Paused`](PlaybackStatus::Paused), then one with any track metadata, after that it will
     /// just return the first it finds.
     pub async fn find_active(&self) -> Result<Option<Player>, MprisError> {
-        let mut players = self.into_stream().await?;
+        let mut players = self.stream_players().await?;
         if players.is_terminated() {
             return Ok(None);
         }
@@ -235,7 +239,7 @@ impl Mpris {
         name: &str,
         case_sensitive: bool,
     ) -> Result<Option<Player>, MprisError> {
-        let mut players = self.into_stream().await?;
+        let mut players = self.stream_players().await?;
         if players.is_terminated() {
             return Ok(None);
         }
@@ -259,7 +263,7 @@ impl Mpris {
         let bus_names = self.all_player_bus_names().await?;
         let mut players = Vec::with_capacity(bus_names.len());
         for player_name in bus_names {
-            players.push(Player::new(self.connection.clone(), player_name).await?);
+            players.push(Player::new(self, player_name).await?);
         }
         Ok(players)
     }
@@ -282,9 +286,9 @@ impl Mpris {
     /// Creates a [`PlayerStream`] which implements the [`Stream`] trait.
     ///
     /// For more details see [`PlayerStream`]'s documentation.
-    pub async fn into_stream(&self) -> Result<PlayerStream, MprisError> {
+    pub async fn stream_players(&self) -> Result<PlayerStream, MprisError> {
         let buses = self.all_player_bus_names().await?;
-        Ok(PlayerStream::new(self.connection.clone(), buses))
+        Ok(PlayerStream::new(self, buses))
     }
 }
 
@@ -310,7 +314,7 @@ impl Debug for Mpris {
 /// #[async_std::main]
 /// async fn main() {
 ///     let mpris = Mpris::new().await.unwrap();
-///     let mut stream = mpris.into_stream().await.unwrap();
+///     let mut stream = mpris.stream_players().await.unwrap();
 ///
 ///     while let Some(result) = stream.next().await {
 ///         match result {
@@ -324,6 +328,7 @@ impl Debug for Mpris {
 /// [lite]: https://docs.rs/futures-lite/latest/futures_lite/
 pub struct PlayerStream {
     connection: Connection,
+    dbus_proxy: DBusProxy<'static>,
     buses: VecDeque<BusName<'static>>,
     cur_future: Option<PlayerFuture>,
 }
@@ -332,11 +337,12 @@ impl PlayerStream {
     /// Creates a new [`PlayerStream`].
     ///
     /// There should be no need to use this directly and instead you should use
-    /// [`Mpris::into_stream`].
-    pub fn new(connection: Connection, buses: Vec<BusName<'static>>) -> Self {
+    /// [`Mpris::stream_players`].
+    pub fn new(mpris: &Mpris, buses: Vec<BusName<'static>>) -> Self {
         let buses = VecDeque::from(buses);
         Self {
-            connection,
+            connection: mpris.get_connection(),
+            dbus_proxy: mpris.dbus_proxy.clone(),
             buses,
             cur_future: None,
         }
@@ -359,8 +365,11 @@ impl Stream for PlayerStream {
                 },
                 None => match self.buses.front() {
                     Some(bus) => {
-                        self.cur_future =
-                            Some(Box::pin(Player::new(self.connection.clone(), bus.clone())))
+                        self.cur_future = Some(Box::pin(Player::new_internal(
+                            self.connection.clone(),
+                            self.dbus_proxy.clone(),
+                            bus.clone(),
+                        )))
                     }
                     None => return Poll::Ready(None),
                 },

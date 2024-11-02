@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
-use futures_util::try_join;
+use futures_util::{join, try_join};
 use zbus::{names::BusName, Connection};
 
 use crate::{
     metadata::{MetadataValue, RawMetadata},
-    proxies::{MediaPlayer2Proxy, PlayerProxy, PlaylistsProxy, TrackListProxy},
-    LoopStatus, Metadata, MprisDuration, MprisError, PlaybackStatus, Playlist, PlaylistOrdering,
-    TrackID, MPRIS2_PREFIX,
+    proxies::{DBusProxy, MediaPlayer2Proxy, PlayerProxy, PlaylistsProxy, TrackListProxy},
+    LoopStatus, Metadata, Mpris, MprisDuration, MprisError, PlaybackStatus, Playlist,
+    PlaylistOrdering, TrackID, MPRIS2_PREFIX,
 };
 
 /// Struct that represents a player connected to the D-Bus server. Can be used to query and control
@@ -49,11 +49,10 @@ use crate::{
 /// use zbus::names::BusName;
 /// #[async_std::main]
 /// async fn main() {
-///     // To create the connection
 ///     let mpris = Mpris::new().await.unwrap();
 ///     // A "unique" Bus Name
 ///     let unique_name = BusName::try_from(":1.123").unwrap();
-///     let vlc = Player::new(mpris.get_connection(), unique_name)
+///     let vlc = Player::new(&mpris, unique_name)
 ///         .await
 ///         .unwrap();
 ///   
@@ -214,10 +213,11 @@ use crate::{
 #[derive(Clone)]
 pub struct Player {
     bus_name: BusName<'static>,
+    dbus_proxy: DBusProxy<'static>,
     mp2_proxy: MediaPlayer2Proxy<'static>,
     player_proxy: PlayerProxy<'static>,
-    playlist_proxy: Option<PlaylistsProxy<'static>>,
     track_list_proxy: Option<TrackListProxy<'static>>,
+    playlist_proxy: Option<PlaylistsProxy<'static>>,
 }
 
 impl Player {
@@ -226,26 +226,39 @@ impl Player {
     /// In most cases there is no need to create [`Player`]s directly, instead you should create
     /// them through [`Mpris`][crate::Mpris]. Doing it this way however allows you to bind the
     /// [`Player`] to a unique Bus Name. See [this][Self#bus-name] for a simple explanation.
-    pub async fn new(
-        connection: Connection,
+    pub async fn new(mpris: &Mpris, bus_name: BusName<'static>) -> Result<Player, MprisError> {
+        Self::new_internal(mpris.get_connection(), mpris.dbus_proxy.clone(), bus_name).await
+    }
+
+    pub(crate) async fn new_internal(
+        conn: Connection,
+        dbus_proxy: DBusProxy<'static>,
         bus_name: BusName<'static>,
-    ) -> Result<Player, MprisError> {
+    ) -> Result<Self, MprisError> {
         let (mp2_proxy, player_proxy, playlist_proxy, track_list_proxy) = try_join!(
-            MediaPlayer2Proxy::new(&connection, bus_name.clone()),
-            PlayerProxy::new(&connection, bus_name.clone()),
-            PlaylistsProxy::new(&connection, bus_name.clone()),
-            TrackListProxy::new(&connection, bus_name.clone()),
+            MediaPlayer2Proxy::new(&conn, bus_name.clone()),
+            PlayerProxy::new(&conn, bus_name.clone()),
+            PlaylistsProxy::new(&conn, bus_name.clone()),
+            TrackListProxy::new(&conn, bus_name.clone()),
         )?;
 
-        let playlist = playlist_proxy.playlist_count().await.is_ok();
-        let track_list = track_list_proxy.can_edit_tracks().await.is_ok();
+        let (track_list, playlist) = join!(
+            playlist_proxy.playlist_count(),
+            track_list_proxy.can_edit_tracks()
+        );
+
         Ok(Player {
             bus_name,
+            dbus_proxy,
             mp2_proxy,
             player_proxy,
-            playlist_proxy: if playlist { Some(playlist_proxy) } else { None },
-            track_list_proxy: if track_list {
+            track_list_proxy: if track_list.is_ok() {
                 Some(track_list_proxy)
+            } else {
+                None
+            },
+            playlist_proxy: if playlist.is_ok() {
+                Some(playlist_proxy)
             } else {
                 None
             },
@@ -301,33 +314,55 @@ impl Player {
     ///
     /// Simply pings the player and checks if it responds.
     ///
-    /// # Returns
-    ///
-    /// - <code>[Some]\([true]\)</code>: player is connected
-    /// - <code>[Some]\([false]\)</code>: player is not connected
-    /// - [`Err`]: some other issue occurred while trying to ping the player
+    /// This could return [`Err`] even if the player is connected but something with the connection
+    /// went wrong.
     pub async fn is_running(&self) -> Result<bool, MprisError> {
         match self.mp2_proxy.ping().await {
             Ok(_) => Ok(true),
-            Err(e) => {
-                if let zbus::Error::MethodError(ref err_name, _, _) = e {
-                    if err_name.as_str() == "org.freedesktop.DBus.Error.ServiceUnknown" {
-                        Ok(false)
-                    } else {
-                        Err(e.into())
-                    }
-                } else {
-                    Err(e.into())
+            Err(e) => match e {
+                zbus::Error::MethodError(e_name, _, _)
+                    if e_name == "org.freedesktop.DBus.Error.ServiceUnknown" =>
+                {
+                    Ok(false)
                 }
-            }
+                _ => Err(e.into()),
+            },
         }
     }
 
     /// Returns the Bus Name of the [`Player`].
     ///
-    /// See also: [`bus_name_trimmed()`][Self::bus_name_trimmed].
+    /// See also: [`bus_name_trimmed()`][Self::bus_name_trimmed] and
+    /// [`unique_bus_name()`][Self::unique_bus_name].
     pub fn bus_name(&self) -> &str {
         self.bus_name.as_str()
+    }
+
+    /// Returns the Unique Bus Name of the [`Player`].
+    ///
+    /// If it returns [`None`] then no player is currently connected.
+    ///
+    /// If you just want to check if the player is connected you should use
+    /// [`is_running()`][Self::is_running] instead.
+    ///
+    /// See also: [`bus_name()`][Self::bus_name].
+    pub async fn unique_bus_name(&self) -> Result<Option<String>, MprisError> {
+        // If Player is bound to a unique name there's no need to check.
+        if let BusName::Unique(unique_name) = &self.bus_name {
+            Ok(Some(unique_name.to_string()))
+        } else {
+            match self.dbus_proxy.get_name_owner(&self.bus_name).await {
+                Ok(name) => Ok(Some(name.to_string())),
+                Err(e) => match e {
+                    zbus::Error::MethodError(e_name, _, _)
+                        if e_name == "org.freedesktop.DBus.Error.NameHasNoOwner" =>
+                    {
+                        Ok(None)
+                    }
+                    _ => Err(e.into()),
+                },
+            }
+        }
     }
 
     /// Returns the player name part of the player's D-Bus bus name with the MPRIS2 prefix trimmed.

@@ -141,14 +141,14 @@ macro_rules! gen_metadata_struct {
 
         impl IntoIterator for $name {
             type Item = (String, Option<MetadataValue>);
-            type IntoIter = MetadataIter;
+            type IntoIter = MetadataIntoIter;
 
             fn into_iter(mut self) -> Self::IntoIter {
                 // Turns the fields into Vec<&'static str, Option<MetadataValue>> with they key as the str
                 let fields = vec![
                     $(($key, self.$field.take().map(MetadataValue::from))),*
                 ];
-                MetadataIter::new(fields, self.$others_name)
+                MetadataIntoIter::new(fields, self.$others_name)
             }
         }
 
@@ -237,7 +237,7 @@ gen_metadata_struct!(
     /// # Miscellaneous features
     ///
     /// - Can be turned into [`RawMetadata`] using <code>[Into]<[RawMetadata]></code>
-    /// - Implements [`IntoIterator`], see [`MetadataIter`] for details
+    /// - Implements [`IntoIterator`], see [`MetadataIntoIter`] for details
     /// - Can be lossily converted from [`RawMetadata`] by using
     ///   [`from_raw_lossy()`][Self::from_raw_lossy]
     ///
@@ -329,12 +329,12 @@ gen_metadata_struct!(
 ///
 /// [guidelines]: https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/
 #[derive(Debug)]
-pub struct MetadataIter {
+pub struct MetadataIntoIter {
     values: std::vec::IntoIter<(&'static str, Option<MetadataValue>)>,
     map: std::collections::hash_map::IntoIter<String, MetadataValue>,
 }
 
-impl MetadataIter {
+impl MetadataIntoIter {
     fn new(fields: Vec<(&'static str, Option<MetadataValue>)>, map: RawMetadata) -> Self {
         Self {
             values: fields.into_iter(),
@@ -343,7 +343,7 @@ impl MetadataIter {
     }
 }
 
-impl Iterator for MetadataIter {
+impl Iterator for MetadataIntoIter {
     type Item = (String, Option<MetadataValue>);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -359,8 +359,8 @@ impl Iterator for MetadataIter {
     }
 }
 
-impl ExactSizeIterator for MetadataIter {}
-impl FusedIterator for MetadataIter {}
+impl ExactSizeIterator for MetadataIntoIter {}
+impl FusedIterator for MetadataIntoIter {}
 
 #[cfg(test)]
 mod metadata_tests {

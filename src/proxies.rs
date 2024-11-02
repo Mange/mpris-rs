@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use zbus::names::{BusName, OwnedUniqueName};
 use zbus::proxy;
 use zbus::zvariant::{ObjectPath, OwnedObjectPath, OwnedValue, Value};
 
@@ -11,6 +12,8 @@ use zbus::zvariant::{ObjectPath, OwnedObjectPath, OwnedValue, Value};
 )]
 pub(crate) trait DBus {
     fn list_names(&self) -> zbus::Result<Vec<String>>;
+
+    fn get_name_owner(&self, bus_name: &BusName<'_>) -> zbus::Result<OwnedUniqueName>;
 }
 
 #[proxy(
