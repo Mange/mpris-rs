@@ -1231,10 +1231,11 @@ impl Player {
         after_track: Option<&TrackID>,
         set_as_current: bool,
     ) -> Result<(), MprisError> {
+        let no_track = TrackID::no_track();
         let after = if let Some(track_id) = after_track {
             track_id
         } else {
-            &TrackID::no_track()
+            &no_track
         };
         Ok(self
             .check_track_list_support()?

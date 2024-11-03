@@ -54,7 +54,7 @@ impl MetadataValue {
     pub fn into_i64(self) -> Option<i64> {
         match self {
             MetadataValue::SignedInt(i) => Some(i),
-            MetadataValue::UnsignedInt(i) => Some(i.clamp(0, i64::MAX as u64) as i64),
+            MetadataValue::UnsignedInt(i) => Some(0_i64.saturating_add_unsigned(i)),
             _ => None,
         }
     }

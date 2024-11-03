@@ -29,7 +29,7 @@ pub struct TrackID(OwnedObjectPath);
 
 impl TrackID {
     /// The special "NoTrack" value
-    pub const NO_TRACK: &str = "/org/mpris/MediaPlayer2/TrackList/NoTrack";
+    pub const NO_TRACK: &'static str = "/org/mpris/MediaPlayer2/TrackList/NoTrack";
 
     /// Tries to create a new [`TrackID`]
     ///

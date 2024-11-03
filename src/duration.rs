@@ -205,9 +205,7 @@ macro_rules! impl_math {
 }
 
 impl_math!(Mul, mul, saturating_mul);
-// Using regular div because of the current MSRV
-// Can you even underflow a u64 with div?
-impl_math!(Div, div, div);
+impl_math!(Div, div, saturating_div);
 impl_math!(Add, add, saturating_add);
 impl_math!(Sub, sub, saturating_sub);
 
