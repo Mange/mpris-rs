@@ -5,7 +5,8 @@ use zbus::{names::BusName, Connection};
 
 use crate::{
     metadata::{MetadataValue, RawMetadata},
-    proxies::{DBusProxy, MediaPlayer2Proxy, PlayerProxy, PlaylistsProxy, TrackListProxy},
+    playlist::PlaylistsInterface,
+    proxies::{DBusProxy, MediaPlayer2Proxy, PlayerProxy, TrackListProxy},
     LoopStatus, Metadata, Mpris, MprisDuration, MprisError, PlaybackStatus, Playlist,
     PlaylistOrdering, TrackID, MPRIS2_PREFIX,
 };
@@ -217,7 +218,7 @@ pub struct Player {
     mp2_proxy: MediaPlayer2Proxy<'static>,
     player_proxy: PlayerProxy<'static>,
     track_list_proxy: Option<TrackListProxy<'static>>,
-    playlist_proxy: Option<PlaylistsProxy<'static>>,
+    playlist_interface: Option<PlaylistsInterface>,
 }
 
 impl Player {
@@ -235,16 +236,16 @@ impl Player {
         dbus_proxy: DBusProxy<'static>,
         bus_name: BusName<'static>,
     ) -> Result<Self, MprisError> {
-        let (mp2_proxy, player_proxy, playlist_proxy, track_list_proxy) = try_join!(
+        let (mp2_proxy, player_proxy, track_list_proxy, playlists_interface) = try_join!(
             MediaPlayer2Proxy::new(&conn, bus_name.clone()),
             PlayerProxy::new(&conn, bus_name.clone()),
-            PlaylistsProxy::new(&conn, bus_name.clone()),
             TrackListProxy::new(&conn, bus_name.clone()),
+            PlaylistsInterface::new(&conn, bus_name.clone()),
         )?;
 
-        let (track_list, playlist) = join!(
-            playlist_proxy.playlist_count(),
-            track_list_proxy.can_edit_tracks()
+        let (track_list, playlists) = join!(
+            track_list_proxy.can_edit_tracks(),
+            playlists_interface.playlist_count(),
         );
 
         Ok(Player {
@@ -257,8 +258,8 @@ impl Player {
             } else {
                 None
             },
-            playlist_proxy: if playlist.is_ok() {
-                Some(playlist_proxy)
+            playlist_interface: if playlists.is_ok() {
+                Some(playlists_interface)
             } else {
                 None
             },
@@ -289,7 +290,7 @@ impl Player {
     ///
     /// See the [interfaces section for more details][Self#interfaces]
     pub fn supports_playlists_interface(&self) -> bool {
-        self.playlist_proxy.is_some()
+        self.playlist_interface.is_some()
     }
 
     /// Queries the player for current metadata.
@@ -1052,11 +1053,24 @@ impl Player {
     }
 
     /// Shortcut to check if `self.playlist_proxy` is Some
-    fn check_playlist_support(&self) -> Result<&PlaylistsProxy, MprisError> {
-        match &self.playlist_proxy {
+    fn check_playlist_support(&self) -> Result<&PlaylistsInterface, MprisError> {
+        match &self.playlist_interface {
             Some(proxy) => Ok(proxy),
             None => Err(MprisError::Unsupported),
         }
+    }
+
+    /// Tries to update the given [`Playlist`].
+    ///
+    /// Returns [`true`] if the given [`Playlist`] was found, [`false`] if [`Player`] isn't aware of
+    /// that playlist. Running [`get_playlists()`][Self::get_playlists] will refresh the list of
+    /// known playlists.
+    ///
+    /// Can only fail if the interface is not implemented.
+    pub fn update_playlist(&self, playlist: &mut Playlist) -> Result<bool, MprisError> {
+        Ok(self
+            .check_playlist_support()?
+            .update_playlist_struct(playlist))
     }
 
     /// Signals the player to activate a given [`Playlist`].
@@ -1074,10 +1088,9 @@ impl Player {
     /// [activate]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Playlists_Interface.html#Method:ActivatePlaylist
     pub async fn activate_playlist(&self, playlist: &Playlist) -> Result<(), MprisError> {
-        Ok(self
-            .check_playlist_support()?
-            .activate_playlist(&playlist.get_id())
-            .await?)
+        self.check_playlist_support()?
+            .activate_playlist(playlist)
+            .await
     }
 
     /// Gets the [`Playlist`]s of the player.
@@ -1098,13 +1111,23 @@ impl Player {
         order: PlaylistOrdering,
         reverse_order: bool,
     ) -> Result<Vec<Playlist>, MprisError> {
-        Ok(self
-            .check_playlist_support()?
-            .get_playlists(start_index, max_count, order.as_str_value(), reverse_order)
-            .await?
-            .into_iter()
-            .map(Playlist::from)
-            .collect())
+        self.check_playlist_support()?
+            .get_playlists(start_index, max_count, order, reverse_order)
+            .await
+    }
+
+    /// Clears the stored [`Playlist`]s metadata.
+    ///
+    /// Players don't signal when a [`Playlist`] gets removed meaning that if you use a [`Player`]
+    /// instance for a long time and edit playlists often the internal playlist list will keep
+    /// getting bigger with pointless data. This method lets you clear it if it becomes an issue.
+    ///
+    /// It's recommended to run [`get_playlists()`][Self::get_playlists] after clearing.
+    ///
+    /// Can only fail if the interface is not implemented.
+    pub fn clear_playlists_data(&self) -> Result<(), MprisError> {
+        self.check_playlist_support()?.clear();
+        Ok(())
     }
 
     /// Gets the currently active [`Playlist`] if any.
@@ -1118,12 +1141,7 @@ impl Player {
     /// [active]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Playlists_Interface.html#Property:ActivePlaylist
     pub async fn active_playlist(&self) -> Result<Option<Playlist>, MprisError> {
-        let result = self.check_playlist_support()?.active_playlist().await?;
-        if result.0 {
-            Ok(Some(Playlist::from(result.1)))
-        } else {
-            Ok(None)
-        }
+        self.check_playlist_support()?.active_playlist().await
     }
 
     /// Gets the [`PlaylistOrdering`]s the player supports.
@@ -1135,12 +1153,7 @@ impl Player {
     /// [orderings]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Playlists_Interface.html#Property:Orderings
     pub async fn orderings(&self) -> Result<Vec<PlaylistOrdering>, MprisError> {
-        let result = self.check_playlist_support()?.orderings().await?;
-        let mut orderings = Vec::with_capacity(result.len());
-        for s in result {
-            orderings.push(s.parse()?);
-        }
-        Ok(orderings)
+        self.check_playlist_support()?.orderings().await
     }
 
     /// Gets the number of available playlists.
@@ -1150,7 +1163,7 @@ impl Player {
     /// [count]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Playlists_Interface.html#Property:PlaylistCount
     pub async fn playlist_count(&self) -> Result<u32, MprisError> {
-        Ok(self.check_playlist_support()?.playlist_count().await?)
+        self.check_playlist_support()?.playlist_count().await
     }
 
     /// Shortcut to check if `self.track_list_proxy` is Some
@@ -1308,7 +1321,7 @@ impl std::fmt::Debug for Player {
         f.debug_struct("Player")
             .field("bus_name", &self.bus_name())
             .field("track_list", &self.track_list_proxy.is_some())
-            .field("playlist", &self.playlist_proxy.is_some())
+            .field("playlist", &self.playlist_interface.is_some())
             .finish_non_exhaustive()
     }
 }

@@ -1,8 +1,21 @@
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex, MutexGuard},
+};
+
+use futures_util::StreamExt;
 #[cfg(feature = "serde")]
 use serde::Serializer;
-use zbus::zvariant::{ObjectPath, OwnedObjectPath};
+use zbus::{
+    names::BusName,
+    zvariant::{ObjectPath, OwnedObjectPath},
+    Connection, Task,
+};
 
-use crate::{InvalidPlaylist, InvalidPlaylistOrdering};
+use crate::proxies::PlaylistsProxy;
+use crate::{InvalidPlaylist, InvalidPlaylistOrdering, MprisError};
+
+type InnerPlaylistData = HashMap<OwnedObjectPath, (String, Option<String>)>;
 
 /// A data structure describing a playlist.
 ///
@@ -14,15 +27,18 @@ use crate::{InvalidPlaylist, InvalidPlaylistOrdering};
 /// - the name of the playlist
 /// - an optional icon url
 ///
-/// It can be obtain from [`Player::active_playlist()`][crate::Player::active_playlist] and
+/// It can be obtained from [`Player::active_playlist()`][crate::Player::active_playlist] and
 /// [`Player::get_playlists()`][crate::Player::get_playlists].
 ///
-/// **Note**: currently the name and icon url will not get updated if they get changed. If they
-/// need to be up to date you should fetch the playlists again.
+/// **Note**: the name and icon url will not get updated if they get changed by the player. If they
+/// need to be up to date you should use
+/// [`Player::update_playlist()`][crate::Player::update_playlist].
 ///
 /// [interface]: https://specifications.freedesktop.org/mpris-spec/latest/Playlists_Interface.html
-/// [playlist]: https://specifications.freedesktop.org/mpris-spec/latest/Playlists_Interface.html#Struct:Playlist
-/// [object_path]: https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling-object-path
+/// [playlist]:
+/// https://specifications.freedesktop.org/mpris-spec/latest/Playlists_Interface.html#Struct:Playlist
+/// [object_path]:
+/// https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling-object-path
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Playlist {
@@ -68,7 +84,8 @@ impl Playlist {
     /// Gets the name of the playlist
     ///
     /// **Note**: as mentioned in the struct documentation this value might not be correct if the
-    /// player changed the name of this playlist.
+    /// player changed the name of this playlist. Use
+    /// [`Player::update_playlist()`][crate::Player::update_playlist] to update the values.
     pub fn get_name(&self) -> &str {
         &self.name
     }
@@ -76,7 +93,8 @@ impl Playlist {
     /// Gets the icon url if present
     ///
     /// **Note**: as mentioned in the struct documentation this value might not be correct if the
-    /// player changed the icon of this playlist.
+    /// player changed the icon of this playlist. Use
+    /// [`Player::update_playlist()`][crate::Player::update_playlist] to update the values.
     pub fn get_icon(&self) -> Option<&str> {
         self.icon.as_deref()
     }
@@ -89,6 +107,146 @@ impl Playlist {
     /// Gets the `id` as a &[`str`]
     pub fn get_id_as_str(&self) -> &str {
         self.id.as_str()
+    }
+}
+
+/// Represents the [Playlists interface][playlists].
+///
+/// Listens to the PlaylistChanged signal and updates the data internally to allow [`Playlist`]s to
+/// update.
+///
+/// [playlists]: https://specifications.freedesktop.org/mpris-spec/latest/Playlists_Interface.html
+#[derive(Debug, Clone)]
+pub(crate) struct PlaylistsInterface {
+    inner: PlaylistInner,
+    proxy: PlaylistsProxy<'static>,
+    // Just here to stop the task when it gets dropped
+    // Arc is needed to allow cloning
+    #[allow(dead_code)]
+    task: Arc<Task<()>>,
+}
+
+impl PlaylistsInterface {
+    pub(crate) async fn new(conn: &Connection, bus_name: BusName<'static>) -> zbus::Result<Self> {
+        let inner = PlaylistInner::default();
+        let i_clone = inner.clone();
+        let proxy = PlaylistsProxy::new(conn, bus_name.clone()).await?;
+        let mut stream = proxy.receive_playlist_changed().await?;
+
+        let task = proxy.inner().connection().executor().spawn(
+            async move {
+                while let Some(change) = stream.next().await {
+                    // TODO: don't ignore errors somehow without panicking
+                    if let Ok(args) = change.args() {
+                        let playlist = Playlist::from(args.playlist);
+                        i_clone
+                            .get_lock()
+                            .insert(playlist.id, (playlist.name, playlist.icon));
+                    }
+                }
+            },
+            &format!("{} playlist watcher task", bus_name.as_str()),
+        );
+        Ok(Self {
+            inner,
+            proxy,
+            task: Arc::new(task),
+        })
+    }
+
+    /// Clears the internal playlist storage.
+    pub(crate) fn clear(&self) {
+        self.inner.get_lock().clear();
+    }
+
+    /// Updates the given [`Playlist`].
+    ///
+    /// Returns `true` if the given playlist was found else false.
+    pub(crate) fn update_playlist_struct(&self, playlist: &mut Playlist) -> bool {
+        let lock = self.inner.get_lock();
+        match lock.get(&playlist.id) {
+            Some((name, icon)) => {
+                if playlist.name != *name {
+                    playlist.name = name.clone();
+                }
+                if playlist.icon != *icon {
+                    playlist.icon = icon.clone();
+                }
+                true
+            }
+            None => false,
+        }
+    }
+
+    pub(crate) async fn activate_playlist(&self, playlist: &Playlist) -> Result<(), MprisError> {
+        Ok(self.proxy.activate_playlist(&playlist.get_id()).await?)
+    }
+
+    /// Wraps the proxy method of the same name and updates the internal data.
+    pub(crate) async fn get_playlists(
+        &self,
+        start_index: u32,
+        max_count: u32,
+        order: PlaylistOrdering,
+        reverse_order: bool,
+    ) -> Result<Vec<Playlist>, MprisError> {
+        let playlists: Vec<_> = self
+            .proxy
+            .get_playlists(start_index, max_count, order.as_str(), reverse_order)
+            .await?
+            .into_iter()
+            .map(Playlist::from)
+            .collect();
+        self.inner.update_playlists(&playlists);
+        Ok(playlists)
+    }
+
+    /// Wraps the proxy method of the same name and updates the internal data.
+    pub(crate) async fn active_playlist(&self) -> Result<Option<Playlist>, MprisError> {
+        Ok(match self.proxy.active_playlist().await? {
+            (true, data) => {
+                // Better to create a temporary Vec here than to lock the Mutex for each playlist
+                let mut playlist = vec![Playlist::from(data)];
+                self.inner.update_playlists(&playlist);
+                Some(playlist.pop().expect("there should be at least 1 playlist"))
+            }
+            (false, _) => None,
+        })
+    }
+
+    pub(crate) async fn orderings(&self) -> Result<Vec<PlaylistOrdering>, MprisError> {
+        let result = self.proxy.orderings().await?;
+        let mut orderings = Vec::with_capacity(result.len());
+        for s in result {
+            orderings.push(s.parse()?);
+        }
+        Ok(orderings)
+    }
+
+    pub(crate) async fn playlist_count(&self) -> Result<u32, MprisError> {
+        Ok(self.proxy.playlist_count().await?)
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+struct PlaylistInner {
+    data: Arc<Mutex<InnerPlaylistData>>,
+}
+
+impl PlaylistInner {
+    fn get_lock(&self) -> MutexGuard<InnerPlaylistData> {
+        self.data.lock().expect("poisoned lock")
+    }
+
+    /// Updates the inner data with the given [`Playlist`]s.
+    fn update_playlists(&self, playlists: &[Playlist]) {
+        let mut lock = self.get_lock();
+        for playlist in playlists {
+            lock.insert(
+                playlist.id.clone(),
+                (playlist.name.clone(), playlist.icon.clone()),
+            );
+        }
     }
 }
 

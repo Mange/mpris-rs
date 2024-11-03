@@ -211,7 +211,7 @@ pub(crate) trait Playlists {
     ) -> zbus::Result<Vec<(OwnedObjectPath, String, String)>>;
 
     #[zbus(signal)]
-    fn playlist_changed(&self) -> zbus::Result<Vec<(OwnedObjectPath, String, String)>>;
+    fn playlist_changed(&self, playlist: (OwnedObjectPath, String, String)) -> zbus::Result<()>;
 
     /// ActivePlaylist property
     #[zbus(property)]
