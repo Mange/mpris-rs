@@ -228,7 +228,12 @@ impl Player {
     /// them through [`Mpris`][crate::Mpris]. Doing it this way however allows you to bind the
     /// [`Player`] to a unique Bus Name. See [this][Self#bus-name] for a simple explanation.
     pub async fn new(mpris: &Mpris, bus_name: BusName<'static>) -> Result<Player, MprisError> {
-        Self::new_internal(mpris.get_connection(), mpris.dbus_proxy.clone(), bus_name).await
+        Self::new_internal(
+            mpris.get_connection(),
+            mpris.get_dbus_proxy().await?.clone(),
+            bus_name,
+        )
+        .await
     }
 
     pub(crate) async fn new_internal(

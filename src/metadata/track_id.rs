@@ -22,7 +22,7 @@ use crate::errors::InvalidTrackID;
 /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Simple-Type:Track_Id
 /// [object_path]:
 /// https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling-object-path
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(into = "String", try_from = "String"))]
 pub struct TrackID(OwnedObjectPath);
@@ -97,6 +97,12 @@ where
         ))
     } else {
         Ok(s)
+    }
+}
+
+impl std::fmt::Debug for TrackID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 

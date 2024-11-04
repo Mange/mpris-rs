@@ -1,4 +1,10 @@
-#![warn(clippy::print_stdout, missing_docs, clippy::todo, clippy::unwrap_used)]
+#![warn(
+    clippy::print_stdout,
+    missing_docs,
+    clippy::todo,
+    clippy::unwrap_used,
+    rustdoc::unescaped_backticks
+)]
 #![deny(
     missing_debug_implementations,
     missing_copy_implementations,
@@ -57,25 +63,13 @@
 //! background tasks. If you want to prevent that you should "tick" the internal executor with your
 //! runtime like this:
 //!
-//! ```no_run
+//! ```ignore
 //! use mpris::Mpris;
-//! use zbus::connection::Builder;
 //!
 //! #[async_std::main]
 //! async fn main() {
-//!     let conn = Builder::session()
-//!         .unwrap()
-//!         .internal_executor(false) // The important part
-//!         .build()
-//!         .await
-//!         .unwrap();
-//!     let c = conn.clone();
-//!     async_std::task::spawn(async move {
-//!         loop {
-//!             c.executor().tick().await;
-//!         }
-//!     });
-//!     let mpris = Mpris::new_from_connection(conn).await.unwrap();
+//!     let mpris = Mpris::new_no_executor().await.unwrap();
+//!     async_std::task::spawn(mpris.get_executor_loop().expect("was started with no executor"));
 //!
 //!     // The rest of your code here
 //! }
@@ -85,6 +79,7 @@
 //! [std]: https://docs.rs/async-std/latest/async_std/
 //! [tokio]: https://docs.rs/tokio/latest/tokio/
 
+use std::cell::OnceCell;
 use std::collections::VecDeque;
 use std::fmt::{Debug, Display};
 use std::future::Future;
@@ -110,6 +105,8 @@ use crate::proxies::DBusProxy;
 pub use duration::MprisDuration;
 #[doc(inline)]
 pub use errors::MprisError;
+#[cfg(not(feature = "tokio"))]
+pub use internal_executor::ExecutorLoop;
 #[doc(inline)]
 pub use metadata::{Metadata, MetadataValue, TrackID};
 pub use player::Player;
@@ -136,7 +133,12 @@ type PlayerFuture = Pin<Box<dyn Future<Output = Result<Player, MprisError>> + Se
 #[derive(Clone)]
 pub struct Mpris {
     connection: Connection,
-    pub(crate) dbus_proxy: DBusProxy<'static>,
+    #[cfg(not(feature = "tokio"))]
+    internal_executor: bool,
+    // OnceCell is needed to allow disabling the internal executor since creating DBusProxy without
+    // ticking would just hang
+    // Option is not used because that would require making most of the functions &mut self
+    dbus_proxy: OnceCell<DBusProxy<'static>>,
 }
 
 impl Mpris {
@@ -144,28 +146,75 @@ impl Mpris {
     ///
     /// Use [`new_from_connection`](Self::new_from_connection) if you want to provide the D-Bus
     /// connection yourself.
+    #[cfg_attr(
+        not(feature = "tokio"),
+        doc = "\n\nSee also: [`new_no_executor()`][Self::new_no_executor]."
+    )]
     pub async fn new() -> Result<Self, MprisError> {
         let connection = Connection::session().await?;
-        let dbus_proxy = DBusProxy::new(&connection).await?;
+        Ok(Self::new_from_connection(connection))
+    }
+
+    /// Creates a new [`Mpris`] instance with the given connection.
+    ///
+    #[cfg_attr(
+        not(feature = "tokio"),
+        doc = "When creating `Mpris` through this it is assumed that the internal executor is set to `true`.\n\n"
+    )]
+
+    /// Use [`new`](Self::new) if you don't have a need to provide the D-Bus connection yourself.
+    pub fn new_from_connection(connection: Connection) -> Self {
+        Self {
+            connection,
+            #[cfg(not(feature = "tokio"))]
+            internal_executor: true,
+            dbus_proxy: OnceCell::new(),
+        }
+    }
+
+    /// Creates a new [`Mpris`] instance with the internal executor disabled.
+    ///
+    /// See [`Runtime compatibility`][crate#runtime-compatibility] for details.
+    ///
+    /// See also: [`new()`][Self::new], [`get_executor_loop()`][Self::get_executor_loop] and
+    /// [`ExecutorLoop`].
+    #[cfg(not(feature = "tokio"))]
+    pub async fn new_no_executor() -> Result<Self, MprisError> {
+        let connection = zbus::conn::Builder::session()?
+            .internal_executor(false)
+            .build()
+            .await?;
 
         Ok(Self {
             connection,
-            dbus_proxy,
+            internal_executor: false,
+            dbus_proxy: OnceCell::new(),
         })
     }
 
-    /// Creates a new [`Mpris`] struct with the given connection.
+    /// Returns the [`ExecutorLoop`] if the internal executor is disabled.
     ///
-    /// See [here](crate#runtime-compatibility) for why you would want to use a custom
-    /// [`Connection`].
-    ///
-    /// Use [`new`](Self::new) if you don't have a need to provide the D-Bus connection yourself.
-    pub async fn new_from_connection(connection: Connection) -> Result<Self, MprisError> {
-        let dbus_proxy = DBusProxy::new(&connection).await?;
-        Ok(Self {
-            connection,
-            dbus_proxy,
-        })
+    /// See [`Runtime compatibility`][crate#runtime-compatibility] for details.
+    #[cfg(not(feature = "tokio"))]
+    pub fn get_executor_loop(&self) -> Option<ExecutorLoop> {
+        if !self.internal_executor {
+            Some(ExecutorLoop::new(self.get_connection()))
+        } else {
+            None
+        }
+    }
+
+    /// Returns the DBusProxy by setting it if not yet initialized
+    pub(crate) async fn get_dbus_proxy(&self) -> Result<&DBusProxy<'static>, MprisError> {
+        loop {
+            match self.dbus_proxy.get() {
+                Some(proxy) => return Ok(proxy),
+                None => {
+                    let proxy = DBusProxy::new(&self.connection).await?;
+                    let _ = self.dbus_proxy.set(proxy);
+                }
+            };
+        }
     }
 
     /// Gets the [`Connection`] that is used.
@@ -176,13 +225,6 @@ impl Mpris {
     /// Gets a reference to the [`Connection`] that is used.
     pub fn get_connection_ref(&self) -> &Connection {
         &self.connection
-    }
-
-    // Will be used later
-    #[allow(dead_code)]
-    /// Gets the internal executor for the [`Connection`]. Can be used to spawn tasks.
-    pub(crate) fn get_executor(&self) -> &'static zbus::Executor {
-        self.connection.executor()
     }
 
     /// Returns the first found [`Player`] regardless of state.
@@ -271,7 +313,8 @@ impl Mpris {
     /// Gets all of the BusNames that start with the [`MPRIS2_PREFIX`]
     async fn all_player_bus_names(&self) -> Result<Vec<BusName<'static>>, MprisError> {
         let mut names: Vec<BusName> = self
-            .dbus_proxy
+            .get_dbus_proxy()
+            .await?
             .list_names()
             .await?
             .into_iter()
@@ -288,19 +331,74 @@ impl Mpris {
     /// For more details see [`PlayerStream`]'s documentation.
     pub async fn stream_players(&self) -> Result<PlayerStream, MprisError> {
         let buses = self.all_player_bus_names().await?;
-        Ok(PlayerStream::new(self, buses))
+        Ok(PlayerStream::new(
+            self.get_connection(),
+            self.get_dbus_proxy().await?.clone(),
+            buses,
+        ))
     }
 }
 
 impl Debug for Mpris {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Mpris")
-            .field("connection", &format_args!("Connection {{ .. }}"))
-            .finish_non_exhaustive()
+        let mut s = f.debug_struct("Mpris");
+        s.field("connection", &format_args!("Connection {{ .. }}"));
+        #[cfg(not(feature = "tokio"))]
+        s.field("internal_executor", &self.internal_executor);
+        s.finish_non_exhaustive()
+    }
+}
+
+#[cfg(not(feature = "tokio"))]
+mod internal_executor {
+    use std::fmt::Debug;
+    use std::future::Future;
+    use std::pin::Pin;
+    use std::task::{Context, Poll};
+
+    use zbus::Connection;
+
+    /// A future that ticks the executor in a endless loop.
+    ///
+    /// Created with [`Mpris::get_executor_loop()`].
+    ///
+    /// <div class="warning">You have to spawn this as a new task with your runtime or everything will
+    /// hang.</div>
+    ///
+    /// See [`Runtime compatibility`][crate#runtime-compatibility] for details.
+    pub struct ExecutorLoop {
+        fut: Pin<Box<dyn Future<Output = ()> + Send>>,
+    }
+
+    impl ExecutorLoop {
+        pub(crate) fn new(connection: Connection) -> Self {
+            let fut = Box::pin(async move {
+                loop {
+                    connection.executor().tick().await
+                }
+            });
+            Self { fut }
+        }
+    }
+
+    impl Future for ExecutorLoop {
+        type Output = ();
+
+        fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+            self.fut.as_mut().poll(cx)
+        }
+    }
+
+    impl Debug for ExecutorLoop {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("TickLoop").finish_non_exhaustive()
+        }
     }
 }
 
 /// Lazily returns the [`Player`]s on the connection.
+///
+/// Created with [`Mpris::stream_players()`][Mpris::stream_players].
 ///
 /// Implements the [`Stream`] trait which is the async version of [`Iterator`]. It is recommended to
 /// use the [`futures_util`] or [`futures_lite`][lite] crate which provide useful traits for streams.
@@ -338,11 +436,15 @@ impl PlayerStream {
     ///
     /// There should be no need to use this directly and instead you should use
     /// [`Mpris::stream_players`].
-    pub fn new(mpris: &Mpris, buses: Vec<BusName<'static>>) -> Self {
+    fn new(
+        connection: Connection,
+        dbus_proxy: DBusProxy<'static>,
+        buses: Vec<BusName<'static>>,
+    ) -> Self {
         let buses = VecDeque::from(buses);
         Self {
-            connection: mpris.get_connection(),
-            dbus_proxy: mpris.dbus_proxy.clone(),
+            connection,
+            dbus_proxy,
             buses,
             cur_future: None,
         }
