@@ -6,11 +6,7 @@ use std::{
 use futures_util::StreamExt;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use zbus::{
-    names::BusName,
-    zvariant::{ObjectPath, OwnedObjectPath},
-    Connection, Task,
-};
+use zbus::{names::BusName, zvariant::OwnedObjectPath, Connection, Task};
 
 use crate::proxies::PlaylistsProxy;
 use crate::{InvalidPlaylist, InvalidPlaylistOrdering, MprisError};
@@ -107,8 +103,8 @@ impl Playlist {
     }
 
     /// Gets the `id` as a borrowed [`ObjectPath`]
-    pub fn get_id(&self) -> ObjectPath<'_> {
-        self.id.as_ref()
+    pub fn get_id(&self) -> &OwnedObjectPath {
+        &self.id
     }
 
     /// Gets the `id` as a &[`str`]
@@ -186,7 +182,7 @@ impl PlaylistsInterface {
     }
 
     pub(crate) async fn activate_playlist(&self, playlist: &Playlist) -> Result<(), MprisError> {
-        Ok(self.proxy.activate_playlist(&playlist.get_id()).await?)
+        Ok(self.proxy.activate_playlist(playlist.get_id()).await?)
     }
 
     /// Wraps the proxy method of the same name and updates the internal data.
@@ -434,6 +430,7 @@ mod playlist_ordering_tests {
 #[cfg(test)]
 mod playlist_tests {
     use super::*;
+    use zbus::zvariant::ObjectPath;
 
     #[test]
     fn new() {
@@ -459,7 +456,10 @@ mod playlist_tests {
         );
         assert_eq!(new.get_name(), "TestName");
         assert_eq!(new.get_icon(), Some("TestIcon"));
-        assert_eq!(new.get_id(), ObjectPath::from_str_unchecked("/valid/path"));
+        assert_eq!(
+            new.get_id().as_ref(),
+            ObjectPath::from_str_unchecked("/valid/path")
+        );
         assert_eq!(new.get_id_as_str(), "/valid/path");
 
         new.icon = None;
@@ -471,6 +471,7 @@ mod playlist_tests {
 mod playlist_serde_tests {
     use super::*;
     use serde_test::{assert_de_tokens, assert_de_tokens_error, assert_tokens, Token};
+    use zbus::zvariant::ObjectPath;
 
     #[test]
     fn serialization() {

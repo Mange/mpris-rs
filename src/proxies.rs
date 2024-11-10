@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use zbus::names::{BusName, OwnedUniqueName};
 use zbus::proxy;
-use zbus::zvariant::{ObjectPath, OwnedObjectPath, OwnedValue, Value};
+use zbus::zvariant::{OwnedObjectPath, OwnedValue};
 
 #[proxy(
     default_service = "org.freedesktop.DBus",
@@ -199,7 +199,7 @@ pub(crate) trait Player {
 )]
 pub(crate) trait Playlists {
     /// ActivatePlaylist method
-    fn activate_playlist(&self, playlist_id: &ObjectPath<'_>) -> zbus::Result<()>;
+    fn activate_playlist(&self, playlist_id: &OwnedObjectPath) -> zbus::Result<()>;
 
     /// GetPlaylists method
     fn get_playlists(
@@ -256,29 +256,29 @@ pub trait TrackList {
     #[zbus(signal)]
     fn track_added(
         &self,
-        metadata: HashMap<&str, Value<'_>>,
-        after_track: ObjectPath<'_>,
+        metadata: HashMap<String, OwnedValue>,
+        after_track: OwnedObjectPath,
     ) -> zbus::Result<()>;
 
     /// TrackListReplaced signal
     #[zbus(signal)]
     fn track_list_replaced(
         &self,
-        track_ids: Vec<ObjectPath<'_>>,
-        current_track: ObjectPath<'_>,
+        track_ids: Vec<OwnedObjectPath>,
+        current_track: OwnedObjectPath,
     ) -> zbus::Result<()>;
 
     /// TrackMetadataChanged signal
     #[zbus(signal)]
     fn track_metadata_changed(
         &self,
-        track_id: ObjectPath<'_>,
-        metadata: HashMap<&str, Value<'_>>,
+        track_id: OwnedObjectPath,
+        metadata: HashMap<String, OwnedValue>,
     ) -> zbus::Result<()>;
 
     /// TrackRemoved signal
     #[zbus(signal)]
-    fn track_removed(&self, track_id: ObjectPath<'_>) -> zbus::Result<()>;
+    fn track_removed(&self, track_id: OwnedObjectPath) -> zbus::Result<()>;
 
     /// CanEditTracks property
     #[zbus(property)]
