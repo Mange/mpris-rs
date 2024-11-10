@@ -1,10 +1,8 @@
-use std::collections::HashMap;
-
 use futures_util::{join, try_join};
 use zbus::{names::BusName, Connection};
 
 use crate::{
-    metadata::{MetadataValue, RawMetadata},
+    metadata::RawMetadata,
     playlist::PlaylistsInterface,
     proxies::{DBusProxy, MediaPlayer2Proxy, PlayerProxy, TrackListProxy},
     LoopStatus, Metadata, Mpris, MprisDuration, MprisError, PlaybackStatus, Playlist,
@@ -310,10 +308,7 @@ impl Player {
     /// Similar to [`metadata()`][Self::metadata] but doesn't perform any checks or conversions. See
     /// [`Metadata::from_raw_lossy()`] for details.
     pub async fn raw_metadata(&self) -> Result<RawMetadata, MprisError> {
-        let data = self.player_proxy.metadata().await?;
-        let raw: HashMap<String, MetadataValue> =
-            data.into_iter().map(|(k, v)| (k, v.into())).collect();
-        Ok(raw)
+        Ok(self.player_proxy.metadata().await?.into())
     }
 
     /// Checks if the player is still connected.
@@ -1307,16 +1302,12 @@ impl Player {
     ) -> Result<Vec<Metadata>, MprisError> {
         let result = self
             .check_track_list_support()?
-            .get_tracks_metadata(&tracks.iter().map(|t| t.as_ref()).collect::<Vec<_>>())
+            .get_tracks_metadata(&tracks.iter().map(|x| x.as_ref()).collect::<Vec<_>>())
             .await?;
 
         let mut metadata = Vec::with_capacity(tracks.len());
         for meta in result {
-            let raw: HashMap<String, MetadataValue> = meta
-                .into_iter()
-                .map(|(k, v)| (k, MetadataValue::from(v)))
-                .collect();
-            metadata.push(Metadata::try_from(raw)?);
+            metadata.push(Metadata::try_from(RawMetadata::from(meta))?);
         }
         Ok(metadata)
     }

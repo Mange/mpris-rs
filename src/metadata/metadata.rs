@@ -1,10 +1,105 @@
 use std::{collections::HashMap, iter::FusedIterator};
 
+use zbus::zvariant::OwnedValue;
+
 use super::{MetadataValue, TrackID};
 use crate::{errors::InvalidMetadata, MprisDuration};
 
-/// The type of the metadata returned from [`Player::raw_metadata()`][crate::Player::raw_metadata].
-pub type RawMetadata = HashMap<String, MetadataValue>;
+/// HashMap returned from DBus
+type DBusMetadata = HashMap<String, OwnedValue>;
+type InnerRawMetadata = HashMap<String, MetadataValue>;
+
+/// A struct that represents the raw version of [`Metadata`].
+///
+/// It's a simple wrapper around <code>[HashMap]<[String], [MetadataValue]></code>. It should act
+/// like a [`HashMap`] but it can be easily converted into and from one using the [`From`] traits or
+/// [`into_inner()`][Self::into_inner].
+///
+/// Can be obtained from [`Player::raw_metadata()`][crate::Player::raw_metadata].
+#[derive(Clone, PartialEq, Default)]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(transparent)
+)]
+pub struct RawMetadata(InnerRawMetadata);
+
+impl RawMetadata {
+    /// Creates a new empty [`RawMetadata`].
+    pub fn new() -> Self {
+        Self(HashMap::new())
+    }
+
+    /// Turns [`RawMetadata`] into <code>[HashMap]<[String], [MetadataValue]></code>.
+    pub fn into_inner(self) -> InnerRawMetadata {
+        self.0
+    }
+}
+
+impl std::ops::Deref for RawMetadata {
+    type Target = InnerRawMetadata;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for RawMetadata {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl From<DBusMetadata> for RawMetadata {
+    fn from(value: DBusMetadata) -> Self {
+        Self(
+            value
+                .into_iter()
+                .map(|(k, v)| (k, MetadataValue::from(v)))
+                .collect(),
+        )
+    }
+}
+
+impl From<RawMetadata> for InnerRawMetadata {
+    fn from(value: RawMetadata) -> Self {
+        value.0
+    }
+}
+
+impl From<InnerRawMetadata> for RawMetadata {
+    fn from(value: InnerRawMetadata) -> Self {
+        Self(value)
+    }
+}
+
+impl FromIterator<(String, MetadataValue)> for RawMetadata {
+    fn from_iter<T: IntoIterator<Item = (String, MetadataValue)>>(iter: T) -> Self {
+        Self(HashMap::from_iter(iter))
+    }
+}
+
+impl IntoIterator for RawMetadata {
+    type Item = (String, MetadataValue);
+
+    type IntoIter = std::collections::hash_map::IntoIter<String, MetadataValue>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl PartialEq<InnerRawMetadata> for RawMetadata {
+    fn eq(&self, other: &InnerRawMetadata) -> bool {
+        &self.0 == other
+    }
+}
+
+impl std::fmt::Debug for RawMetadata {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_map().entries(self.iter()).finish()
+    }
+}
 
 /// Macro that auto implements useful things for Metadata without needing to repeat the fields every time
 /// while preserving documentation for the fields
@@ -57,7 +152,7 @@ macro_rules! gen_metadata_struct {
             pub fn new() -> Self {
                 Self {
                     $($field: None),*,
-                    $others_name: HashMap::new(),
+                    $others_name: RawMetadata::new(),
                 }
             }
 
@@ -117,7 +212,7 @@ macro_rules! gen_metadata_struct {
             /// use std::collections::HashMap;
             /// use mpris::{Metadata, metadata::RawMetadata};
             ///
-            /// let mut raw_meta: RawMetadata = HashMap::new();
+            /// let mut raw_meta = RawMetadata::new();
             /// // Wrong type for title
             /// raw_meta.insert(String::from("xesam:title"), 0_u64.into());
             /// raw_meta.insert(String::from("xesam:comment"), String::from("Some comment").into());
@@ -212,7 +307,7 @@ gen_metadata_struct!(
     /// use std::collections::HashMap;
     /// use mpris::{Metadata, TrackID, metadata::RawMetadata};
     ///
-    /// let mut raw_meta: RawMetadata = HashMap::new();
+    /// let mut raw_meta = RawMetadata::new();
     ///
     /// // Empty is valid
     /// assert!(Metadata::try_from(raw_meta.clone()).is_ok());
@@ -393,7 +488,7 @@ mod metadata_tests {
             url: None,
             use_count: None,
             user_rating: None,
-            others: HashMap::new(),
+            others: RawMetadata::new(),
         };
         assert_eq!(empty, Metadata::default());
         assert_eq!(empty, Metadata::new())
@@ -437,7 +532,7 @@ mod metadata_tests {
 
     #[test]
     fn try_from_raw() {
-        let raw_metadata: RawMetadata = HashMap::from_iter([
+        let raw_metadata = RawMetadata::from_iter([
             ("xesam:albumArtist".to_string(), vec![String::new()].into()),
             ("xesam:album".to_string(), String::new().into()),
             ("mpris:artUrl".to_string(), String::new().into()),
@@ -486,7 +581,7 @@ mod metadata_tests {
             url: Some(String::new()),
             use_count: Some(0),
             user_rating: Some(0.0),
-            others: HashMap::from_iter([(String::from("other"), MetadataValue::Unsupported)]),
+            others: RawMetadata::from_iter([(String::from("other"), MetadataValue::Unsupported)]),
         };
 
         assert_eq!(meta, Ok(manual_meta));
@@ -494,7 +589,7 @@ mod metadata_tests {
 
     #[test]
     fn try_from_raw_fail() {
-        let mut map = HashMap::new();
+        let mut map = RawMetadata::new();
 
         // Wrong type
         map.insert("xesam:autoRating".to_string(), true.into());
@@ -540,5 +635,52 @@ mod metadata_iterator_tests {
         for (_, v) in iter {
             assert!(v.is_none());
         }
+    }
+}
+
+#[cfg(test)]
+mod raw_metadata {
+    use super::*;
+
+    #[test]
+    fn new_is_default() {
+        let manual = RawMetadata(HashMap::new());
+        assert_eq!(manual, RawMetadata::new());
+        assert_eq!(manual, RawMetadata::default());
+    }
+
+    #[test]
+    fn deref() {
+        let mut meta = RawMetadata::new();
+        assert!(meta.is_empty());
+        meta.insert(String::from("Key"), MetadataValue::Unsupported);
+        assert_eq!(meta["Key"], MetadataValue::Unsupported);
+        assert!(!meta.is_empty());
+        meta.clear();
+        assert!(meta.is_empty())
+    }
+
+    #[test]
+    fn from_hash_map() {
+        let map: HashMap<String, OwnedValue> =
+            HashMap::from_iter([(String::from("Some"), OwnedValue::from(0_u64))]);
+        let meta = RawMetadata::from(map);
+        assert_eq!(meta.get("Some"), Some(&MetadataValue::UnsignedInt(0)));
+        assert_eq!(meta.get("Other"), None);
+    }
+
+    #[test]
+    fn iter_and_eq() {
+        let values = [
+            (String::from("Bool"), MetadataValue::Boolean(false)),
+            (String::from("Number"), MetadataValue::UnsignedInt(0)),
+            (
+                String::from("String"),
+                MetadataValue::String(String::from("Value")),
+            ),
+        ];
+        let meta = RawMetadata::from_iter(values.clone());
+        let map = HashMap::from_iter(values);
+        assert_eq!(meta, map);
     }
 }

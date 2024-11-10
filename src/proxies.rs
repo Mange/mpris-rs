@@ -156,7 +156,7 @@ pub(crate) trait Player {
 
     /// Metadata property
     #[zbus(property)]
-    fn metadata(&self) -> zbus::Result<HashMap<String, Value>>;
+    fn metadata(&self) -> zbus::Result<HashMap<String, OwnedValue>>;
 
     /// MinimumRate property
     #[zbus(property)]
