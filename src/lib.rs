@@ -360,7 +360,7 @@ mod internal_executor {
 
     /// A future that ticks the executor in a endless loop.
     ///
-    /// Created with [`Mpris::get_executor_loop()`].
+    /// Created with [`Mpris::get_executor_loop()`][crate::Mpris::get_executor_loop].
     ///
     /// <div class="warning">You have to spawn this as a new task with your runtime or everything will
     /// hang.</div>

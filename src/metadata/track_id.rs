@@ -23,8 +23,11 @@ use crate::errors::InvalidTrackID;
 /// [object_path]:
 /// https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling-object-path
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "serde", serde(into = "String", try_from = "String"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(into = "String", try_from = "String")
+)]
 pub struct TrackID(OwnedObjectPath);
 
 impl TrackID {

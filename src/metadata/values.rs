@@ -1,3 +1,5 @@
+#[cfg(feature = "serde")]
+use serde::{de::IgnoredAny, Deserialize, Deserializer, Serialize};
 use zbus::zvariant::{OwnedValue, Value};
 
 use crate::errors::InvalidMetadataValue;
@@ -11,16 +13,25 @@ use crate::errors::InvalidMetadataValue;
 /// [dbus_types]: https://dbus.freedesktop.org/doc/dbus-specification.html#type-system
 /// [meta_spec]: https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(untagged))]
 #[allow(missing_docs)]
 pub enum MetadataValue {
     Boolean(bool),
-    Float(f64),
     SignedInt(i64),
     UnsignedInt(u64),
+    Float(f64),
     String(String),
     Strings(Vec<String>),
+    #[cfg_attr(feature = "serde", serde(deserialize_with = "deser_no_fail"))]
     Unsupported,
+}
+
+#[cfg(feature = "serde")]
+fn deser_no_fail<'de, D>(d: D) -> Result<(), D::Error>
+where
+    D: Deserializer<'de>,
+{
+    IgnoredAny::deserialize(d).map(|_| ())
 }
 
 impl MetadataValue {
@@ -330,6 +341,102 @@ mod metadata_value_integer_tests {
         assert_eq!(
             MetadataValue::UnsignedInt(u64::MAX).try_into(),
             Ok(u64::MAX)
+        );
+    }
+}
+
+#[cfg(all(test, feature = "serde"))]
+mod metadata_value_serde {
+    use std::u64;
+
+    use super::*;
+    use serde_test::{assert_de_tokens, assert_ser_tokens, Token};
+
+    #[test]
+    fn serialization() {
+        assert_ser_tokens(&MetadataValue::Boolean(true), &[Token::Bool(true)]);
+        assert_ser_tokens(&MetadataValue::UnsignedInt(1), &[Token::U64(1)]);
+        assert_ser_tokens(&MetadataValue::UnsignedInt(0), &[Token::U64(0)]);
+        assert_ser_tokens(&MetadataValue::SignedInt(-1), &[Token::I64(-1)]);
+        assert_ser_tokens(&MetadataValue::SignedInt(0), &[Token::I64(0)]);
+        assert_ser_tokens(&MetadataValue::Float(0.0), &[Token::F64(0.0)]);
+        assert_ser_tokens(
+            &MetadataValue::String(String::from("test")),
+            &[Token::String("test")],
+        );
+        assert_ser_tokens(
+            &MetadataValue::Strings(vec![String::from("one"), String::from("two")]),
+            &[
+                Token::Seq { len: Some(2) },
+                Token::String("one"),
+                Token::String("two"),
+                Token::SeqEnd,
+            ],
+        );
+        assert_ser_tokens(&MetadataValue::Unsupported, &[Token::Unit]);
+    }
+
+    #[test]
+    fn deserialization() {
+        assert_de_tokens(&MetadataValue::Boolean(true), &[Token::Bool(true)]);
+
+        assert_de_tokens(
+            &MetadataValue::UnsignedInt(u64::MAX),
+            &[Token::U64(u64::MAX)],
+        );
+
+        let signed = MetadataValue::SignedInt(0);
+        let neg = MetadataValue::SignedInt(-1);
+        assert_de_tokens(&signed, &[Token::I64(0)]);
+        assert_de_tokens(&signed, &[Token::U64(0)]);
+        assert_de_tokens(&signed, &[Token::U8(0)]);
+        assert_de_tokens(&signed, &[Token::I8(0)]);
+        assert_de_tokens(&neg, &[Token::I64(-1)]);
+        assert_de_tokens(&neg, &[Token::I8(-1)]);
+
+        let float = MetadataValue::Float(0.0);
+        assert_de_tokens(&float, &[Token::F32(0.0)]);
+        assert_de_tokens(&float, &[Token::F64(0.0)]);
+
+        let string = MetadataValue::String(String::from("test"));
+        assert_de_tokens(&string, &[Token::String("test")]);
+        assert_de_tokens(&string, &[Token::BorrowedStr("test")]);
+
+        let strings = MetadataValue::Strings(vec![String::from("first"), String::from("second")]);
+        assert_de_tokens(
+            &strings,
+            &[
+                Token::Seq { len: Some(2) },
+                Token::String("first"),
+                Token::String("second"),
+                Token::SeqEnd,
+            ],
+        );
+        assert_de_tokens(
+            &strings,
+            &[
+                Token::Seq { len: Some(2) },
+                Token::BorrowedStr("first"),
+                Token::BorrowedStr("second"),
+                Token::SeqEnd,
+            ],
+        );
+
+        let unsupported = MetadataValue::Unsupported;
+        assert_de_tokens(&unsupported, &[Token::Unit]);
+        assert_de_tokens(&unsupported, &[Token::Char('a')]);
+        assert_de_tokens(&unsupported, &[Token::None]);
+        assert_de_tokens(&unsupported, &[Token::Map { len: None }, Token::MapEnd]);
+        assert_de_tokens(
+            &unsupported,
+            &[
+                Token::StructVariant {
+                    name: "test",
+                    variant: "test",
+                    len: 0,
+                },
+                Token::StructVariantEnd,
+            ],
         );
     }
 }

@@ -5,7 +5,7 @@ use std::{
 
 use futures_util::StreamExt;
 #[cfg(feature = "serde")]
-use serde::Serializer;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use zbus::{
     names::BusName,
     zvariant::{ObjectPath, OwnedObjectPath},
@@ -40,7 +40,7 @@ type InnerPlaylistData = HashMap<OwnedObjectPath, (String, Option<String>)>;
 /// [object_path]:
 /// https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling-object-path
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Playlist {
     #[cfg_attr(
         feature = "serde",
@@ -49,7 +49,14 @@ pub struct Playlist {
     /// Unique playlist identifier
     id: OwnedObjectPath,
     name: String,
-    #[cfg_attr(feature = "serde", serde(default))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(
+            default,
+            deserialize_with = "deserialize_option_string",
+            serialize_with = "serialize_none_to_empty"
+        )
+    )]
     icon: Option<String>,
 }
 
@@ -271,6 +278,30 @@ where
     ser.serialize_str(object.as_str())
 }
 
+#[cfg(feature = "serde")]
+fn deserialize_option_string<'de, D>(deser: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deser)?;
+    if s.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(s))
+    }
+}
+
+#[cfg(feature = "serde")]
+fn serialize_none_to_empty<S>(object: &Option<String>, ser: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    ser.serialize_str(match object {
+        Some(s) => s,
+        None => "",
+    })
+}
+
 impl From<(OwnedObjectPath, String, String)> for Playlist {
     fn from(value: (OwnedObjectPath, String, String)) -> Self {
         let icon = if value.2.is_empty() {
@@ -460,7 +491,6 @@ mod playlist_serde_tests {
                 Token::Str("name"),
                 Token::String("TestName"),
                 Token::Str("icon"),
-                Token::Some,
                 Token::String("TestIcon"),
                 Token::StructEnd,
             ],
@@ -479,7 +509,7 @@ mod playlist_serde_tests {
                 Token::Str("name"),
                 Token::String("TestName"),
                 Token::Str("icon"),
-                Token::None,
+                Token::Str(""),
                 Token::StructEnd,
             ],
         );

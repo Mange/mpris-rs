@@ -244,9 +244,11 @@ gen_metadata_struct!(
     /// [guide]: https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/
     /// [object_path]: https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling-object-path
     #[derive(Debug, Clone, Default, PartialEq)]
-    #[cfg_attr(feature = "serde",
-               derive(serde::Serialize, serde::Deserialize),
-               serde(into = "RawMetadata", try_from = "RawMetadata"))]
+    #[cfg_attr(
+        feature = "serde",
+        derive(serde::Serialize, serde::Deserialize),
+        serde(into = "RawMetadata", try_from = "RawMetadata")
+    )]
     struct Metadata {
         /// The album artist(s).
         "xesam:albumArtist" => album_artists: Vec<String>,
