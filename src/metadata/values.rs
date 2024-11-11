@@ -1,5 +1,6 @@
 use zbus::zvariant::{OwnedValue, Value};
 
+use super::TrackID;
 use crate::errors::InvalidMetadataValue;
 #[cfg(feature = "serde")]
 use crate::serde_util::deser_no_fail;
@@ -26,6 +27,7 @@ pub enum MetadataValue {
     Float(f64),
     String(String),
     Strings(Vec<String>),
+    TrackID(TrackID),
     #[cfg_attr(feature = "serde", serde(deserialize_with = "deser_no_fail"))]
     Unsupported,
 }
@@ -115,7 +117,7 @@ impl<'a> From<Value<'a>> for MetadataValue {
 
             Value::Str(v) => MetadataValue::String(v.to_string()),
             Value::Signature(v) => MetadataValue::String(v.to_string()),
-            Value::ObjectPath(v) => MetadataValue::String(v.to_string()),
+            Value::ObjectPath(v) => MetadataValue::TrackID(TrackID::from(v)),
 
             Value::Array(a) if a.full_signature() == "as" => {
                 let mut strings = Vec::with_capacity(a.len());
@@ -173,9 +175,9 @@ impl From<Vec<String>> for MetadataValue {
     }
 }
 
-impl From<super::TrackID> for MetadataValue {
-    fn from(value: super::TrackID) -> Self {
-        Self::String(value.into())
+impl From<TrackID> for MetadataValue {
+    fn from(value: TrackID) -> Self {
+        Self::TrackID(value)
     }
 }
 
@@ -357,6 +359,10 @@ mod metadata_value_serde {
         assert_ser_tokens(&MetadataValue::SignedInt(0), &[Token::I64(0)]);
         assert_ser_tokens(&MetadataValue::Float(0.0), &[Token::F64(0.0)]);
         assert_ser_tokens(
+            &MetadataValue::TrackID(TrackID::try_from("/valid/path").unwrap()),
+            &[Token::Str("/valid/path")],
+        );
+        assert_ser_tokens(
             &MetadataValue::String(String::from("test")),
             &[Token::String("test")],
         );
@@ -394,6 +400,10 @@ mod metadata_value_serde {
         assert_de_tokens(&float, &[Token::F32(0.0)]);
         assert_de_tokens(&float, &[Token::F64(0.0)]);
 
+        assert_de_tokens(
+            &MetadataValue::String(String::from("/valid/path")),
+            &[Token::Str("/valid/path")],
+        );
         let string = MetadataValue::String(String::from("test"));
         assert_de_tokens(&string, &[Token::String("test")]);
         assert_de_tokens(&string, &[Token::BorrowedStr("test")]);

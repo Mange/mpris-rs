@@ -82,6 +82,11 @@ impl TrackID {
     pub fn as_object_path(&self) -> ObjectPath<'_> {
         self.0.as_ref()
     }
+
+    #[cfg(test)]
+    pub(crate) fn from_str_unchecked(s: &'static str) -> Self {
+        Self::from(ObjectPath::from_static_str_unchecked(s))
+    }
 }
 
 impl AsRef<OwnedObjectPath> for TrackID {
@@ -168,7 +173,8 @@ impl TryFrom<MetadataValue> for TrackID {
             MetadataValue::Strings(mut s) if s.len() == 1 => {
                 s.pop().expect("length should be 1").try_into()
             }
-            _ => Err(InvalidTrackID(String::from("not a string"))),
+            MetadataValue::TrackID(t) => Ok(t),
+            _ => Err(InvalidTrackID(String::from("not a string or track id"))),
         }
     }
 }
@@ -238,9 +244,7 @@ mod tests {
     #[test]
     fn no_track() {
         let track = TrackID::no_track();
-        let manual = TrackID(OwnedObjectPath::from(
-            ObjectPath::from_static_str_unchecked(TrackID::NO_TRACK),
-        ));
+        let manual = TrackID::from_str_unchecked(TrackID::NO_TRACK);
 
         assert!(track.is_no_track());
         assert!(manual.is_no_track());
@@ -259,30 +263,19 @@ mod tests {
 
     #[test]
     fn valid_track_id() {
-        assert_eq!(
-            TrackID::try_from("/"),
-            Ok(TrackID(OwnedObjectPath::from(
-                ObjectPath::from_str_unchecked("/")
-            )))
-        );
+        assert_eq!(TrackID::try_from("/"), Ok(TrackID::from_str_unchecked("/")));
         assert_eq!(
             TrackID::try_from("/some/path"),
-            Ok(TrackID(OwnedObjectPath::from(
-                ObjectPath::from_str_unchecked("/some/path")
-            )))
+            Ok(TrackID::from_str_unchecked("/some/path"))
         );
 
         assert_eq!(
             TrackID::try_from("/".to_string()),
-            Ok(TrackID(OwnedObjectPath::from(
-                ObjectPath::from_str_unchecked("/")
-            )))
+            Ok(TrackID::from_str_unchecked("/"))
         );
         assert_eq!(
             TrackID::try_from("/some/path".to_string()),
-            Ok(TrackID(OwnedObjectPath::from(
-                ObjectPath::from_str_unchecked("/some/path")
-            )))
+            Ok(TrackID::from_str_unchecked("/some/path"))
         );
     }
 
@@ -303,42 +296,39 @@ mod tests {
     fn from_object_path() {
         assert_eq!(
             TrackID::from(ObjectPath::from_str_unchecked("/valid/path")),
-            TrackID(OwnedObjectPath::from(ObjectPath::from_str_unchecked(
-                "/valid/path"
-            )))
+            TrackID::from_str_unchecked("/valid/path")
         );
         assert_eq!(
             TrackID::from(OwnedObjectPath::from(ObjectPath::from_str_unchecked(
                 "/valid/path"
             ))),
-            TrackID(OwnedObjectPath::from(ObjectPath::from_str_unchecked(
-                "/valid/path"
-            )))
+            TrackID::from_str_unchecked("/valid/path")
         );
     }
 
     #[test]
     fn from_metadata_value() {
+        let valid_track = Ok(TrackID::from_str_unchecked("/valid/path"));
         assert!(TrackID::try_from(MetadataValue::Boolean(true)).is_err());
         assert!(TrackID::try_from(MetadataValue::Float(0.0)).is_err());
         assert!(TrackID::try_from(MetadataValue::SignedInt(0)).is_err());
         assert!(TrackID::try_from(MetadataValue::UnsignedInt(0)).is_err());
         assert_eq!(
             TrackID::try_from(MetadataValue::String(String::from("/valid/path"))),
-            Ok(TrackID(OwnedObjectPath::from(
-                ObjectPath::from_str_unchecked("/valid/path")
-            )))
+            valid_track,
         );
         assert!(TrackID::try_from(MetadataValue::Strings(vec![])).is_err());
         assert_eq!(
             TrackID::try_from(MetadataValue::Strings(vec![String::from("/valid/path")])),
-            Ok(TrackID(OwnedObjectPath::from(
-                ObjectPath::from_str_unchecked("/valid/path")
-            )))
+            valid_track
         );
         assert!(
             TrackID::try_from(MetadataValue::Strings(vec![String::from("/valid/path"); 2]))
                 .is_err()
+        );
+        assert_eq!(
+            TrackID::try_from(MetadataValue::TrackID(valid_track.clone().unwrap())),
+            valid_track
         );
         assert!(TrackID::try_from(MetadataValue::Unsupported).is_err());
     }
@@ -360,13 +350,13 @@ mod serde_tests {
 
     #[test]
     fn test_serialization() {
-        let track_id = TrackID::try_from("/foo/bar").unwrap();
+        let track_id = TrackID::from_str_unchecked("/foo/bar");
         assert_ser_tokens(&track_id, &[Token::Str("/foo/bar")]);
     }
 
     #[test]
     fn test_deserialization() {
-        let track_id = TrackID::try_from("/foo/bar").unwrap();
+        let track_id = TrackID::from_str_unchecked("/foo/bar");
         assert_de_tokens(&track_id, &[Token::Str("/foo/bar")]);
     }
 }
