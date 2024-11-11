@@ -4,11 +4,11 @@ use std::{
 };
 
 use futures_util::StreamExt;
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use zbus::{names::BusName, zvariant::OwnedObjectPath, Connection, Task};
 
 use crate::proxies::PlaylistsProxy;
+#[cfg(feature = "serde")]
+use crate::serde_util::{option_string, serialize_owned_object_path};
 use crate::{InvalidPlaylist, InvalidPlaylistOrdering, MprisError};
 
 type InnerPlaylistData = HashMap<OwnedObjectPath, (String, Option<String>)>;
@@ -36,7 +36,7 @@ type InnerPlaylistData = HashMap<OwnedObjectPath, (String, Option<String>)>;
 /// [object_path]:
 /// https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling-object-path
 #[derive(Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Playlist {
     #[cfg_attr(
         feature = "serde",
@@ -45,14 +45,7 @@ pub struct Playlist {
     /// Unique playlist identifier
     id: OwnedObjectPath,
     name: String,
-    #[cfg_attr(
-        feature = "serde",
-        serde(
-            default,
-            deserialize_with = "deserialize_option_string",
-            serialize_with = "serialize_none_to_empty"
-        )
-    )]
+    #[cfg_attr(feature = "serde", serde(default, with = "option_string"))]
     icon: Option<String>,
 }
 
@@ -261,41 +254,6 @@ impl std::fmt::Debug for Playlist {
             .field("icon", &self.icon)
             .finish()
     }
-}
-
-#[cfg(feature = "serde")]
-pub(crate) fn serialize_owned_object_path<S>(
-    object: &OwnedObjectPath,
-    ser: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    ser.serialize_str(object.as_str())
-}
-
-#[cfg(feature = "serde")]
-fn deserialize_option_string<'de, D>(deser: D) -> Result<Option<String>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let s = String::deserialize(deser)?;
-    if s.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(s))
-    }
-}
-
-#[cfg(feature = "serde")]
-fn serialize_none_to_empty<S>(object: &Option<String>, ser: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    ser.serialize_str(match object {
-        Some(s) => s,
-        None => "",
-    })
 }
 
 impl From<(OwnedObjectPath, String, String)> for Playlist {

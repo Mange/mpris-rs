@@ -1,8 +1,8 @@
-#[cfg(feature = "serde")]
-use serde::{de::IgnoredAny, Deserialize, Deserializer, Serialize};
 use zbus::zvariant::{OwnedValue, Value};
 
 use crate::errors::InvalidMetadataValue;
+#[cfg(feature = "serde")]
+use crate::serde_util::deser_no_fail;
 
 /// Subset of [DBus data types][dbus_types] that are commonly used in MPRIS metadata.
 ///
@@ -13,7 +13,11 @@ use crate::errors::InvalidMetadataValue;
 /// [dbus_types]: https://dbus.freedesktop.org/doc/dbus-specification.html#type-system
 /// [meta_spec]: https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(untagged))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(untagged)
+)]
 #[allow(missing_docs)]
 pub enum MetadataValue {
     Boolean(bool),
@@ -24,14 +28,6 @@ pub enum MetadataValue {
     Strings(Vec<String>),
     #[cfg_attr(feature = "serde", serde(deserialize_with = "deser_no_fail"))]
     Unsupported,
-}
-
-#[cfg(feature = "serde")]
-fn deser_no_fail<'de, D>(d: D) -> Result<(), D::Error>
-where
-    D: Deserializer<'de>,
-{
-    IgnoredAny::deserialize(d).map(|_| ())
 }
 
 impl MetadataValue {

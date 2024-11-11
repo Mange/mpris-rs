@@ -98,6 +98,8 @@ pub mod metadata;
 mod player;
 mod playlist;
 mod proxies;
+#[cfg(feature = "serde")]
+pub(crate) mod serde_util;
 
 use errors::*;
 
