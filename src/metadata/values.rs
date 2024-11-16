@@ -193,9 +193,7 @@ impl TryFrom<MetadataValue> for bool {
     fn try_from(value: MetadataValue) -> Result<Self, Self::Error> {
         match value {
             MetadataValue::Boolean(v) => Ok(v),
-            _ => Err(InvalidMetadataValue::from(
-                "expected MetadataValue::Boolean",
-            )),
+            _ => Err(InvalidMetadataValue::expected("MetadataValue::Boolean")),
         }
     }
 }
@@ -206,7 +204,7 @@ impl TryFrom<MetadataValue> for f64 {
     fn try_from(value: MetadataValue) -> Result<Self, Self::Error> {
         match value {
             MetadataValue::Float(v) => Ok(v),
-            _ => Err(InvalidMetadataValue::from("expected MetadataValue::Float")),
+            _ => Err(InvalidMetadataValue::expected("MetadataValue::Float")),
         }
     }
 }
@@ -224,8 +222,8 @@ impl TryFrom<MetadataValue> for i64 {
                     Err(InvalidMetadataValue::from("value too big for i64"))
                 }
             }
-            _ => Err(InvalidMetadataValue::from(
-                "expected MetadataValue::SignedInt or MetadataValue::UnsignedInt",
+            _ => Err(InvalidMetadataValue::expected(
+                "MetadataValue::SignedInt or MetadataValue::UnsignedInt",
             )),
         }
     }
@@ -244,8 +242,8 @@ impl TryFrom<MetadataValue> for u64 {
                     Err(InvalidMetadataValue::from("value is negative"))
                 }
             }
-            _ => Err(InvalidMetadataValue::from(
-                "expected MetadataValue::SignedInt or MetadataValue::UnsignedInt",
+            _ => Err(InvalidMetadataValue::expected(
+                "MetadataValue::SignedInt or MetadataValue::UnsignedInt",
             )),
         }
     }
@@ -266,8 +264,8 @@ impl TryFrom<MetadataValue> for String {
                     ))
                 }
             }
-            _ => Err(InvalidMetadataValue::from(
-                "expected MetadataValue::Strings or MetadataValue::String",
+            _ => Err(InvalidMetadataValue::expected(
+                "MetadataValue::Strings or MetadataValue::String",
             )),
         }
     }
@@ -280,8 +278,8 @@ impl TryFrom<MetadataValue> for Vec<String> {
         match value {
             MetadataValue::String(v) => Ok(vec![v]),
             MetadataValue::Strings(v) => Ok(v),
-            _ => Err(InvalidMetadataValue::from(
-                "expected MetadataValue::Strings or MetadataValue::String",
+            _ => Err(InvalidMetadataValue::expected(
+                "MetadataValue::Strings or MetadataValue::String",
             )),
         }
     }
@@ -345,8 +343,6 @@ mod metadata_value_integer_tests {
 
 #[cfg(all(test, feature = "serde"))]
 mod metadata_value_serde {
-    use std::u64;
-
     use super::*;
     use serde_test::{assert_de_tokens, assert_ser_tokens, Token};
 

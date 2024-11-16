@@ -174,7 +174,7 @@ impl TryFrom<MetadataValue> for TrackID {
                 s.pop().expect("length should be 1").try_into()
             }
             MetadataValue::TrackID(t) => Ok(t),
-            _ => Err(InvalidTrackID(String::from("not a string or track id"))),
+            _ => Err(InvalidTrackID::expected("String or TrackID")),
         }
     }
 }
@@ -194,7 +194,7 @@ impl TryFrom<Value<'_>> for TrackID {
         match value {
             Value::Str(s) => Self::try_from(s.as_str()),
             Value::ObjectPath(path) => Ok(Self::from(path)),
-            _ => Err(InvalidTrackID::from("not a String or ObjectPath")),
+            _ => Err(InvalidTrackID::expected("Str or ObjectPath")),
         }
     }
 }
@@ -207,7 +207,7 @@ impl From<OwnedObjectPath> for TrackID {
 
 impl From<ObjectPath<'_>> for TrackID {
     fn from(value: ObjectPath) -> Self {
-        Self(value.into())
+        Self(OwnedObjectPath::from(value))
     }
 }
 

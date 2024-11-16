@@ -19,6 +19,13 @@ macro_rules! generate_error {
         #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
         pub struct $error(pub(crate) String);
 
+        impl $error {
+            #[allow(dead_code)]
+            pub(crate) fn expected(expected: &str) -> Self {
+                Self(format!(r"invalid value, expected: {expected}"))
+            }
+        }
+
         impl Display for $error {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(f, "{}", self.0)

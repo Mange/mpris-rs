@@ -147,7 +147,9 @@ impl TryFrom<MetadataValue> for MprisDuration {
         match value {
             MetadataValue::SignedInt(int) => int.try_into(),
             MetadataValue::UnsignedInt(int) => int.try_into(),
-            _ => Err(InvalidMprisDuration::from("unsupported MetadataValue type")),
+            _ => Err(InvalidMprisDuration::expected(
+                "MetadataValue::SignedInt or MetadataValue::UnsignedInt",
+            )),
         }
     }
 }
