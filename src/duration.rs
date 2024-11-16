@@ -204,10 +204,60 @@ macro_rules! impl_math {
     };
 }
 
+macro_rules! impl_unsigned_small {
+    ($type:ty) => {
+        impl From<$type> for MprisDuration {
+            fn from(value: $type) -> Self {
+                Self(value as u64)
+            }
+        }
+
+        impl TryFrom<MprisDuration> for $type {
+            type Error = std::num::TryFromIntError;
+
+            fn try_from(value: MprisDuration) -> Result<Self, Self::Error> {
+                <$type>::try_from(value.0)
+            }
+        }
+    };
+}
+
+macro_rules! impl_signed_small {
+    ($type:ty) => {
+        impl TryFrom<$type> for MprisDuration {
+            type Error = InvalidMprisDuration;
+
+            fn try_from(value: $type) -> Result<Self, Self::Error> {
+                if value < 0 {
+                    Err(InvalidMprisDuration::new_negative())
+                } else {
+                    Ok(Self(value as u64))
+                }
+            }
+        }
+
+        impl TryFrom<MprisDuration> for $type {
+            type Error = std::num::TryFromIntError;
+
+            fn try_from(value: MprisDuration) -> Result<Self, Self::Error> {
+                <$type>::try_from(value.0)
+            }
+        }
+    };
+}
+
 impl_math!(Mul, mul, saturating_mul);
 impl_math!(Div, div, saturating_div);
 impl_math!(Add, add, saturating_add);
 impl_math!(Sub, sub, saturating_sub);
+
+impl_unsigned_small!(u8);
+impl_unsigned_small!(u16);
+impl_unsigned_small!(u32);
+
+impl_signed_small!(i8);
+impl_signed_small!(i16);
+impl_signed_small!(i32);
 
 #[cfg(test)]
 mod mrpis_duration_tests {
@@ -274,6 +324,56 @@ mod mrpis_duration_tests {
         );
         assert_eq!(MprisDuration::try_from(0_u64), Ok(MprisDuration::default()));
         assert!(MprisDuration::try_from(MAX + 1).is_err());
+    }
+
+    macro_rules! gen_small_unsigned_test {
+        ($type:ty) => {
+            assert_eq!(MprisDuration::from(<$type>::MIN), MprisDuration(0));
+            assert_eq!(
+                MprisDuration::from(<$type>::MAX),
+                MprisDuration(<$type>::MAX as u64)
+            );
+
+            assert_eq!(<$type>::try_from(MprisDuration(0)), Ok(0));
+            assert_eq!(
+                <$type>::try_from(MprisDuration(<$type>::MAX as u64)),
+                Ok(<$type>::MAX)
+            );
+            assert!(<$type>::try_from(MprisDuration::new_max()).is_err());
+        };
+    }
+
+    macro_rules! gen_small_signed_test {
+        ($type:ty) => {
+            assert!(MprisDuration::try_from(<$type>::MIN).is_err());
+            let zero: $type = 0;
+            assert_eq!(MprisDuration::try_from(zero), Ok(MprisDuration(0)));
+            assert_eq!(
+                MprisDuration::try_from(<$type>::MAX),
+                Ok(MprisDuration(<$type>::MAX as u64))
+            );
+
+            assert_eq!(<$type>::try_from(MprisDuration(0)), Ok(0));
+            assert_eq!(
+                <$type>::try_from(MprisDuration(<$type>::MAX as u64)),
+                Ok(<$type>::MAX)
+            );
+            assert!(<$type>::try_from(MprisDuration::new_max()).is_err());
+        };
+    }
+
+    #[test]
+    fn small_unsigned_conversions() {
+        gen_small_unsigned_test!(u8);
+        gen_small_unsigned_test!(u16);
+        gen_small_unsigned_test!(u32);
+    }
+
+    #[test]
+    fn small_signed_conversions() {
+        gen_small_signed_test!(i8);
+        gen_small_signed_test!(i16);
+        gen_small_signed_test!(i32);
     }
 
     #[test]
