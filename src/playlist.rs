@@ -4,10 +4,13 @@ use std::{
 };
 
 use futures_util::StreamExt;
-use zbus::{names::BusName, zvariant::OwnedObjectPath, Connection, Task};
+use zbus::{
+    names::BusName,
+    zvariant::{OwnedObjectPath, OwnedValue, Structure, Type, Value},
+    Connection, Task,
+};
 
 use crate::proxies::PlaylistsProxy;
-#[cfg(feature = "serde")]
 use crate::serde_util::{option_string, serialize_owned_object_path};
 use crate::{InvalidPlaylist, InvalidPlaylistOrdering, MprisError};
 
@@ -35,17 +38,14 @@ type InnerPlaylistData = HashMap<OwnedObjectPath, (String, Option<String>)>;
 /// https://specifications.freedesktop.org/mpris-spec/latest/Playlists_Interface.html#Struct:Playlist
 /// [object_path]:
 /// https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling-object-path
-#[derive(Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Type)]
+#[zvariant(signature = "(oss)")]
 pub struct Playlist {
-    #[cfg_attr(
-        feature = "serde",
-        serde(serialize_with = "serialize_owned_object_path")
-    )]
+    #[serde(serialize_with = "serialize_owned_object_path")]
     /// Unique playlist identifier
     id: OwnedObjectPath,
     name: String,
-    #[cfg_attr(feature = "serde", serde(default, with = "option_string"))]
+    #[serde(default, with = "option_string")]
     icon: Option<String>,
 }
 
@@ -96,12 +96,12 @@ impl Playlist {
     }
 
     /// Gets the `id` as a borrowed [`ObjectPath`]
-    pub fn get_id(&self) -> &OwnedObjectPath {
+    pub(crate) fn get_path(&self) -> &OwnedObjectPath {
         &self.id
     }
 
     /// Gets the `id` as a &[`str`]
-    pub fn get_id_as_str(&self) -> &str {
+    pub fn get_id(&self) -> &str {
         self.id.as_str()
     }
 }
@@ -134,7 +134,7 @@ impl PlaylistsInterface {
                 while let Some(change) = stream.next().await {
                     // TODO: don't ignore errors somehow without panicking
                     if let Ok(args) = change.args() {
-                        let playlist = Playlist::from(args.playlist);
+                        let playlist = args.playlist;
                         i_clone
                             .get_lock()
                             .insert(playlist.id, (playlist.name, playlist.icon));
@@ -175,7 +175,7 @@ impl PlaylistsInterface {
     }
 
     pub(crate) async fn activate_playlist(&self, playlist: &Playlist) -> Result<(), MprisError> {
-        Ok(self.proxy.activate_playlist(playlist.get_id()).await?)
+        self.proxy.activate_playlist(playlist.get_path()).await
     }
 
     /// Wraps the proxy method of the same name and updates the internal data.
@@ -188,11 +188,8 @@ impl PlaylistsInterface {
     ) -> Result<Vec<Playlist>, MprisError> {
         let playlists: Vec<_> = self
             .proxy
-            .get_playlists(start_index, max_count, order.as_str(), reverse_order)
-            .await?
-            .into_iter()
-            .map(Playlist::from)
-            .collect();
+            .get_playlists(start_index, max_count, order.as_str_value(), reverse_order)
+            .await?;
         self.inner.update_playlists(&playlists);
         Ok(playlists)
     }
@@ -200,27 +197,22 @@ impl PlaylistsInterface {
     /// Wraps the proxy method of the same name and updates the internal data.
     pub(crate) async fn active_playlist(&self) -> Result<Option<Playlist>, MprisError> {
         Ok(match self.proxy.active_playlist().await? {
-            (true, data) => {
+            Some(playlist) => {
                 // Better to create a temporary Vec here than to lock the Mutex for each playlist
-                let mut playlist = vec![Playlist::from(data)];
+                let mut playlist = vec![playlist];
                 self.inner.update_playlists(&playlist);
                 Some(playlist.pop().expect("there should be at least 1 playlist"))
             }
-            (false, _) => None,
+            None => None,
         })
     }
 
     pub(crate) async fn orderings(&self) -> Result<Vec<PlaylistOrdering>, MprisError> {
-        let result = self.proxy.orderings().await?;
-        let mut orderings = Vec::with_capacity(result.len());
-        for s in result {
-            orderings.push(s.parse()?);
-        }
-        Ok(orderings)
+        self.proxy.orderings().await
     }
 
     pub(crate) async fn playlist_count(&self) -> Result<u32, MprisError> {
-        Ok(self.proxy.playlist_count().await?)
+        self.proxy.playlist_count().await
     }
 }
 
@@ -249,7 +241,7 @@ impl PlaylistInner {
 impl std::fmt::Debug for Playlist {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Playlist")
-            .field("id", &self.get_id_as_str())
+            .field("id", &self.get_id())
             .field("name", &self.name)
             .field("icon", &self.icon)
             .finish()
@@ -268,6 +260,38 @@ impl From<(OwnedObjectPath, String, String)> for Playlist {
             name: value.1,
             icon,
         }
+    }
+}
+
+impl TryFrom<Value<'_>> for Playlist {
+    type Error = InvalidPlaylist;
+
+    fn try_from(value: Value<'_>) -> Result<Self, Self::Error> {
+        match value {
+            Value::Structure(structure) => Self::try_from(structure),
+            _ => Err(InvalidPlaylist::expected("Value::Structure")),
+        }
+    }
+}
+
+impl TryFrom<OwnedValue> for Playlist {
+    type Error = InvalidPlaylist;
+
+    fn try_from(value: OwnedValue) -> Result<Self, Self::Error> {
+        Self::try_from(Value::from(value))
+    }
+}
+
+impl TryFrom<Structure<'_>> for Playlist {
+    type Error = InvalidPlaylist;
+
+    fn try_from(value: Structure<'_>) -> Result<Self, Self::Error> {
+        if value.full_signature() == "(oss)" {
+            if let Ok((id, name, icon)) = <(OwnedObjectPath, String, String)>::try_from(value) {
+                return Ok(Playlist::from((id, name, icon)));
+            }
+        }
+        Err(InvalidPlaylist::from("incorrect signature"))
     }
 }
 
@@ -296,7 +320,7 @@ impl PlaylistOrdering {
     /// Returns the string value that's used on the D-Bus.
     ///
     /// See [`as_str()`][Self::as_str()] if you want the name of the enum variant.
-    pub fn as_str_value(&self) -> &str {
+    pub fn as_str_value(&self) -> &'static str {
         match self {
             PlaylistOrdering::Alphabetical => "Alphabetical",
             PlaylistOrdering::CreationDate => "Created",
@@ -343,8 +367,29 @@ impl std::str::FromStr for PlaylistOrdering {
     }
 }
 
+impl TryFrom<Value<'_>> for PlaylistOrdering {
+    type Error = InvalidPlaylistOrdering;
+
+    fn try_from(value: Value<'_>) -> Result<Self, Self::Error> {
+        match value {
+            Value::Str(s) => s.parse(),
+            _ => Err(InvalidPlaylistOrdering::expected("Value::Str")),
+        }
+    }
+}
+
+impl TryFrom<OwnedValue> for PlaylistOrdering {
+    type Error = InvalidPlaylistOrdering;
+
+    fn try_from(value: OwnedValue) -> Result<Self, Self::Error> {
+        Self::try_from(Value::from(value))
+    }
+}
+
 #[cfg(test)]
 mod playlist_ordering_tests {
+    use zbus::zvariant::{Dict, ObjectPath, Signature, Structure};
+
     use super::*;
 
     #[test]
@@ -383,12 +428,56 @@ mod playlist_ordering_tests {
         assert_eq!(&PlaylistOrdering::LastPlayDate.to_string(), "LastPlayDate");
         assert_eq!(&PlaylistOrdering::UserDefined.to_string(), "UserDefined");
     }
+
+    #[test]
+    fn from_value() {
+        let s_signature = Signature::try_from("s").unwrap();
+
+        assert!(PlaylistOrdering::try_from(Value::U8(0)).is_err());
+        assert!(PlaylistOrdering::try_from(Value::Bool(false)).is_err());
+        assert!(PlaylistOrdering::try_from(Value::I16(0)).is_err());
+        assert!(PlaylistOrdering::try_from(Value::U16(0)).is_err());
+        assert!(PlaylistOrdering::try_from(Value::I32(0)).is_err());
+        assert!(PlaylistOrdering::try_from(Value::U32(0)).is_err());
+        assert!(PlaylistOrdering::try_from(Value::I64(0)).is_err());
+        assert!(PlaylistOrdering::try_from(Value::U64(0)).is_err());
+        assert!(PlaylistOrdering::try_from(Value::F64(0.0)).is_err());
+
+        assert_eq!(
+            PlaylistOrdering::try_from(Value::Str("Alphabetical".into())),
+            Ok(PlaylistOrdering::Alphabetical)
+        );
+        assert_eq!(
+            PlaylistOrdering::try_from(Value::Str("Created".into())),
+            Ok(PlaylistOrdering::CreationDate)
+        );
+        assert_eq!(
+            PlaylistOrdering::try_from(Value::Str("Played".into())),
+            Ok(PlaylistOrdering::LastPlayDate)
+        );
+        assert_eq!(
+            PlaylistOrdering::try_from(Value::Str("User".into())),
+            Ok(PlaylistOrdering::UserDefined)
+        );
+
+        assert!(PlaylistOrdering::try_from(Value::Str("Wrong".into())).is_err());
+        assert!(PlaylistOrdering::try_from(Value::Signature(s_signature.clone())).is_err());
+        assert!(PlaylistOrdering::try_from(Value::ObjectPath(ObjectPath::default())).is_err());
+        assert!(PlaylistOrdering::try_from(Value::Value(Box::new(Value::Bool(false)))).is_err());
+        assert!(PlaylistOrdering::try_from(Value::Array(vec![0].try_into().unwrap())).is_err());
+        assert!(PlaylistOrdering::try_from(Value::Dict(Dict::new(
+            s_signature.clone(),
+            s_signature.clone()
+        )))
+        .is_err());
+        assert!(PlaylistOrdering::try_from(Value::Structure(Structure::default())).is_err());
+    }
 }
 
 #[cfg(test)]
 mod playlist_tests {
     use super::*;
-    use zbus::zvariant::ObjectPath;
+    use zbus::zvariant::{Dict, ObjectPath, Signature};
 
     #[test]
     fn new() {
@@ -415,17 +504,64 @@ mod playlist_tests {
         assert_eq!(new.get_name(), "TestName");
         assert_eq!(new.get_icon(), Some("TestIcon"));
         assert_eq!(
-            new.get_id().as_ref(),
+            new.get_path().as_ref(),
             ObjectPath::from_str_unchecked("/valid/path")
         );
-        assert_eq!(new.get_id_as_str(), "/valid/path");
+        assert_eq!(new.get_id(), "/valid/path");
 
         new.icon = None;
         assert_eq!(new.get_icon(), None);
     }
+
+    #[test]
+    fn from_value_fail() {
+        let s_signature = Signature::try_from("s").unwrap();
+
+        assert!(Playlist::try_from(Value::U8(0)).is_err());
+        assert!(Playlist::try_from(Value::Bool(false)).is_err());
+        assert!(Playlist::try_from(Value::I16(0)).is_err());
+        assert!(Playlist::try_from(Value::U16(0)).is_err());
+        assert!(Playlist::try_from(Value::I32(0)).is_err());
+        assert!(Playlist::try_from(Value::U32(0)).is_err());
+        assert!(Playlist::try_from(Value::I64(0)).is_err());
+        assert!(Playlist::try_from(Value::U64(0)).is_err());
+        assert!(Playlist::try_from(Value::F64(0.0)).is_err());
+        assert!(Playlist::try_from(Value::Str("".into())).is_err());
+        assert!(Playlist::try_from(Value::Signature(s_signature.clone())).is_err());
+        assert!(Playlist::try_from(Value::ObjectPath(ObjectPath::default())).is_err());
+        assert!(Playlist::try_from(Value::Value(Box::new(Value::Bool(false)))).is_err());
+        assert!(Playlist::try_from(Value::Array(vec![0].try_into().unwrap())).is_err());
+        assert!(Playlist::try_from(Value::Dict(Dict::new(
+            s_signature.clone(),
+            s_signature.clone()
+        )))
+        .is_err());
+    }
+
+    #[test]
+    fn from_value_structure() {
+        assert!(Playlist::try_from(Value::Structure(Structure::default())).is_err());
+
+        let valid_structure =
+            Structure::from((ObjectPath::from_str_unchecked("/valid"), "Name", ""));
+        assert_eq!(
+            Playlist::try_from(valid_structure),
+            Ok(Playlist {
+                id: ObjectPath::from_str_unchecked("/valid").into(),
+                name: String::from("Name"),
+                icon: None
+            })
+        );
+
+        let wrong_signature = Structure::from((ObjectPath::from_str_unchecked("/valid"), 0, ""));
+        assert!(Playlist::try_from(wrong_signature).is_err());
+
+        let too_long = Structure::from((ObjectPath::from_str_unchecked("/valid"), "", "", ""));
+        assert!(Playlist::try_from(too_long).is_err());
+    }
 }
 
-#[cfg(all(test, feature = "serde"))]
+#[cfg(test)]
 mod playlist_serde_tests {
     use super::*;
     use serde_test::{assert_de_tokens, assert_de_tokens_error, assert_tokens, Token};

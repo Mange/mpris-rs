@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use zbus::zvariant::{ObjectPath, OwnedObjectPath, OwnedValue, Value};
+use zbus::zvariant::{ObjectPath, OwnedObjectPath, OwnedValue, Type, Value};
 
 use super::MetadataValue;
 use crate::errors::InvalidTrackID;
@@ -22,12 +22,9 @@ use crate::errors::InvalidTrackID;
 /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Simple-Type:Track_Id
 /// [object_path]:
 /// https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling-object-path
-#[derive(Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Serialize, serde::Deserialize),
-    serde(into = "String", try_from = "String")
-)]
+#[derive(Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, Type)]
+#[serde(into = "String", try_from = "String")]
+#[zvariant(signature = "o")]
 pub struct TrackID(OwnedObjectPath);
 
 impl TrackID {
@@ -199,6 +196,12 @@ impl TryFrom<Value<'_>> for TrackID {
     }
 }
 
+impl From<TrackID> for Value<'static> {
+    fn from(value: TrackID) -> Self {
+        Self::ObjectPath(value.0.into())
+    }
+}
+
 impl From<OwnedObjectPath> for TrackID {
     fn from(value: OwnedObjectPath) -> Self {
         Self(value)
@@ -343,7 +346,7 @@ mod tests {
     }
 }
 
-#[cfg(all(test, feature = "serde"))]
+#[cfg(test)]
 mod serde_tests {
     use super::*;
     use serde_test::{assert_de_tokens, assert_ser_tokens, Token};

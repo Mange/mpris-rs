@@ -43,6 +43,18 @@ macro_rules! generate_error {
                 Self(value.to_string())
             }
         }
+
+        impl From<$error> for Error {
+            fn from(_: $error) -> Self {
+                zbus::zvariant::Error::IncorrectType.into()
+            }
+        }
+
+        impl From<$error> for zbus::zvariant::Error {
+            fn from(_: $error) -> Self {
+                Self::IncorrectType
+            }
+        }
     };
 }
 
@@ -104,6 +116,18 @@ impl From<Error> for MprisError {
             Error::InterfaceNotFound | Error::Unsupported => Self::Unsupported,
             _ => Self::DbusError(value),
         }
+    }
+}
+
+impl From<zbus::zvariant::Error> for MprisError {
+    fn from(value: zbus::zvariant::Error) -> Self {
+        MprisError::DbusError(value.into())
+    }
+}
+
+impl From<zbus::fdo::Error> for MprisError {
+    fn from(value: zbus::fdo::Error) -> Self {
+        Self::DbusError(value.into())
     }
 }
 

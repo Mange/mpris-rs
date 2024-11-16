@@ -3,6 +3,8 @@ use std::{
     time::Duration,
 };
 
+use zbus::zvariant::{OwnedValue, Value};
+
 use crate::{errors::InvalidMprisDuration, metadata::MetadataValue};
 
 const MAX: u64 = i64::MAX as u64;
@@ -39,12 +41,22 @@ const MAX: u64 = i64::MAX as u64;
 /// ## Ops
 /// [`MprisDuration`] implements [`Add`], [`Sub`], [`Mul`] and [`Div`] for itself, [`Duration`] and
 /// [`u64`]. The values will stay valid.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, PartialOrd, Ord, Default)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Serialize, serde::Deserialize),
-    serde(try_from = "i64", into = "i64")
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Hash,
+    PartialOrd,
+    Ord,
+    Default,
+    serde::Serialize,
+    serde::Deserialize,
+    zbus::zvariant::Type,
 )]
+#[serde(try_from = "i64", into = "i64")]
+#[zvariant(signature = "x")]
 pub struct MprisDuration(u64);
 
 impl MprisDuration {
@@ -151,6 +163,31 @@ impl TryFrom<MetadataValue> for MprisDuration {
                 "MetadataValue::SignedInt or MetadataValue::UnsignedInt",
             )),
         }
+    }
+}
+
+impl TryFrom<Value<'_>> for MprisDuration {
+    type Error = InvalidMprisDuration;
+
+    fn try_from(value: Value<'_>) -> Result<Self, Self::Error> {
+        match value {
+            Value::U8(v) => Ok(Self::from(v)),
+            Value::U16(v) => Ok(Self::from(v)),
+            Value::U32(v) => Ok(Self::from(v)),
+            Value::U64(v) => Self::try_from(v),
+            Value::I16(v) => Self::try_from(v),
+            Value::I32(v) => Self::try_from(v),
+            Value::I64(v) => Self::try_from(v),
+            _ => Err(InvalidMprisDuration::expected("integer value")),
+        }
+    }
+}
+
+impl TryFrom<OwnedValue> for MprisDuration {
+    type Error = InvalidMprisDuration;
+
+    fn try_from(value: OwnedValue) -> Result<Self, Self::Error> {
+        Self::try_from(Value::from(value))
     }
 }
 
@@ -465,7 +502,7 @@ mod ops_tests {
     }
 }
 
-#[cfg(all(test, feature = "serde"))]
+#[cfg(test)]
 mod mpris_duration_serde_tests {
     use super::*;
     use serde_test::{assert_de_tokens_error, assert_tokens, Token};

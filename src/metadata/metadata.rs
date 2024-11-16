@@ -1,6 +1,6 @@
 use std::{collections::HashMap, iter::FusedIterator};
 
-use zbus::zvariant::OwnedValue;
+use zbus::zvariant::{Error as ZError, OwnedValue, Type, Value};
 
 use super::{MetadataValue, TrackID};
 use crate::{errors::InvalidMetadata, MprisDuration};
@@ -16,12 +16,9 @@ type InnerRawMetadata = HashMap<String, MetadataValue>;
 /// [`into_inner()`][Self::into_inner].
 ///
 /// Can be obtained from [`Player::raw_metadata()`][crate::Player::raw_metadata].
-#[derive(Clone, PartialEq, Default)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Serialize, serde::Deserialize),
-    serde(transparent)
-)]
+#[derive(Clone, PartialEq, Default, serde::Serialize, serde::Deserialize, Type)]
+#[serde(transparent)]
+#[zvariant(signature = "a{sv}")]
 pub struct RawMetadata(InnerRawMetadata);
 
 impl RawMetadata {
@@ -76,6 +73,22 @@ impl From<InnerRawMetadata> for RawMetadata {
 impl FromIterator<(String, MetadataValue)> for RawMetadata {
     fn from_iter<T: IntoIterator<Item = (String, MetadataValue)>>(iter: T) -> Self {
         Self(HashMap::from_iter(iter))
+    }
+}
+
+impl TryFrom<Value<'_>> for RawMetadata {
+    type Error = ZError;
+
+    fn try_from(value: Value<'_>) -> Result<Self, Self::Error> {
+        InnerRawMetadata::try_from(value).map(Self)
+    }
+}
+
+impl TryFrom<OwnedValue> for RawMetadata {
+    type Error = ZError;
+
+    fn try_from(value: OwnedValue) -> Result<Self, Self::Error> {
+        InnerRawMetadata::try_from(value).map(Self)
     }
 }
 
@@ -264,6 +277,7 @@ macro_rules! gen_metadata_struct {
         // Fails if MetadataValue is of the wrong type for the field or if mpris:trackid" is missing
         impl TryFrom<RawMetadata> for $name {
             type Error = InvalidMetadata;
+
             fn try_from(mut raw: RawMetadata) -> Result<Self, Self::Error> {
                 if raw.is_empty() {
                     return Ok(Self::new());
@@ -282,6 +296,15 @@ macro_rules! gen_metadata_struct {
                     ),*,
                     $others_name: raw
                 })
+            }
+        }
+
+        impl TryFrom<DBusMetadata> for $name {
+            type Error = InvalidMetadata;
+
+            fn try_from(value: DBusMetadata) -> Result<Self, Self::Error> {
+                let raw = RawMetadata::from(value);
+                Self::try_from(raw)
             }
         }
 }}
@@ -338,12 +361,8 @@ gen_metadata_struct!(
     ///
     /// [guide]: https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/
     /// [object_path]: https://dbus.freedesktop.org/doc/dbus-specification.html#message-protocol-marshaling-object-path
-    #[derive(Debug, Clone, Default, PartialEq)]
-    #[cfg_attr(
-        feature = "serde",
-        derive(serde::Serialize, serde::Deserialize),
-        serde(into = "RawMetadata", try_from = "RawMetadata")
-    )]
+    #[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+    #[serde(into = "RawMetadata", try_from = "RawMetadata")]
     struct Metadata {
         /// The album artist(s).
         "xesam:albumArtist" => album_artists: Vec<String>,

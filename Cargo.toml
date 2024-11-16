@@ -18,12 +18,10 @@ maintenance = { status = "actively-developed" }
 # Enable zbus' tight tokio integration; in case you want to use this crate in a
 # Tokio-based app.
 tokio = ["zbus/tokio"]
-# Enable serde support for metadata
-serde = ["dep:serde"]
 
 [dependencies]
 zbus = "4.4.0"
-serde = { version = "1.0.164", optional = true }
+serde ="1.0.164"
 futures-util = "0.3.31"
 
 # Example dependencies

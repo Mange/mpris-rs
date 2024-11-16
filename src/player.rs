@@ -277,7 +277,7 @@ impl Player {
     /// [track_list]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:HasTrackList
     pub async fn has_track_list(&self) -> Result<bool, MprisError> {
-        Ok(self.mp2_proxy.has_track_list().await?)
+        self.mp2_proxy.has_track_list().await
     }
 
     /// Checks if the [`Player`] has support for the
@@ -308,7 +308,7 @@ impl Player {
     /// Similar to [`metadata()`][Self::metadata] but doesn't perform any checks or conversions. See
     /// [`Metadata::from_raw_lossy()`] for details.
     pub async fn raw_metadata(&self) -> Result<RawMetadata, MprisError> {
-        Ok(self.player_proxy.metadata().await?.into())
+        self.player_proxy.metadata().await
     }
 
     /// Checks if the player is still connected.
@@ -321,12 +321,12 @@ impl Player {
         match self.mp2_proxy.ping().await {
             Ok(_) => Ok(true),
             Err(e) => match e {
-                zbus::Error::MethodError(e_name, _, _)
+                MprisError::DbusError(zbus::Error::MethodError(e_name, _, _))
                     if e_name == "org.freedesktop.DBus.Error.ServiceUnknown" =>
                 {
                     Ok(false)
                 }
-                _ => Err(e.into()),
+                _ => Err(e),
             },
         }
     }
@@ -355,12 +355,12 @@ impl Player {
             match self.dbus_proxy.get_name_owner(&self.bus_name).await {
                 Ok(name) => Ok(Some(name.to_string())),
                 Err(e) => match e {
-                    zbus::Error::MethodError(e_name, _, _)
+                    MprisError::DbusError(zbus::Error::MethodError(e_name, _, _))
                         if e_name == "org.freedesktop.DBus.Error.NameHasNoOwner" =>
                     {
                         Ok(None)
                     }
-                    _ => Err(e.into()),
+                    _ => Err(e),
                 },
             }
         }
@@ -391,7 +391,7 @@ impl Player {
     /// [quit]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Method:Quit
     pub async fn quit(&self) -> Result<(), MprisError> {
-        Ok(self.mp2_proxy.quit().await?)
+        self.mp2_proxy.quit().await
     }
 
     /// Queries the player to see if it can be asked to quit.
@@ -405,7 +405,7 @@ impl Player {
     /// [can_quit]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:CanQuit
     pub async fn can_quit(&self) -> Result<bool, MprisError> {
-        Ok(self.mp2_proxy.can_quit().await?)
+        self.mp2_proxy.can_quit().await
     }
 
     /// Send a `Raise` signal to the player.
@@ -422,7 +422,7 @@ impl Player {
     /// [raise]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Method:Raise
     pub async fn raise(&self) -> Result<(), MprisError> {
-        Ok(self.mp2_proxy.raise().await?)
+        self.mp2_proxy.raise().await
     }
 
     /// Queries the player to see if it can be raised or not.
@@ -437,7 +437,7 @@ impl Player {
     /// [can_raise]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:CanRaise
     pub async fn can_raise(&self) -> Result<bool, MprisError> {
-        Ok(self.mp2_proxy.can_raise().await?)
+        self.mp2_proxy.can_raise().await
     }
     /// Returns the player's [`DesktopEntry`][entry] property, if supported.
     ///
@@ -450,7 +450,7 @@ impl Player {
     /// [entry]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:DesktopEntry
     pub async fn desktop_entry(&self) -> Result<String, MprisError> {
-        Ok(self.mp2_proxy.desktop_entry().await?)
+        self.mp2_proxy.desktop_entry().await
     }
 
     /// Returns the player's MPRIS [`Identity`][identity].
@@ -464,7 +464,7 @@ impl Player {
     /// [identity]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:Identity
     pub async fn identity(&self) -> Result<String, MprisError> {
-        Ok(self.mp2_proxy.identity().await?)
+        self.mp2_proxy.identity().await
     }
 
     /// Returns the player's [`SupportedMimeTypes`][mime] property.
@@ -476,7 +476,7 @@ impl Player {
     /// [mime]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:SupportedMimeTypes
     pub async fn supported_mime_types(&self) -> Result<Vec<String>, MprisError> {
-        Ok(self.mp2_proxy.supported_mime_types().await?)
+        self.mp2_proxy.supported_mime_types().await
     }
 
     /// Returns the player's [`SupportedUriSchemes`][uri] property.
@@ -492,7 +492,7 @@ impl Player {
     /// [uri]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:SupportedUriSchemes
     pub async fn supported_uri_schemes(&self) -> Result<Vec<String>, MprisError> {
-        Ok(self.mp2_proxy.supported_uri_schemes().await?)
+        self.mp2_proxy.supported_uri_schemes().await
     }
 
     /// Returns the player's [`Fullscreen`][full] property.
@@ -513,7 +513,7 @@ impl Player {
     /// [full]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:Fullscreen
     pub async fn get_fullscreen(&self) -> Result<bool, MprisError> {
-        Ok(self.mp2_proxy.fullscreen().await?)
+        self.mp2_proxy.fullscreen().await
     }
 
     /// Asks the player to set the [`Fullscreen`][full] property.
@@ -527,7 +527,7 @@ impl Player {
     /// [full]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:Fullscreen
     pub async fn set_fullscreen(&self, value: bool) -> Result<(), MprisError> {
-        Ok(self.mp2_proxy.set_fullscreen(value).await?)
+        self.mp2_proxy.set_fullscreen(value).await
     }
 
     /// Queries the player to see if it can be asked to enter fullscreen.
@@ -550,7 +550,7 @@ impl Player {
     /// [can_full]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Media_Player.html#Property:CanSetFullscreen
     pub async fn can_set_fullscreen(&self) -> Result<bool, MprisError> {
-        Ok(self.mp2_proxy.can_set_fullscreen().await?)
+        self.mp2_proxy.can_set_fullscreen().await
     }
 
     /// Queries the player to see if it can be controlled or not.
@@ -570,7 +570,7 @@ impl Player {
     /// [control]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanControl
     pub async fn can_control(&self) -> Result<bool, MprisError> {
-        Ok(self.player_proxy.can_control().await?)
+        self.player_proxy.can_control().await
     }
 
     /// Sends a [`Next`][next] signal to the player.
@@ -589,7 +589,7 @@ impl Player {
     /// [next]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Next
     pub async fn next(&self) -> Result<(), MprisError> {
-        Ok(self.player_proxy.next().await?)
+        self.player_proxy.next().await
     }
 
     /// Queries the player to see if it can go to next.
@@ -607,7 +607,7 @@ impl Player {
     /// [can_next]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanGoNext
     pub async fn can_go_next(&self) -> Result<bool, MprisError> {
-        Ok(self.player_proxy.can_go_next().await?)
+        self.player_proxy.can_go_next().await
     }
 
     /// Sends a [`Previous`][prev] signal to the player.
@@ -626,7 +626,7 @@ impl Player {
     /// [prev]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Previous
     pub async fn previous(&self) -> Result<(), MprisError> {
-        Ok(self.player_proxy.previous().await?)
+        self.player_proxy.previous().await
     }
 
     /// Queries the player to see if it can go to previous or not.
@@ -644,7 +644,7 @@ impl Player {
     /// [can_prev]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanGoPrevious
     pub async fn can_go_previous(&self) -> Result<bool, MprisError> {
-        Ok(self.player_proxy.can_go_previous().await?)
+        self.player_proxy.can_go_previous().await
     }
 
     /// Sends a [`Play`][play] signal to the player.
@@ -664,7 +664,7 @@ impl Player {
     /// [play]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Play
     pub async fn play(&self) -> Result<(), MprisError> {
-        Ok(self.player_proxy.play().await?)
+        self.player_proxy.play().await
     }
 
     /// Queries the player to see if it can play.
@@ -680,7 +680,7 @@ impl Player {
     /// [can_play]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanPlay
     pub async fn can_play(&self) -> Result<bool, MprisError> {
-        Ok(self.player_proxy.can_play().await?)
+        self.player_proxy.can_play().await
     }
 
     /// Sends a [`Pause`][pause] signal to the player.
@@ -698,7 +698,7 @@ impl Player {
     /// [pause]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Pause
     pub async fn pause(&self) -> Result<(), MprisError> {
-        Ok(self.player_proxy.pause().await?)
+        self.player_proxy.pause().await
     }
 
     /// Queries the player to see if it can pause.
@@ -716,7 +716,7 @@ impl Player {
     /// [can_pause]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanPause
     pub async fn can_pause(&self) -> Result<bool, MprisError> {
-        Ok(self.player_proxy.can_pause().await?)
+        self.player_proxy.can_pause().await
     }
 
     /// Sends a [`PlayPause`][play_pause] signal to the player.
@@ -735,7 +735,7 @@ impl Player {
     /// [play_pause]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:PlayPause
     pub async fn play_pause(&self) -> Result<(), MprisError> {
-        Ok(self.player_proxy.play_pause().await?)
+        self.player_proxy.play_pause().await
     }
 
     /// Sends a [`Stop`][stop] signal to the player.
@@ -753,7 +753,7 @@ impl Player {
     /// [stop]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Stop
     pub async fn stop(&self) -> Result<(), MprisError> {
-        Ok(self.player_proxy.stop().await?)
+        self.player_proxy.stop().await
     }
 
     /// Sends a [`Seek`][seek] signal to the player.
@@ -774,7 +774,7 @@ impl Player {
     /// [seek]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:Seek
     pub async fn seek(&self, offset_in_microseconds: i64) -> Result<(), MprisError> {
-        Ok(self.player_proxy.seek(offset_in_microseconds).await?)
+        self.player_proxy.seek(offset_in_microseconds).await
     }
 
     /// Tells the player to seek forwards.
@@ -784,7 +784,7 @@ impl Player {
     ///
     /// See also: [`seek_backwards()`][Self::seek_backwards]
     pub async fn seek_forwards(&self, offset: MprisDuration) -> Result<(), MprisError> {
-        Ok(self.player_proxy.seek(offset.into()).await?)
+        self.player_proxy.seek(offset.into()).await
     }
 
     /// Tells the player to seek backwards.
@@ -794,7 +794,7 @@ impl Player {
     ///
     /// See also: [`seek_forwards()`][Self::seek_forwards]
     pub async fn seek_backwards(&self, offset: MprisDuration) -> Result<(), MprisError> {
-        Ok(self.player_proxy.seek(-i64::from(offset)).await?)
+        self.player_proxy.seek(-i64::from(offset)).await
     }
 
     /// Queries the player to see if it can seek within the media.
@@ -810,7 +810,7 @@ impl Player {
     /// [can_seek]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:CanSeek
     pub async fn can_seek(&self) -> Result<bool, MprisError> {
-        Ok(self.player_proxy.can_seek().await?)
+        self.player_proxy.can_seek().await
     }
 
     /// Gets the player's MPRIS [`Position`][position] as a [`MprisDuration`] since the start of the
@@ -822,7 +822,7 @@ impl Player {
     /// [position]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Position
     pub async fn get_position(&self) -> Result<MprisDuration, MprisError> {
-        Ok(self.player_proxy.position().await?.try_into()?)
+        self.player_proxy.position().await
     }
 
     /// Sets the position of the current track to the given position (as a [`MprisDuration`]).
@@ -862,10 +862,7 @@ impl Player {
         if track_id.is_no_track() {
             return Err(MprisError::track_id_is_no_track());
         }
-        Ok(self
-            .player_proxy
-            .set_position(track_id.as_ref(), position.into())
-            .await?)
+        self.player_proxy.set_position(track_id, position).await
     }
 
     /// Gets the player's current loop status.
@@ -875,7 +872,7 @@ impl Player {
     /// [loop_status]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:LoopStatus
     pub async fn get_loop_status(&self) -> Result<LoopStatus, MprisError> {
-        Ok(self.player_proxy.loop_status().await?.parse()?)
+        self.player_proxy.loop_status().await
     }
 
     /// Sets the loop status of the player.
@@ -888,10 +885,7 @@ impl Player {
     /// [loop_status]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:LoopStatus
     pub async fn set_loop_status(&self, loop_status: LoopStatus) -> Result<(), MprisError> {
-        Ok(self
-            .player_proxy
-            .set_loop_status(loop_status.as_str())
-            .await?)
+        self.player_proxy.set_loop_status(loop_status).await
     }
 
     /// Gets the player's current playback status.
@@ -902,7 +896,7 @@ impl Player {
     /// [playback]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:PlaybackStatus
     pub async fn playback_status(&self) -> Result<PlaybackStatus, MprisError> {
-        Ok(self.player_proxy.playback_status().await?.parse()?)
+        self.player_proxy.playback_status().await
     }
 
     /// Signals the player to open the given `uri`.
@@ -930,7 +924,7 @@ impl Player {
     /// [uri]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Method:OpenUri
     pub async fn open_uri(&self, uri: &str) -> Result<(), MprisError> {
-        Ok(self.player_proxy.open_uri(uri).await?)
+        self.player_proxy.open_uri(uri).await
     }
 
     /// Gets the minimum allowed value for playback rate.
@@ -949,7 +943,7 @@ impl Player {
     /// [min_rate]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:MinimumRate
     pub async fn maximum_rate(&self) -> Result<f64, MprisError> {
-        Ok(self.player_proxy.maximum_rate().await?)
+        self.player_proxy.maximum_rate().await
     }
 
     /// Gets the maximum allowed value for playback rate.
@@ -965,7 +959,7 @@ impl Player {
     /// [max_rate]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:MaximumRate
     pub async fn minimum_rate(&self) -> Result<f64, MprisError> {
-        Ok(self.player_proxy.minimum_rate().await?)
+        self.player_proxy.minimum_rate().await
     }
 
     /// Returns the player's MPRIS (playback) [`rate`][rate] as a factor.
@@ -977,7 +971,7 @@ impl Player {
     /// [rate]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Rate
     pub async fn get_playback_rate(&self) -> Result<f64, MprisError> {
-        Ok(self.player_proxy.rate().await?)
+        self.player_proxy.rate().await
     }
 
     /// Sets the player's MPRIS (playback) [`rate`][rate] as a factor.
@@ -1000,7 +994,7 @@ impl Player {
         if rate == 0.0 {
             return Err(MprisError::InvalidArgument("rate can't be 0.0".to_string()));
         }
-        Ok(self.player_proxy.set_rate(rate).await?)
+        self.player_proxy.set_rate(rate).await
     }
 
     /// Gets the player's [`Shuffle`][shuffle] property.
@@ -1013,7 +1007,7 @@ impl Player {
     /// [shuffle]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Shuffle
     pub async fn get_shuffle(&self) -> Result<bool, MprisError> {
-        Ok(self.player_proxy.shuffle().await?)
+        self.player_proxy.shuffle().await
     }
 
     /// Sets the [`Shuffle`][shuffle] property of the player.
@@ -1026,7 +1020,7 @@ impl Player {
     /// [shuffle]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Shuffle
     pub async fn set_shuffle(&self, shuffle: bool) -> Result<(), MprisError> {
-        Ok(self.player_proxy.set_shuffle(shuffle).await?)
+        self.player_proxy.set_shuffle(shuffle).await
     }
 
     /// Gets the [`Volume`][vol] of the player.
@@ -1036,7 +1030,7 @@ impl Player {
     /// [vol]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Volume
     pub async fn get_volume(&self) -> Result<f64, MprisError> {
-        Ok(self.player_proxy.volume().await?)
+        self.player_proxy.volume().await
     }
 
     /// Sets the [`Volume`][vol] of the player.
@@ -1049,7 +1043,7 @@ impl Player {
     /// [vol]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Volume
     pub async fn set_volume(&self, volume: f64) -> Result<(), MprisError> {
-        Ok(self.player_proxy.set_volume(volume).await?)
+        self.player_proxy.set_volume(volume).await
     }
 
     /// Shortcut to check if `self.playlist_proxy` is Some
@@ -1185,7 +1179,7 @@ impl Player {
     /// [can_edit]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Property:CanEditTracks
     pub async fn can_edit_tracks(&self) -> Result<bool, MprisError> {
-        Ok(self.check_track_list_support()?.can_edit_tracks().await?)
+        self.check_track_list_support()?.can_edit_tracks().await
     }
 
     /// Gets the tracks in the current `TrackList`
@@ -1197,12 +1191,7 @@ impl Player {
     /// [tracks]:
     /// https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Property:Tracks
     pub async fn tracks(&self) -> Result<Vec<TrackID>, MprisError> {
-        let result = self.check_track_list_support()?.tracks().await?;
-        let mut track_ids = Vec::with_capacity(result.len());
-        for r in result {
-            track_ids.push(TrackID::from(r));
-        }
-        Ok(track_ids)
+        self.check_track_list_support()?.tracks().await
     }
 
     /// Adds a `uri` to the `TrackList` and optionally set it as current.
@@ -1237,10 +1226,9 @@ impl Player {
         } else {
             &no_track
         };
-        Ok(self
-            .check_track_list_support()?
-            .add_track(uri, after.as_ref(), set_as_current)
-            .await?)
+        self.check_track_list_support()?
+            .add_track(uri, after, set_as_current)
+            .await
     }
 
     /// Removes an item from the TrackList.
@@ -1263,10 +1251,9 @@ impl Player {
         if track_id.is_no_track() {
             return Err(MprisError::track_id_is_no_track());
         }
-        Ok(self
-            .check_track_list_support()?
-            .remove_track(track_id.as_ref())
-            .await?)
+        self.check_track_list_support()?
+            .remove_track(track_id)
+            .await
     }
 
     /// Go to a specific track on the [`Player`]'s `TrackList`.
@@ -1282,10 +1269,7 @@ impl Player {
         if track_id.is_no_track() {
             return Err(MprisError::track_id_is_no_track());
         }
-        Ok(self
-            .check_track_list_support()?
-            .go_to(track_id.as_ref())
-            .await?)
+        self.check_track_list_support()?.go_to(track_id).await
     }
 
     /// Gets the [`Metadata`] for the given [`TrackID`]s.
@@ -1302,12 +1286,12 @@ impl Player {
     ) -> Result<Vec<Metadata>, MprisError> {
         let result = self
             .check_track_list_support()?
-            .get_tracks_metadata(&tracks.iter().map(|x| x.as_ref()).collect::<Vec<_>>())
+            .get_tracks_metadata(tracks)
             .await?;
 
         let mut metadata = Vec::with_capacity(tracks.len());
         for meta in result {
-            metadata.push(Metadata::try_from(RawMetadata::from(meta))?);
+            metadata.push(Metadata::try_from(meta)?);
         }
         Ok(metadata)
     }

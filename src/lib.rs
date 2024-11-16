@@ -87,6 +87,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use futures_util::stream::{FusedStream, Stream, TryStreamExt};
+use zbus::zvariant::{OwnedValue, Value};
 use zbus::{
     names::{BusName, WellKnownName},
     Connection,
@@ -98,7 +99,6 @@ pub mod metadata;
 mod player;
 mod playlist;
 mod proxies;
-#[cfg(feature = "serde")]
 pub(crate) mod serde_util;
 
 use errors::*;
@@ -537,12 +537,31 @@ impl ::std::str::FromStr for PlaybackStatus {
 
 impl PlaybackStatus {
     /// Returns it's value as a <code>&[str]</code>
-    pub fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &'static str {
         match self {
             PlaybackStatus::Playing => "Playing",
             PlaybackStatus::Paused => "Paused",
             PlaybackStatus::Stopped => "Stopped",
         }
+    }
+}
+
+impl TryFrom<Value<'_>> for PlaybackStatus {
+    type Error = InvalidPlaybackStatus;
+
+    fn try_from(value: Value<'_>) -> Result<Self, Self::Error> {
+        match value {
+            Value::Str(s) => s.parse(),
+            _ => Err(InvalidPlaybackStatus::expected("Value::Str")),
+        }
+    }
+}
+
+impl TryFrom<OwnedValue> for PlaybackStatus {
+    type Error = InvalidPlaybackStatus;
+
+    fn try_from(value: OwnedValue) -> Result<Self, Self::Error> {
+        Self::try_from(Value::from(value))
     }
 }
 
@@ -585,12 +604,37 @@ impl ::std::str::FromStr for LoopStatus {
 
 impl LoopStatus {
     /// Returns it's value as a <code>&[str]</code>
-    pub fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &'static str {
         match self {
             LoopStatus::None => "None",
             LoopStatus::Track => "Track",
             LoopStatus::Playlist => "Playlist",
         }
+    }
+}
+
+impl From<LoopStatus> for Value<'static> {
+    fn from(value: LoopStatus) -> Value<'static> {
+        Value::Str(value.as_str().into())
+    }
+}
+
+impl TryFrom<Value<'_>> for LoopStatus {
+    type Error = InvalidLoopStatus;
+
+    fn try_from(value: Value<'_>) -> Result<Self, Self::Error> {
+        match value {
+            Value::Str(s) => s.parse(),
+            _ => Err(InvalidLoopStatus::expected("Value::Str")),
+        }
+    }
+}
+
+impl TryFrom<OwnedValue> for LoopStatus {
+    type Error = InvalidLoopStatus;
+
+    fn try_from(value: OwnedValue) -> Result<Self, Self::Error> {
+        Self::try_from(Value::from(value))
     }
 }
 

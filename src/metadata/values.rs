@@ -2,7 +2,6 @@ use zbus::zvariant::{OwnedValue, Value};
 
 use super::TrackID;
 use crate::errors::InvalidMetadataValue;
-#[cfg(feature = "serde")]
 use crate::serde_util::deser_no_fail;
 
 /// Subset of [DBus data types][dbus_types] that are commonly used in MPRIS metadata.
@@ -13,12 +12,8 @@ use crate::serde_util::deser_no_fail;
 ///
 /// [dbus_types]: https://dbus.freedesktop.org/doc/dbus-specification.html#type-system
 /// [meta_spec]: https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
-#[cfg_attr(
-    feature = "serde",
-    derive(serde::Serialize, serde::Deserialize),
-    serde(untagged)
-)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
 #[allow(missing_docs)]
 pub enum MetadataValue {
     Boolean(bool),
@@ -28,7 +23,7 @@ pub enum MetadataValue {
     String(String),
     Strings(Vec<String>),
     TrackID(TrackID),
-    #[cfg_attr(feature = "serde", serde(deserialize_with = "deser_no_fail"))]
+    #[serde(deserialize_with = "deser_no_fail")]
     Unsupported,
 }
 
@@ -341,7 +336,7 @@ mod metadata_value_integer_tests {
     }
 }
 
-#[cfg(all(test, feature = "serde"))]
+#[cfg(test)]
 mod metadata_value_serde {
     use super::*;
     use serde_test::{assert_de_tokens, assert_ser_tokens, Token};
