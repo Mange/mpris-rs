@@ -1,45 +1,85 @@
-use zbus::zvariant::Value;
+use zbus::zvariant::{OwnedValue, Value};
 
-/*
-* Subset of DBus data types that are commonly used in MPRIS metadata, and a boolean variant as it
-* seems likely to be used in some custom metadata.
-*
-* See https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/
-*/
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+use super::TrackID;
+use crate::errors::InvalidMetadataValue;
+use crate::serde_util::deser_no_fail;
+
+/// Subset of [DBus data types][dbus_types] that are commonly used in MPRIS metadata.
+///
+/// See [this link][meta_spec] for examples of metadata values.
+///
+/// Note that 16-bit and 32-bit integers get turned into their 64-bit version for convenience.
+///
+/// [dbus_types]: https://dbus.freedesktop.org/doc/dbus-specification.html#type-system
+/// [meta_spec]: https://www.freedesktop.org/wiki/Specifications/mpris-spec/metadata/
+#[derive(Debug, Clone, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+#[allow(missing_docs)]
 pub enum MetadataValue {
     Boolean(bool),
-    Float(f64),
     SignedInt(i64),
     UnsignedInt(u64),
+    Float(f64),
     String(String),
     Strings(Vec<String>),
+    TrackID(TrackID),
+    #[serde(deserialize_with = "deser_no_fail")]
     Unsupported,
 }
 
 impl MetadataValue {
-    pub fn into_string(self) -> Option<String> {
-        if let MetadataValue::String(s) = self {
-            Some(s)
-        } else {
-            None
-        }
-    }
-
+    /// Tries to turn itself into a non-empty [`String`]
+    ///
+    /// Will succeed if it's a non-empty [`String`](Self::String) variant or a [`Strings`](Self::Strings)
+    /// variant which only contains 1 non-empty [`String`]
     pub fn into_nonempty_string(self) -> Option<String> {
-        self.into_string()
+        String::try_from(self)
+            .ok()
             .and_then(|s| if s.is_empty() { None } else { Some(s) })
     }
 
+    /// Tries to turn itself into a [`i64`]
+    ///
+    /// Will succeed if it's a [`SignedInt`](Self::SignedInt) or a
+    /// [`UnsignedInt`](Self::UnsignedInt) variant. Note that in the second case it will change the
+    /// value so that it fits into a [`i64`]. If you don't want the value to get changed you should
+    /// use the [`TryInto<i64>`] method.
+    /// ```
+    /// use mpris::MetadataValue;
+    ///
+    /// let m = MetadataValue::UnsignedInt(u64::MAX);
+    /// // into_i64 decreases the number so that it fits
+    /// assert_eq!(m.into_i64(), Some(i64::MAX));
+    ///
+    /// let m = MetadataValue::UnsignedInt(u64::MAX);
+    /// // TryFrom fails if it's too big
+    /// assert!(i64::try_from(m).is_err());
+    /// ```
     pub fn into_i64(self) -> Option<i64> {
         match self {
             MetadataValue::SignedInt(i) => Some(i),
-            MetadataValue::UnsignedInt(i) => Some(0i64.saturating_add_unsigned(i)),
+            MetadataValue::UnsignedInt(i) => Some(0_i64.saturating_add_unsigned(i)),
             _ => None,
         }
     }
 
+    /// Tries to turn itself into a [`u64`]
+    ///
+    /// Will succeed if it's a [`UnsignedInt`](Self::UnsignedInt) or a
+    /// [`SignedInt`](Self::SignedInt) variant. Note that in the second case it will change the
+    /// value to `0` if it's negative. If you don't want the value to get changed you should use the
+    /// [`TryInto<u64>`] method.
+    /// ```
+    /// use mpris::MetadataValue;
+    ///
+    /// let m = MetadataValue::SignedInt(-1);
+    /// // into_u64 changes negative numbers to 0
+    /// assert_eq!(m.into_u64(), Some(0));
+    ///
+    /// let m = MetadataValue::SignedInt(-1);
+    /// // TryFrom fails if it's negative
+    /// assert!(u64::try_from(m).is_err());
+    /// ```
     pub fn into_u64(self) -> Option<u64> {
         match self {
             MetadataValue::SignedInt(i) if i < 0 => Some(0),
@@ -48,21 +88,11 @@ impl MetadataValue {
             _ => None,
         }
     }
+}
 
-    pub fn into_float(self) -> Option<f64> {
-        if let MetadataValue::Float(f) = self {
-            Some(f)
-        } else {
-            None
-        }
-    }
-
-    pub fn into_strings(self) -> Option<Vec<String>> {
-        match self {
-            MetadataValue::Strings(v) => Some(v),
-            MetadataValue::String(s) => Some(vec![s]),
-            _ => None,
-        }
+impl From<OwnedValue> for MetadataValue {
+    fn from(value: OwnedValue) -> Self {
+        Self::from(Value::from(value))
     }
 }
 
@@ -72,21 +102,21 @@ impl<'a> From<Value<'a>> for MetadataValue {
             Value::Bool(v) => MetadataValue::Boolean(v),
             Value::I16(v) => MetadataValue::SignedInt(v as i64),
             Value::I32(v) => MetadataValue::SignedInt(v as i64),
-            Value::I64(v) => MetadataValue::SignedInt(v as i64),
+            Value::I64(v) => MetadataValue::SignedInt(v),
             Value::U16(v) => MetadataValue::UnsignedInt(v as u64),
             Value::U32(v) => MetadataValue::UnsignedInt(v as u64),
-            Value::U64(v) => MetadataValue::UnsignedInt(v as u64),
+            Value::U64(v) => MetadataValue::UnsignedInt(v),
             Value::U8(v) => MetadataValue::UnsignedInt(v as u64),
 
             Value::F64(v) => MetadataValue::Float(v),
 
             Value::Str(v) => MetadataValue::String(v.to_string()),
             Value::Signature(v) => MetadataValue::String(v.to_string()),
-            Value::ObjectPath(v) => MetadataValue::String(v.to_string()),
+            Value::ObjectPath(v) => MetadataValue::TrackID(TrackID::from(v)),
 
             Value::Array(a) if a.full_signature() == "as" => {
                 let mut strings = Vec::with_capacity(a.len());
-                for v in a.into_iter() {
+                for v in a.iter() {
                     if let Value::Str(s) = v {
                         strings.push(s.to_string());
                     }
@@ -104,35 +134,306 @@ impl<'a> From<Value<'a>> for MetadataValue {
     }
 }
 
-#[test]
-fn test_signed_integer_casting() {
-    assert_eq!(MetadataValue::SignedInt(42).into_i64(), Some(42));
-    assert_eq!(MetadataValue::SignedInt(-42).into_i64(), Some(-42));
-    assert_eq!(MetadataValue::UnsignedInt(42).into_i64(), Some(42));
-    assert_eq!(MetadataValue::Boolean(true).into_i64(), None);
-
-    assert_eq!(
-        MetadataValue::UnsignedInt(u64::MAX).into_i64(),
-        Some(i64::MAX)
-    );
+impl From<bool> for MetadataValue {
+    fn from(value: bool) -> Self {
+        Self::Boolean(value)
+    }
 }
 
-#[test]
-fn test_unsigned_integer_casting() {
-    assert_eq!(MetadataValue::SignedInt(42).into_u64(), Some(42));
-    assert_eq!(MetadataValue::SignedInt(-42).into_u64(), Some(0));
-    assert_eq!(MetadataValue::UnsignedInt(42).into_u64(), Some(42));
-    assert_eq!(MetadataValue::Boolean(true).into_u64(), None);
+impl From<f64> for MetadataValue {
+    fn from(value: f64) -> Self {
+        Self::Float(value)
+    }
+}
 
-    assert_eq!(
-        MetadataValue::SignedInt(i64::MAX).into_u64(),
-        Some(i64::MAX as u64)
-    );
+impl From<i64> for MetadataValue {
+    fn from(value: i64) -> Self {
+        Self::SignedInt(value)
+    }
+}
 
-    assert_eq!(MetadataValue::SignedInt(i64::MIN).into_u64(), Some(0));
+impl From<u64> for MetadataValue {
+    fn from(value: u64) -> Self {
+        Self::UnsignedInt(value)
+    }
+}
 
-    assert_eq!(
-        MetadataValue::UnsignedInt(u64::MAX).into_u64(),
-        Some(u64::MAX)
-    );
+impl From<String> for MetadataValue {
+    fn from(value: String) -> Self {
+        Self::String(value)
+    }
+}
+
+impl From<Vec<String>> for MetadataValue {
+    fn from(value: Vec<String>) -> Self {
+        Self::Strings(value)
+    }
+}
+
+impl From<TrackID> for MetadataValue {
+    fn from(value: TrackID) -> Self {
+        Self::TrackID(value)
+    }
+}
+
+impl From<crate::MprisDuration> for MetadataValue {
+    fn from(value: crate::MprisDuration) -> Self {
+        Self::SignedInt(value.into())
+    }
+}
+
+impl TryFrom<MetadataValue> for bool {
+    type Error = InvalidMetadataValue;
+
+    fn try_from(value: MetadataValue) -> Result<Self, Self::Error> {
+        match value {
+            MetadataValue::Boolean(v) => Ok(v),
+            _ => Err(InvalidMetadataValue::expected("MetadataValue::Boolean")),
+        }
+    }
+}
+
+impl TryFrom<MetadataValue> for f64 {
+    type Error = InvalidMetadataValue;
+
+    fn try_from(value: MetadataValue) -> Result<Self, Self::Error> {
+        match value {
+            MetadataValue::Float(v) => Ok(v),
+            _ => Err(InvalidMetadataValue::expected("MetadataValue::Float")),
+        }
+    }
+}
+
+impl TryFrom<MetadataValue> for i64 {
+    type Error = InvalidMetadataValue;
+
+    fn try_from(value: MetadataValue) -> Result<Self, Self::Error> {
+        match value {
+            MetadataValue::SignedInt(v) => Ok(v),
+            MetadataValue::UnsignedInt(v) => {
+                if v <= i64::MAX as u64 {
+                    Ok(v as i64)
+                } else {
+                    Err(InvalidMetadataValue::from("value too big for i64"))
+                }
+            }
+            _ => Err(InvalidMetadataValue::expected(
+                "MetadataValue::SignedInt or MetadataValue::UnsignedInt",
+            )),
+        }
+    }
+}
+
+impl TryFrom<MetadataValue> for u64 {
+    type Error = InvalidMetadataValue;
+
+    fn try_from(value: MetadataValue) -> Result<Self, Self::Error> {
+        match value {
+            MetadataValue::UnsignedInt(v) => Ok(v),
+            MetadataValue::SignedInt(v) => {
+                if v >= 0 {
+                    Ok(v as u64)
+                } else {
+                    Err(InvalidMetadataValue::from("value is negative"))
+                }
+            }
+            _ => Err(InvalidMetadataValue::expected(
+                "MetadataValue::SignedInt or MetadataValue::UnsignedInt",
+            )),
+        }
+    }
+}
+
+impl TryFrom<MetadataValue> for String {
+    type Error = InvalidMetadataValue;
+
+    fn try_from(value: MetadataValue) -> Result<Self, Self::Error> {
+        match value {
+            MetadataValue::String(v) => Ok(v),
+            MetadataValue::Strings(mut v) => {
+                if v.len() == 1 {
+                    Ok(v.pop().expect("length was checked to be 1"))
+                } else {
+                    Err(InvalidMetadataValue::from(
+                        "MetadataValue::Strings contains more than 1 String",
+                    ))
+                }
+            }
+            _ => Err(InvalidMetadataValue::expected(
+                "MetadataValue::Strings or MetadataValue::String",
+            )),
+        }
+    }
+}
+
+impl TryFrom<MetadataValue> for Vec<String> {
+    type Error = InvalidMetadataValue;
+
+    fn try_from(value: MetadataValue) -> Result<Self, Self::Error> {
+        match value {
+            MetadataValue::String(v) => Ok(vec![v]),
+            MetadataValue::Strings(v) => Ok(v),
+            _ => Err(InvalidMetadataValue::expected(
+                "MetadataValue::Strings or MetadataValue::String",
+            )),
+        }
+    }
+}
+
+#[cfg(test)]
+mod metadata_value_integer_tests {
+    use super::*;
+
+    #[test]
+    fn test_signed_integer_casting() {
+        assert_eq!(
+            MetadataValue::SignedInt(i64::MIN).into_i64(),
+            Some(i64::MIN)
+        );
+        assert_eq!(MetadataValue::SignedInt(0).into_i64(), Some(0_i64));
+        assert_eq!(
+            MetadataValue::SignedInt(i64::MAX).into_i64(),
+            Some(i64::MAX)
+        );
+        assert_eq!(MetadataValue::UnsignedInt(0).into_i64(), Some(0_i64));
+        assert_eq!(
+            MetadataValue::UnsignedInt(u64::MAX).into_i64(),
+            Some(i64::MAX)
+        );
+
+        assert_eq!(MetadataValue::SignedInt(i64::MIN).try_into(), Ok(i64::MIN));
+        assert_eq!(MetadataValue::SignedInt(0_i64).try_into(), Ok(0_i64));
+        assert_eq!(MetadataValue::SignedInt(i64::MAX).try_into(), Ok(i64::MAX));
+        assert_eq!(MetadataValue::UnsignedInt(0).try_into(), Ok(0_i64));
+        assert!(i64::try_from(MetadataValue::UnsignedInt(u64::MAX)).is_err());
+    }
+
+    #[test]
+    fn test_unsigned_integer_casting() {
+        assert_eq!(MetadataValue::SignedInt(i64::MIN).into_u64(), Some(0_u64));
+        assert_eq!(MetadataValue::SignedInt(0).into_u64(), Some(0_u64));
+        assert_eq!(
+            MetadataValue::SignedInt(i64::MAX).into_u64(),
+            Some(i64::MAX as u64)
+        );
+        assert_eq!(MetadataValue::UnsignedInt(0).into_u64(), Some(0_u64));
+        assert_eq!(
+            MetadataValue::UnsignedInt(u64::MAX).into_u64(),
+            Some(u64::MAX)
+        );
+
+        assert!(u64::try_from(MetadataValue::SignedInt(i64::MIN)).is_err());
+        assert_eq!(MetadataValue::SignedInt(0).try_into(), Ok(0_u64));
+        assert_eq!(
+            MetadataValue::SignedInt(i64::MAX).try_into(),
+            Ok(i64::MAX as u64)
+        );
+        assert_eq!(MetadataValue::UnsignedInt(0).try_into(), Ok(0_u64));
+        assert_eq!(
+            MetadataValue::UnsignedInt(u64::MAX).try_into(),
+            Ok(u64::MAX)
+        );
+    }
+}
+
+#[cfg(test)]
+mod metadata_value_serde {
+    use super::*;
+    use serde_test::{assert_de_tokens, assert_ser_tokens, Token};
+
+    #[test]
+    fn serialization() {
+        assert_ser_tokens(&MetadataValue::Boolean(true), &[Token::Bool(true)]);
+        assert_ser_tokens(&MetadataValue::UnsignedInt(1), &[Token::U64(1)]);
+        assert_ser_tokens(&MetadataValue::UnsignedInt(0), &[Token::U64(0)]);
+        assert_ser_tokens(&MetadataValue::SignedInt(-1), &[Token::I64(-1)]);
+        assert_ser_tokens(&MetadataValue::SignedInt(0), &[Token::I64(0)]);
+        assert_ser_tokens(&MetadataValue::Float(0.0), &[Token::F64(0.0)]);
+        assert_ser_tokens(
+            &MetadataValue::TrackID(TrackID::try_from("/valid/path").unwrap()),
+            &[Token::Str("/valid/path")],
+        );
+        assert_ser_tokens(
+            &MetadataValue::String(String::from("test")),
+            &[Token::String("test")],
+        );
+        assert_ser_tokens(
+            &MetadataValue::Strings(vec![String::from("one"), String::from("two")]),
+            &[
+                Token::Seq { len: Some(2) },
+                Token::String("one"),
+                Token::String("two"),
+                Token::SeqEnd,
+            ],
+        );
+        assert_ser_tokens(&MetadataValue::Unsupported, &[Token::Unit]);
+    }
+
+    #[test]
+    fn deserialization() {
+        assert_de_tokens(&MetadataValue::Boolean(true), &[Token::Bool(true)]);
+
+        assert_de_tokens(
+            &MetadataValue::UnsignedInt(u64::MAX),
+            &[Token::U64(u64::MAX)],
+        );
+
+        let signed = MetadataValue::SignedInt(0);
+        let neg = MetadataValue::SignedInt(-1);
+        assert_de_tokens(&signed, &[Token::I64(0)]);
+        assert_de_tokens(&signed, &[Token::U64(0)]);
+        assert_de_tokens(&signed, &[Token::U8(0)]);
+        assert_de_tokens(&signed, &[Token::I8(0)]);
+        assert_de_tokens(&neg, &[Token::I64(-1)]);
+        assert_de_tokens(&neg, &[Token::I8(-1)]);
+
+        let float = MetadataValue::Float(0.0);
+        assert_de_tokens(&float, &[Token::F32(0.0)]);
+        assert_de_tokens(&float, &[Token::F64(0.0)]);
+
+        assert_de_tokens(
+            &MetadataValue::String(String::from("/valid/path")),
+            &[Token::Str("/valid/path")],
+        );
+        let string = MetadataValue::String(String::from("test"));
+        assert_de_tokens(&string, &[Token::String("test")]);
+        assert_de_tokens(&string, &[Token::BorrowedStr("test")]);
+
+        let strings = MetadataValue::Strings(vec![String::from("first"), String::from("second")]);
+        assert_de_tokens(
+            &strings,
+            &[
+                Token::Seq { len: Some(2) },
+                Token::String("first"),
+                Token::String("second"),
+                Token::SeqEnd,
+            ],
+        );
+        assert_de_tokens(
+            &strings,
+            &[
+                Token::Seq { len: Some(2) },
+                Token::BorrowedStr("first"),
+                Token::BorrowedStr("second"),
+                Token::SeqEnd,
+            ],
+        );
+
+        let unsupported = MetadataValue::Unsupported;
+        assert_de_tokens(&unsupported, &[Token::Unit]);
+        assert_de_tokens(&unsupported, &[Token::Char('a')]);
+        assert_de_tokens(&unsupported, &[Token::None]);
+        assert_de_tokens(&unsupported, &[Token::Map { len: None }, Token::MapEnd]);
+        assert_de_tokens(
+            &unsupported,
+            &[
+                Token::StructVariant {
+                    name: "test",
+                    variant: "test",
+                    len: 0,
+                },
+                Token::StructVariantEnd,
+            ],
+        );
+    }
 }

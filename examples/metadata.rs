@@ -1,12 +1,11 @@
-use mpris::{Mpris, Player};
-use std::error::Error;
+use mpris::{Mpris, MprisError, Player};
 
 #[async_std::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> Result<(), MprisError> {
     let mpris = Mpris::new().await?;
     let mut total = 0;
 
-    for player in mpris.players().await? {
+    for player in mpris.all_players().await? {
         print_metadata(player).await?;
         total += 1;
     }
@@ -18,7 +17,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn print_metadata(player: Player<'_>) -> Result<(), Box<dyn Error>> {
+async fn print_metadata(player: Player) -> Result<(), MprisError> {
     println!(
         "Player: {} ({})",
         player.identity().await?,
