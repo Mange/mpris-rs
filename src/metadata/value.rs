@@ -1,6 +1,5 @@
 use dbus::arg::ArgType;
 use enum_kinds::EnumKind;
-use from_variants::FromVariants;
 use std::collections::HashMap;
 
 /// Holds a dynamically-typed metadata value.
