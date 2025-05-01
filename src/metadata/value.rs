@@ -1,12 +1,11 @@
 use dbus::arg::ArgType;
 use enum_kinds::EnumKind;
-use from_variants::FromVariants;
 use std::collections::HashMap;
 
 /// Holds a dynamically-typed metadata value.
 ///
 /// You will need to type-check this at runtime in order to use the value.
-#[derive(Debug, PartialEq, Clone, EnumKind, FromVariants)]
+#[derive(Debug, PartialEq, Clone, EnumKind)]
 #[enum_kind(ValueKind)]
 pub enum Value {
     /// Value is a string.
@@ -46,8 +45,34 @@ pub enum Value {
     Map(HashMap<String, Value>),
 
     /// Unsupported value type.
-    #[from_variants(skip)]
     Unsupported,
+}
+
+macro_rules! mk_value_from_impls {
+    ($($t:ty => $var:ident),* $(,)?) => {
+        $(
+            impl From<$t> for Value {
+                fn from(value: $t) -> Value {
+                    Value::$var(value)
+                }
+            }
+        )*
+    };
+}
+
+mk_value_from_impls! {
+    String => String,
+    i16 => I16,
+    i32 => I32,
+    i64 => I64,
+    u8 => U8,
+    u16 => U16,
+    u32 => U32,
+    u64 => U64,
+    f64 => F64,
+    bool => Bool,
+    Vec<Value> => Array,
+    HashMap<String, Value> => Map,
 }
 
 impl Value {
