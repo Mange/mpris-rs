@@ -23,7 +23,7 @@ thiserror = "1.0.37"
 # For examples
 [dev-dependencies]
 anyhow = "1.0.66"
-termion = "2.0.1"
+termion = "4"
 
 [features]
 default = []
