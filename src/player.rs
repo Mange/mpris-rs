@@ -272,9 +272,7 @@ impl Player {
         position: &Duration,
     ) -> Result<bool, DBusError> {
         if self.can_control()? && self.has_position()? {
-            self.set_position(track_id, position)
-                .map(|_| true)
-                .map_err(DBusError::from)
+            self.set_position(track_id, position).map(|_| true)
         } else {
             Ok(false)
         }
@@ -347,9 +345,7 @@ impl Player {
     /// [rate]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Rate
     pub fn checked_set_playback_rate(&self, rate: f64) -> Result<bool, DBusError> {
         if self.can_control()? && self.has_playback_rate()? {
-            self.set_playback_rate(rate)
-                .map(|_| true)
-                .map_err(DBusError::from)
+            self.set_playback_rate(rate).map(|_| true)
         } else {
             Ok(false)
         }
@@ -516,7 +512,7 @@ impl Player {
     ///
     /// [get_meta]: https://specifications.freedesktop.org/mpris-spec/latest/Track_List_Interface.html#Method:GetTracksMetadata
     pub fn get_track_metadata(&self, track_id: &TrackID) -> Result<Metadata, DBusError> {
-        self.get_tracks_metadata(&[track_id.clone()])
+        self.get_tracks_metadata(std::slice::from_ref(track_id))
             .and_then(|mut result| {
                 result.pop().map(Ok).unwrap_or_else(|| {
                     Err(DBusError::Miscellaneous(format!(
@@ -1155,9 +1151,7 @@ impl Player {
     /// [shuffle]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Shuffle
     pub fn checked_set_shuffle(&self, state: bool) -> Result<bool, DBusError> {
         if self.can_control()? && self.can_shuffle()? {
-            self.set_shuffle(state)
-                .map(|_| true)
-                .map_err(DBusError::from)
+            self.set_shuffle(state).map(|_| true)
         } else {
             Ok(false)
         }
@@ -1208,9 +1202,7 @@ impl Player {
     /// [loop_status]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:LoopStatus
     pub fn checked_set_loop_status(&self, status: LoopStatus) -> Result<bool, DBusError> {
         if self.can_control()? && self.can_loop()? {
-            self.set_loop_status(status)
-                .map(|_| true)
-                .map_err(DBusError::from)
+            self.set_loop_status(status).map(|_| true)
         } else {
             Ok(false)
         }
@@ -1264,9 +1256,7 @@ impl Player {
     /// [vol]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html#Property:Volume
     pub fn checked_set_volume(&self, volume: f64) -> Result<bool, DBusError> {
         if self.can_control()? && self.has_volume()? {
-            self.set_volume(volume)
-                .map(|_| true)
-                .map_err(DBusError::from)
+            self.set_volume(volume).map(|_| true)
         } else {
             Ok(false)
         }

@@ -140,7 +140,7 @@ impl TrackID {
 
     /// Returns a `&str` variant of the ID.
     pub fn as_str(&self) -> &str {
-        &*self.0
+        &self.0
     }
 
     pub(crate) fn as_path(&self) -> dbus::Path<'_> {
@@ -216,7 +216,7 @@ impl TrackList {
             None => return,
         };
 
-        let index = self.index_of_id(after).unwrap_or_else(|| self.ids.len());
+        let index = self.index_of_id(after).unwrap_or(self.ids.len());
 
         // Vec::insert inserts BEFORE the given index, but we need to insert *after* the index.
         if index >= self.ids.len() {
@@ -251,7 +251,7 @@ impl TrackList {
 
         self.change_metadata(|self_cache| {
             // Will overwrite existing keys on conflicts; e.g. the newer cache wins.
-            self_cache.extend(other_cache.into_iter());
+            self_cache.extend(other_cache);
         });
     }
 
@@ -344,11 +344,7 @@ impl TrackList {
     ///
     /// If all tracks already have a cache entry, then this will do nothing.
     pub fn complete_cache(&self, player: &Player) -> Result<(), TrackListError> {
-        let ids: Vec<_> = self
-            .ids_without_cache()
-            .into_iter()
-            .map(Clone::clone)
-            .collect();
+        let ids: Vec<_> = self.ids_without_cache().into_iter().cloned().collect();
         if !ids.is_empty() {
             let metadata = player.get_tracks_metadata(&ids)?;
 
@@ -370,7 +366,7 @@ impl TrackList {
         F: FnOnce(&mut HashMap<TrackID, Metadata>) -> T,
     {
         let mut cache = self.metadata_cache.borrow_mut(); // Safe. &mut self reference.
-        f(&mut *cache)
+        f(&mut cache)
     }
 
     fn ids_without_cache(&self) -> Vec<&TrackID> {

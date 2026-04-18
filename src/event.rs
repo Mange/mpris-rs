@@ -154,7 +154,7 @@ impl PlayerEvents<'_> {
                 }
                 MprisEvent::TrackListReplaced { ids } => {
                     if let Some(ref mut list) = self.track_list {
-                        list.replace(ids.into_iter().map(TrackID::from).collect());
+                        list.replace(ids.into_iter().collect());
                     }
                     self.buffer.push(Event::TrackListReplaced);
                 }
@@ -265,7 +265,7 @@ impl PlayerEvents<'_> {
 }
 
 fn is_different_float(a: f64, b: f64) -> bool {
-    (a - b).abs() >= ::std::f64::EPSILON
+    (a - b).abs() >= f64::EPSILON
 }
 
 impl<'a> Iterator for PlayerEvents<'a> {

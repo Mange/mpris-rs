@@ -204,7 +204,7 @@ impl PooledConnection {
                     .entry(unique_name)
                     .or_default()
                     .push(MprisEvent::TrackListReplaced {
-                        ids: ids.into_iter().map(TrackID::from).collect(),
+                        ids: ids.into_iter().collect(),
                     });
             }
             MprisMessage::TrackAdded {
@@ -352,7 +352,7 @@ impl MprisMessage {
                 let member = message
                     .member()
                     .map(|member| member.to_string())
-                    .unwrap_or_else(String::default);
+                    .unwrap_or_default();
                 return match member.as_ref() {
                     "PropertiesChanged" => try_parse_properties_changed(message),
                     "Seeked" => try_parse_seeked(message),
