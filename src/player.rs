@@ -554,7 +554,7 @@ impl Player {
     /// remain frozen until the next event is emitted and the iterator returns.
     ///
     /// See: [`track_progress`](Self::track_progress) for an alternative approach.
-    pub fn events(&self) -> Result<PlayerEvents, DBusError> {
+    pub fn events(&self) -> Result<PlayerEvents<'_>, DBusError> {
         PlayerEvents::new(self)
     }
 

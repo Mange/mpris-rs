@@ -31,7 +31,7 @@ use thiserror::Error;
 
 mod extensions;
 
-#[allow(unreachable_pub)]
+#[allow(unreachable_pub, dead_code)]
 mod generated;
 
 mod event;

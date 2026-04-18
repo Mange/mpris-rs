@@ -7,5 +7,5 @@ mod media_player_tracklist;
 
 // Re-export items used by the codebase here
 pub use self::media_player::OrgMprisMediaPlayer2;
-pub use self::media_player_player::{OrgMprisMediaPlayer2Player, OrgMprisMediaPlayer2PlayerSeeked};
+pub use self::media_player_player::OrgMprisMediaPlayer2Player;
 pub use self::media_player_tracklist::OrgMprisMediaPlayer2TrackList;

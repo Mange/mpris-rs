@@ -114,7 +114,7 @@ pub struct PlayerEvents<'a> {
 }
 
 impl PlayerEvents<'_> {
-    pub(crate) fn new(player: &Player) -> Result<PlayerEvents, DBusError> {
+    pub(crate) fn new(player: &Player) -> Result<PlayerEvents<'_>, DBusError> {
         let progress = Progress::from_player(player)?;
         Ok(PlayerEvents {
             player,

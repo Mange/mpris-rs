@@ -46,7 +46,7 @@ impl PooledConnection {
         bus_name: BusName<'a>,
         path: Path<'a>,
         timeout_ms: i32,
-    ) -> ConnPath<'_, &'a Connection> {
+    ) -> ConnPath<'a, &'a Connection> {
         self.connection.with_path(bus_name, path, timeout_ms)
     }
 
