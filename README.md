@@ -15,14 +15,14 @@
 > compliant media players, as well as a tracklist interface which is used to
 > add context to the active media item.
 
-From [*About*, in the MPRIS2 specification][mpris-about].
+From [_About_, in the MPRIS2 specification][mpris-about].
 
 Basically, you can use it to control media players on your computer. This is
 most commonly used to build media player applets, UIs or to pause other players
 before your own software performs some action.
 
 You can also use it in order to query metadata about what is currently playing,
-or *if* something is playing.
+or _if_ something is playing.
 
 ## How to use
 
@@ -49,7 +49,7 @@ See the `examples` directory for more examples.
 
 ## License
 
-Copyright 2017-2022 Magnus Bergmark
+Copyright 2017-2026 Magnus Bergmark
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

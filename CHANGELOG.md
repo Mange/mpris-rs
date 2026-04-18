@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v2.1.0] - 2026-04-18
+
 ### Added
 
 - `Player::bus_name_trimmed()` which returns the player's bus name without the
   MPRIS2 prefix - [Kanjirito][Kanjirito]
+
+- `debug-vendored` feature to enable the `vendored` feature of `dbus`. - [poly000][poly000]
 
 ### Deprecated
 
@@ -21,6 +25,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Removed
 
 - Removed `derive_is_enum_variant` dependency. - [poly000][poly000]
+- Removed `from_variants` dependency. - [peppidesu][peppidesu]
+
+## Changed
+
+- Bumped `thiserror` to version 2.0.
+- Bumped `termion` dev dependency to 4. - [Alexander Kjäll (alexanderkjall)][alexanderkjall]
 
 ## [v2.0.1] - 2023-06-15
 
@@ -226,19 +236,22 @@ MetadataValue>, DBusError>`.
 
 ## 0.1.0 - 2017-12-29
 
-[Unreleased]: https://github.com/Mange/mpris-rs/compare/v2.0.1...HEAD
-[v2.0.1]: https://github.com/Mange/mpris-rs/compare/v2.0.0...v2.0.1
-[v2.0.0]: https://github.com/Mange/mpris-rs/compare/v2.0.0-rc3...v2.0.0
-[v2.0.0-rc3]: https://github.com/Mange/mpris-rs/compare/v2.0.0-rc2...v2.0.0-rc3
-[v2.0.0-rc2]: https://github.com/Mange/mpris-rs/compare/v2.0.0-rc1...v2.0.0-rc2
-[v2.0.0-rc1]: https://github.com/Mange/mpris-rs/compare/v1.1.0...v2.0.0-rc1
-[v1.1.1]: https://github.com/Mange/mpris-rs/compare/v1.1.0...v1.1.1
-[v1.1.0]: https://github.com/Mange/mpris-rs/compare/v1.0.0...v1.1.0
+[Unreleased]: https://github.com/Mange/mpris-rs/compare/v2.1.0...HEAD
 [v1.0.0]: https://github.com/Mange/mpris-rs/compare/v0.1.0...v1.0.0
-[Kilobyte22]: https://github.com/Kilobyte22
-[harrisonthorne]: https://github.com/harrisonthorne
+[v1.1.0]: https://github.com/Mange/mpris-rs/compare/v1.0.0...v1.1.0
+[v1.1.1]: https://github.com/Mange/mpris-rs/compare/v1.1.0...v1.1.1
+[v2.0.0-rc1]: https://github.com/Mange/mpris-rs/compare/v1.1.0...v2.0.0-rc1
+[v2.0.0-rc2]: https://github.com/Mange/mpris-rs/compare/v2.0.0-rc1...v2.0.0-rc2
+[v2.0.0-rc3]: https://github.com/Mange/mpris-rs/compare/v2.0.0-rc2...v2.0.0-rc3
+[v2.0.0]: https://github.com/Mange/mpris-rs/compare/v2.0.0-rc3...v2.0.0
+[v2.0.1]: https://github.com/Mange/mpris-rs/compare/v2.0.0...v2.0.1
+[v2.1.0]: https://github.com/Mange/mpris-rs/compare/v2.0.1...v2.1.0
+[#81]: https://github.com/Mange/mpris-rs/issues/81
 [Kanjirito]: https://github.com/Kanjirito
+[Kilobyte22]: https://github.com/Kilobyte22
+[alexanderkjall]: https://github.com/alexanderkjall
 [fengalin]: https://github.com/fengalin
 [fufexan]: https://github.com/fufexan
+[harrisonthorne]: https://github.com/harrisonthorne
+[peppidesu]: https://github.com/peppidesu
 [poly000]: https://github.com/poly000
-[#81]: https://github.com/Mange/mpris-rs/issues/81
